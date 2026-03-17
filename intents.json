@@ -1,0 +1,789 @@
+{
+  "intents": [
+
+    // ─────────────────────────────────────────────
+    // SECTION 1: GENERAL CONVERSATION
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "greeting",
+      "patterns": [
+        "Hi", "Hello", "Hey", "Good morning", "Good afternoon",
+        "Good evening", "Good night", "Howdy", "Hey there",
+        "Greetings", "What's up", "How are you", "How are you doing",
+        "Is anyone there", "Hello?", "Hi there"
+      ],
+      "responses": [
+        "Hello! I'm here for you. How are you feeling today?",
+        "Hi there! I'm glad you reached out. What's on your mind?",
+        "Good to see you. How are you doing today?",
+        "Hello! This is a safe space. How can I support you today?",
+        "Hi! I'm here to listen. What would you like to talk about?"
+      ],
+      "context": "general"
+    },
+
+    {
+      "tag": "farewell",
+      "patterns": [
+        "Bye", "Goodbye", "See you", "See you later", "Take care",
+        "I have to go", "Gotta go", "Talk later", "Catch you later",
+        "I'm leaving", "Closing now", "That's all for now", "Thanks bye"
+      ],
+      "responses": [
+        "Take care of yourself. Remember, I'm always here when you need to talk.",
+        "Goodbye! Be kind to yourself today.",
+        "See you soon. You're doing great by taking steps to understand yourself.",
+        "Take care. Reach out anytime — no matter the hour.",
+        "Goodbye for now. Remember, every small step forward counts."
+      ],
+      "context": "general"
+    },
+
+    {
+      "tag": "gratitude",
+      "patterns": [
+        "Thank you", "Thanks", "Thank you so much", "That was helpful",
+        "You helped me", "I appreciate it", "That makes sense", "Great help",
+        "This is useful", "Cheers", "You're great", "Very helpful"
+      ],
+      "responses": [
+        "I'm really glad I could help. You're not alone in this journey.",
+        "You're welcome. It takes courage to talk about these things — well done.",
+        "Happy to help! Is there anything else on your mind?",
+        "Of course. I'm always here. Keep going — you're doing well.",
+        "It means a lot that this was helpful. How are you feeling right now?"
+      ],
+      "context": "general"
+    },
+
+    {
+      "tag": "unclear",
+      "patterns": [
+        "I don't know", "Not sure", "Maybe", "I'm confused",
+        "I don't understand", "What do you mean", "Can you explain",
+        "Huh", "Hmm", "Whatever", "Just talking", "Nothing really"
+      ],
+      "responses": [
+        "That's completely okay. Take your time — there's no rush here.",
+        "No worries. Sometimes it's hard to put things into words. I'm listening.",
+        "It's okay not to have all the answers. What are you feeling right now?",
+        "You don't need to have it figured out. Just share what feels right.",
+        "I'm here. Whenever you're ready, I'm listening."
+      ],
+      "context": "general"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 2: MOOD
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "mood_sad",
+      "patterns": [
+        "I feel sad", "I'm feeling down", "I'm depressed", "I feel empty",
+        "I feel hopeless", "Everything feels grey", "I feel worthless",
+        "I feel like nothing matters", "I'm really low", "I feel blue",
+        "I can't stop crying", "I feel numb", "Life feels meaningless",
+        "I feel broken", "I have no motivation", "I feel lost"
+      ],
+      "responses": [
+        "I'm really sorry you're feeling this way. Your feelings are valid and you're not alone.",
+        "That sounds incredibly hard. Can you tell me more about what's been happening?",
+        "Feeling sad is a signal that something needs attention — I'm here to listen.",
+        "I hear you. These feelings are real and they matter. What's been weighing on you?",
+        "You don't have to face this alone. Would you like to talk about what's brought this on?"
+      ],
+      "context": "mood",
+      "severity": "medium",
+      "follow_up": "mood_support"
+    },
+
+    {
+      "tag": "mood_anxious",
+      "patterns": [
+        "I feel anxious", "I'm worried", "I can't stop worrying",
+        "I feel nervous", "I have anxiety", "My heart is racing",
+        "I feel panicky", "I had a panic attack", "I feel restless",
+        "I'm scared", "I feel tense", "I'm overwhelmed",
+        "Everything feels too much", "I can't relax", "I feel on edge",
+        "I have racing thoughts", "I feel uneasy"
+      ],
+      "responses": [
+        "Anxiety can feel overwhelming. You're safe here — let's take this one step at a time.",
+        "I hear you. Can you tell me what's been triggering these anxious feelings?",
+        "Feeling anxious is your mind signalling that something feels uncertain. Let's talk through it.",
+        "You're not alone in feeling this way. What's been weighing most heavily on your mind?",
+        "Take a slow breath. I'm right here with you. What's going on?"
+      ],
+      "context": "mood",
+      "severity": "medium",
+      "follow_up": "coping_breathing"
+    },
+
+    {
+      "tag": "mood_angry",
+      "patterns": [
+        "I'm angry", "I feel rage", "I'm so frustrated", "I want to scream",
+        "I'm furious", "Everything makes me angry", "I can't control my anger",
+        "I lash out at people", "I feel irritable all the time",
+        "I get angry very easily", "I have a short temper", "I'm constantly irritated",
+        "People make me so angry", "I feel rage inside me"
+      ],
+      "responses": [
+        "Anger is a valid emotion. Let's talk about what's been triggering it.",
+        "It sounds like you're carrying a lot of frustration. What's been going on?",
+        "Anger often points to something deeper — a boundary crossed, or a need unmet. Can you tell me more?",
+        "I hear you. That level of anger sounds exhausting. What's been happening?",
+        "You're safe to express yourself here. What's been making you feel this way?"
+      ],
+      "context": "mood",
+      "severity": "medium",
+      "follow_up": "anger_management"
+    },
+
+    {
+      "tag": "mood_happy",
+      "patterns": [
+        "I'm feeling good", "I'm happy today", "I feel great",
+        "Things are going well", "I'm in a good mood", "I feel positive",
+        "Today was a good day", "I feel hopeful", "I feel better than before",
+        "I'm doing well", "I feel proud of myself", "I made progress today"
+      ],
+      "responses": [
+        "That's wonderful to hear! What's been contributing to these positive feelings?",
+        "I love hearing that. What's been going well for you?",
+        "That's great! Hold onto that feeling — you deserve it.",
+        "Wonderful! Progress and positive moments matter — what happened today?",
+        "So glad to hear that! What's made today feel good?"
+      ],
+      "context": "mood",
+      "severity": "low"
+    },
+
+    {
+      "tag": "mood_lonely",
+      "patterns": [
+        "I feel lonely", "I feel isolated", "Nobody understands me",
+        "I have no one to talk to", "I feel alone", "I feel disconnected",
+        "Nobody cares about me", "I feel invisible", "I have no friends",
+        "My family doesn't get me", "I feel like an outsider",
+        "I don't belong anywhere", "No one listens to me"
+      ],
+      "responses": [
+        "Loneliness is one of the hardest feelings. I'm here and I'm listening.",
+        "You reached out — and that matters. You don't have to feel alone right now.",
+        "I hear you. Feeling unseen and unheard is painful. Can you tell me more?",
+        "You matter, even when it doesn't feel that way. What's been making you feel so isolated?",
+        "I'm glad you're talking to me. What's been happening that's made you feel this disconnected?"
+      ],
+      "context": "mood",
+      "severity": "medium",
+      "follow_up": "connection_support"
+    },
+
+    {
+      "tag": "mood_guilt",
+      "patterns": [
+        "I feel guilty", "I feel ashamed", "I regret what I did",
+        "I blame myself", "It's all my fault", "I hate myself",
+        "I feel like a bad person", "I've hurt people I love",
+        "I can't forgive myself", "I keep making mistakes",
+        "I've let everyone down", "I feel like a failure"
+      ],
+      "responses": [
+        "Guilt shows that you care — but carrying it alone is heavy. Can you tell me what happened?",
+        "Self-blame can be overwhelming. You're human, and humans make mistakes. What's on your mind?",
+        "I hear you. Those feelings are painful. What's been making you feel this way?",
+        "You don't have to carry this alone. Let's talk through what happened.",
+        "Forgiving ourselves is one of the hardest things. What's been weighing on you?"
+      ],
+      "context": "mood",
+      "severity": "medium"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 3: BEHAVIOUR PATTERNS
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "behaviour_isolation",
+      "patterns": [
+        "I keep to myself", "I avoid people", "I don't go out anymore",
+        "I cancelled on everyone", "I stopped talking to friends",
+        "I don't leave my room", "I push people away", "I prefer being alone",
+        "I stopped socialising", "I don't answer calls or messages",
+        "I stay in bed all day", "I have no energy to meet anyone"
+      ],
+      "responses": [
+        "Withdrawing from others is a common response to pain. What's been making you want to pull away?",
+        "That sounds like a difficult pattern to be in. How long have you been feeling this way?",
+        "Sometimes isolation feels protective. What's been happening that's made you want to be alone?",
+        "I hear you. Withdrawing from the world can feel safe — but lonely too. Can you tell me more?",
+        "You reached out here, which shows a part of you wants connection. What's been going on?"
+      ],
+      "context": "behaviour",
+      "severity": "medium"
+    },
+
+    {
+      "tag": "behaviour_sleep",
+      "patterns": [
+        "I can't sleep", "I sleep too much", "I have insomnia",
+        "I stay up all night", "I wake up at 3am", "I have nightmares",
+        "My sleep is ruined", "I sleep all day", "I have no sleep routine",
+        "I feel tired even after sleeping", "I can't get out of bed",
+        "I oversleep every day", "Sleep is my escape"
+      ],
+      "responses": [
+        "Sleep problems often signal that something deeper is going on. How long has this been happening?",
+        "Sleep is so connected to our emotional state. What do you think is keeping you up?",
+        "I hear you — disrupted sleep can affect everything. Can you tell me more about your routine?",
+        "Whether you're sleeping too much or too little, your body is trying to tell you something. What's going on?",
+        "That sounds exhausting. Sleep disruption is often linked to stress or emotional pain. What's been happening?"
+      ],
+      "context": "behaviour",
+      "severity": "medium"
+    },
+
+    {
+      "tag": "behaviour_eating",
+      "patterns": [
+        "I'm not eating", "I can't eat", "I binge eat", "I eat when stressed",
+        "I've lost my appetite", "I eat too much", "Food is my comfort",
+        "I skip meals", "I eat to feel better", "I have no interest in food",
+        "I can't stop eating", "I eat late at night", "I eat when I'm bored"
+      ],
+      "responses": [
+        "Our relationship with food is deeply connected to our emotions. What's been going on?",
+        "I hear you. Eating patterns often reflect how we're feeling inside. Can you tell me more?",
+        "Food and emotions are closely linked for many people. What does eating feel like for you right now?",
+        "That's worth paying attention to. How long have you noticed this change in your eating?",
+        "You're not alone in this. What do you think is driving these eating patterns?"
+      ],
+      "context": "behaviour",
+      "severity": "medium"
+    },
+
+    {
+      "tag": "behaviour_aggression",
+      "patterns": [
+        "I broke something", "I hit a wall", "I got into a fight",
+        "I screamed at someone", "I hurt someone", "I destroyed things",
+        "I have violent thoughts", "I act out when angry",
+        "I throw things when angry", "I get physical when upset",
+        "I've been in trouble for fighting", "I can't control my reactions"
+      ],
+      "responses": [
+        "It takes courage to admit this. What's been happening that leads to these moments?",
+        "Those moments can feel scary — for you and others. Can you walk me through what triggers it?",
+        "I hear you. What do you think is underneath that reaction? What's the feeling before it?",
+        "Acting out physically is often a sign of pain that hasn't found another outlet. What's going on?",
+        "I'm not here to judge. Let's talk about what's been building up inside you."
+      ],
+      "context": "behaviour",
+      "severity": "high",
+      "follow_up": "anger_management"
+    },
+
+    {
+      "tag": "behaviour_self_harm",
+      "patterns": [
+        "I hurt myself", "I cut myself", "I self harm",
+        "I scratch myself when upset", "I burn myself",
+        "I hit myself", "I pull my hair out",
+        "I injure myself on purpose", "I harm my body",
+        "Physical pain helps me cope", "I punish myself"
+      ],
+      "responses": [
+        "Thank you for trusting me with this. Your safety matters more than anything right now. Please reach out to a mental health professional or crisis line as soon as you can.",
+        "I hear you. What you're going through must be incredibly painful. Please speak to a healthcare provider today — you deserve proper support.",
+        "This is important. I'm concerned about your safety. Please contact a crisis helpline or visit your nearest health centre right away.",
+        "You matter deeply. Self-harm is a sign that the pain has become too much to carry alone — please reach out to a professional who can truly help."
+      ],
+      "context": "crisis",
+      "severity": "critical",
+      "always_show_resources": true
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 4: TRIGGERS
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "trigger_stress",
+      "patterns": [
+        "I'm so stressed", "Work is stressing me out", "I have too much pressure",
+        "Deadlines are killing me", "I can't handle the pressure",
+        "Everything is piling up", "I feel overwhelmed with responsibilities",
+        "My boss is stressing me out", "Family pressure is too much",
+        "Financial stress is getting to me", "I have too much on my plate",
+        "I can't cope with the workload"
+      ],
+      "responses": [
+        "Stress at that level is unsustainable. What's putting the most pressure on you right now?",
+        "That sounds really heavy. Let's talk about what's driving the stress — where does it feel worst?",
+        "You don't have to handle all of this alone. What's the biggest thing on your mind right now?",
+        "Overwhelm often comes from carrying too much for too long. What's been piling up for you?",
+        "I hear you. What would feel like the most important thing to address first?"
+      ],
+      "context": "trigger",
+      "severity": "medium"
+    },
+
+    {
+      "tag": "trigger_trauma",
+      "patterns": [
+        "I went through something traumatic", "I was abused", "I experienced violence",
+        "I had a traumatic childhood", "I was assaulted", "Something bad happened to me",
+        "I have PTSD", "I have flashbacks", "I can't stop thinking about what happened",
+        "A traumatic event changed me", "I witnessed something horrific",
+        "I was in an accident", "I lost someone suddenly"
+      ],
+      "responses": [
+        "I'm so sorry that happened to you. You didn't deserve that, and what you're feeling makes complete sense.",
+        "Thank you for trusting me with something so personal. Trauma leaves real marks — you're not making this up.",
+        "What you went through sounds incredibly difficult. I'm here, and I'm listening.",
+        "Your feelings about what happened are valid. Have you been able to speak with a trauma-informed professional?",
+        "That sounds like a lot to carry. You don't have to process this alone — professional support can really help."
+      ],
+      "context": "trigger",
+      "severity": "high"
+    },
+
+    {
+      "tag": "trigger_relationship",
+      "patterns": [
+        "My relationship is falling apart", "I had a breakup", "My partner left me",
+        "I'm going through a divorce", "I feel unloved", "My relationship is toxic",
+        "My partner doesn't understand me", "We keep fighting",
+        "I feel trapped in my relationship", "I'm dealing with infidelity",
+        "I was cheated on", "I'm in an abusive relationship",
+        "My family relationships are broken", "I feel rejected by my partner"
+      ],
+      "responses": [
+        "Relationship pain can cut very deep. I'm sorry you're going through this. Can you tell me more?",
+        "That sounds really hard. What's been happening in the relationship?",
+        "Feeling unloved or rejected is one of the most painful human experiences. I'm here.",
+        "Relationships have a huge impact on our mental health. What's been most difficult?",
+        "I hear you. What would feel most helpful to talk through right now?"
+      ],
+      "context": "trigger",
+      "severity": "medium"
+    },
+
+    {
+      "tag": "trigger_grief",
+      "patterns": [
+        "I lost someone", "Someone I love died", "I'm grieving",
+        "I'm dealing with loss", "I can't get over someone's death",
+        "My loved one passed away", "I lost my parent", "I lost my child",
+        "I lost my friend", "I'm mourning", "Death has affected me deeply",
+        "I don't know how to grieve", "I'm struggling with bereavement"
+      ],
+      "responses": [
+        "I'm so deeply sorry for your loss. Grief has no timeline — be gentle with yourself.",
+        "Losing someone you love changes everything. I'm here to listen for as long as you need.",
+        "Grief is love with nowhere to go. What you're feeling is completely natural.",
+        "There's no right way to grieve. How are you doing right now?",
+        "I'm truly sorry. Would you like to tell me about the person you lost?"
+      ],
+      "context": "trigger",
+      "severity": "high"
+    },
+
+    {
+      "tag": "trigger_financial",
+      "patterns": [
+        "I have money problems", "I'm in debt", "I can't afford basic things",
+        "I'm broke", "I lost my job", "I'm unemployed",
+        "Financial stress is ruining me", "I can't pay my bills",
+        "I'm worried about money", "I have no savings", "I'm facing bankruptcy"
+      ],
+      "responses": [
+        "Financial stress is one of the most common triggers for anxiety and depression. You're not alone.",
+        "That sounds really stressful. Money problems affect every area of life. What's the biggest concern right now?",
+        "I hear you. Financial pressure can feel suffocating. How long have you been dealing with this?",
+        "This is really tough. Have you been able to speak to anyone — a financial advisor or support service?",
+        "You're dealing with a lot. Let's talk about how this has been affecting you."
+      ],
+      "context": "trigger",
+      "severity": "medium"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 5: ADDICTION — ALCOHOL
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "addiction_alcohol",
+      "patterns": [
+        "I drink too much", "I have a drinking problem", "I can't stop drinking",
+        "I'm an alcoholic", "I drink every day", "Alcohol helps me cope",
+        "I need a drink to get through the day", "I drink when I'm stressed",
+        "I drink when I'm lonely", "I hide how much I drink",
+        "People say I drink too much", "I've tried to stop drinking but can't",
+        "Alcohol is ruining my life", "I drink to forget",
+        "I blackout when I drink", "I can't imagine life without alcohol"
+      ],
+      "responses": [
+        "Thank you for being honest about this. Acknowledging it takes real courage. How long have you been feeling dependent on alcohol?",
+        "Alcohol dependency is more common than people realise, and it's treatable. What does a typical day of drinking look like for you?",
+        "I hear you. Alcohol often starts as a way to cope — what has it been helping you escape from?",
+        "You're not weak for struggling with this. It's a real condition that responds well to support. Have you spoken to a doctor?",
+        "That took courage to share. What's been making it hard to cut back or stop?"
+      ],
+      "context": "addiction",
+      "severity": "high",
+      "addiction_type": "substance",
+      "follow_up": "professional_referral"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 6: ADDICTION — DRUGS
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "addiction_drugs",
+      "patterns": [
+        "I use drugs", "I'm addicted to drugs", "I can't stop using",
+        "I take pills to cope", "I use to feel normal",
+        "I'm dependent on substances", "I use recreational drugs",
+        "I've been using cocaine", "I use marijuana every day",
+        "I'm hooked on painkillers", "I use opioids",
+        "I've tried to quit drugs but relapsed", "Drug use is taking over my life",
+        "I spend all my money on drugs", "I use drugs to numb the pain",
+        "I can't function without using"
+      ],
+      "responses": [
+        "Thank you for trusting me with this. What you're going through is serious, and you deserve proper support.",
+        "Substance use often fills a gap — numbing pain, creating calm, or providing escape. What's been driving it for you?",
+        "You're not alone in this. Many people have found their way through with the right help. Have you been able to speak to a professional?",
+        "That took a lot to say. What does your current use look like, and how long has it been going on?",
+        "Recovery is possible — many people do it every day. What feels like the biggest barrier to getting help right now?"
+      ],
+      "context": "addiction",
+      "severity": "high",
+      "addiction_type": "substance",
+      "follow_up": "professional_referral"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 7: ADDICTION — GAMING
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "addiction_gaming",
+      "patterns": [
+        "I can't stop gaming", "I game all night", "Gaming is ruining my life",
+        "I skip meals to game", "I game instead of sleeping",
+        "I've lost relationships because of gaming", "I spend all day gaming",
+        "I get angry when I can't game", "I can't focus on real life",
+        "Gaming is the only thing I enjoy", "My grades are dropping because of gaming",
+        "I game to escape reality", "I spend all my money on games",
+        "I feel empty without gaming", "I've tried to stop gaming but can't",
+        "Gaming is more real to me than real life"
+      ],
+      "responses": [
+        "Gaming addiction is increasingly recognised as a real condition. What does a typical gaming day look like for you?",
+        "Games are designed to be compelling — but when they start replacing life, it's worth exploring. What does gaming give you that real life doesn't?",
+        "I hear you. Many people use gaming as an escape — from stress, loneliness, or pain. What's been going on in your life outside of gaming?",
+        "That sounds like gaming has become more of a coping mechanism than a hobby. How long has it felt this way?",
+        "You're not alone. Gaming addiction affects many people. What's been hardest about trying to cut back?"
+      ],
+      "context": "addiction",
+      "severity": "medium",
+      "addiction_type": "behavioural",
+      "follow_up": "behavioural_addiction_support"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 8: ADDICTION — SOCIAL MEDIA
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "addiction_social_media",
+      "patterns": [
+        "I can't stop scrolling", "I'm addicted to social media",
+        "I check my phone constantly", "I can't put my phone down",
+        "I feel anxious without my phone", "Social media is consuming me",
+        "I compare myself to others online", "I feel bad after scrolling",
+        "I spend hours on Instagram", "I spend hours on TikTok",
+        "I need likes to feel good", "I feel worthless when posts don't get likes",
+        "I've lost hours to social media", "I check notifications obsessively",
+        "I can't be present because of my phone",
+        "Online validation is important to me", "I feel FOMO constantly"
+      ],
+      "responses": [
+        "Social media is engineered to be addictive — you're not weak for struggling with it. What does your typical screen time look like?",
+        "The comparison trap on social media is real and damaging. How does scrolling make you feel afterward?",
+        "I hear you. That constant pull to check is exhausting. What do you think you're looking for when you open the app?",
+        "Many people feel exactly this way. Social media can fill a loneliness gap temporarily — but often deepens it. What's been going on?",
+        "Phone anxiety is very real. What would feel most difficult about putting it down for a few hours?"
+      ],
+      "context": "addiction",
+      "severity": "medium",
+      "addiction_type": "behavioural",
+      "follow_up": "digital_detox_support"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 9: ADDICTION — GAMBLING
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "addiction_gambling",
+      "patterns": [
+        "I can't stop gambling", "I've lost a lot of money gambling",
+        "I gamble online constantly", "Betting is taking over my life",
+        "I gamble to win back what I lost", "I hide gambling from my family",
+        "I've borrowed money to gamble", "I feel a rush when I gamble",
+        "I think about gambling all the time", "I can't stop placing bets",
+        "Sports betting is ruining me", "Casino is my escape",
+        "I gamble when I'm stressed", "I need to gamble to feel alive"
+      ],
+      "responses": [
+        "Gambling addiction can spiral quickly and quietly. You were brave to acknowledge it. How long has this been going on?",
+        "The cycle of chasing losses is a hallmark of gambling addiction — it's not a character flaw. What started it for you?",
+        "I hear you. The thrill of gambling activates the same reward system as substances. Have you been able to talk to anyone about this?",
+        "Financial and emotional damage from gambling can feel overwhelming. What's been the biggest impact on your life?",
+        "Recovery from gambling addiction is absolutely possible. What feels like the biggest barrier right now?"
+      ],
+      "context": "addiction",
+      "severity": "high",
+      "addiction_type": "behavioural",
+      "follow_up": "professional_referral"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 10: ADDICTION — PORNOGRAPHY
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "addiction_pornography",
+      "patterns": [
+        "I'm addicted to porn", "I can't stop watching pornography",
+        "Porn is affecting my relationships", "I watch porn compulsively",
+        "I feel shame about my porn use", "Porn has replaced real intimacy",
+        "I spend hours watching porn", "I watch porn at work",
+        "Porn is affecting my mental health", "I feel out of control with porn"
+      ],
+      "responses": [
+        "Thank you for being open about this. Compulsive pornography use affects many people and is a recognised issue. How long has this felt out of control?",
+        "Porn addiction often connects to deeper emotional needs. What do you think it's been filling for you?",
+        "The shame around this can make it hard to seek help — but you deserve support. Have you spoken to a professional?",
+        "I hear you. This is more common than people admit. What's been most difficult about trying to change this pattern?"
+      ],
+      "context": "addiction",
+      "severity": "medium",
+      "addiction_type": "behavioural",
+      "follow_up": "professional_referral"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 11: ADDICTION — FOOD / EATING
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "addiction_food",
+      "patterns": [
+        "I eat compulsively", "I can't stop eating", "I binge eat",
+        "Food is my addiction", "I eat when I'm emotional",
+        "I eat in secret", "I feel out of control around food",
+        "I eat when I'm not even hungry", "I use food to cope",
+        "I feel ashamed about how much I eat",
+        "I eat to numb myself", "I can't resist junk food",
+        "Eating is the only thing that makes me feel better"
+      ],
+      "responses": [
+        "Food addiction and emotional eating are real and valid struggles. What does eating feel like for you emotionally?",
+        "Many people use food as a coping mechanism — it's not a lack of willpower. What emotions tend to trigger the eating?",
+        "I hear you. Eating can feel like comfort and control. What's been going on in your life that's been hardest to handle?",
+        "The relationship between emotions and eating runs very deep. How long have you been experiencing this?",
+        "You're not alone in this. Have you been able to speak with a nutritionist or therapist about this pattern?"
+      ],
+      "context": "addiction",
+      "severity": "medium",
+      "addiction_type": "behavioural",
+      "follow_up": "professional_referral"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 12: ADDICTION — WORK / PRODUCTIVITY
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "addiction_work",
+      "patterns": [
+        "I'm a workaholic", "I can't stop working", "Work is my entire life",
+        "I work 16 hours a day", "I feel guilty when I'm not working",
+        "I don't know how to rest", "My identity is tied to my work",
+        "I've sacrificed relationships for work", "I work on weekends and holidays",
+        "Working is how I cope", "I feel worthless when I'm not productive",
+        "I can't switch off from work", "Rest feels like laziness to me"
+      ],
+      "responses": [
+        "Work addiction is often praised by society — but it takes a real toll. What happens when you try to stop working?",
+        "Using work as a way to feel valued or avoid emotions is very common. What does being busy give you?",
+        "I hear you. The pressure to be constantly productive can be crushing. What are you afraid happens if you slow down?",
+        "Workaholism often masks anxiety or a fear of worthlessness. What's driving the need to always be working?",
+        "Rest is not a reward — it's a need. What would 'enough' look like for you?"
+      ],
+      "context": "addiction",
+      "severity": "medium",
+      "addiction_type": "behavioural"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 13: ADDICTION — SHOPPING
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "addiction_shopping",
+      "patterns": [
+        "I can't stop shopping", "I shop when I'm sad",
+        "Shopping makes me feel better", "I've spent all my money shopping",
+        "I buy things I don't need", "I hide purchases from my partner",
+        "Online shopping is out of control", "I feel a rush when I buy something",
+        "Shopping is how I cope with stress", "I have a shopping addiction"
+      ],
+      "responses": [
+        "Compulsive shopping often provides a short-lived emotional boost. What does buying something feel like in the moment?",
+        "I hear you. Shopping can be a way to manage painful emotions. What tends to trigger it for you?",
+        "The relief from shopping is real — but temporary. What's been happening in your life that's been hardest to sit with?",
+        "Many people use retail therapy to cope. Have you noticed a pattern in when the urge to shop is strongest?"
+      ],
+      "context": "addiction",
+      "severity": "medium",
+      "addiction_type": "behavioural"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 14: ADDICTION — NICOTINE / SMOKING
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "addiction_nicotine",
+      "patterns": [
+        "I can't quit smoking", "I'm addicted to cigarettes",
+        "I vape constantly", "I need to smoke to relax",
+        "I've tried to quit but failed", "Smoking is how I deal with stress",
+        "I smoke a pack a day", "I've been smoking for years",
+        "I smoke when I'm anxious", "Nicotine patches don't work for me"
+      ],
+      "responses": [
+        "Nicotine addiction is one of the strongest there is — quitting is genuinely hard. How long have you been smoking?",
+        "Smoking as a stress reliever is extremely common. What tends to trigger the urge most strongly?",
+        "Many people try several times before quitting for good — that doesn't mean you've failed. What's worked partially before?",
+        "I hear you. Have you spoken to a doctor about cessation support? There are options that work well alongside willpower."
+      ],
+      "context": "addiction",
+      "severity": "medium",
+      "addiction_type": "substance",
+      "follow_up": "professional_referral"
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 15: CRISIS & SAFETY
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "crisis_suicidal",
+      "patterns": [
+        "I want to die", "I want to kill myself", "I'm thinking about suicide",
+        "I don't want to be here anymore", "I've been thinking about ending it",
+        "Life is not worth living", "I have a plan to end my life",
+        "Nobody would miss me", "The world is better without me",
+        "I want to disappear forever", "I'm thinking of harming myself fatally",
+        "I feel like giving up on life", "I can't go on anymore"
+      ],
+      "responses": [
+        "What you're feeling right now is real, and I'm taking it seriously. Please contact a crisis line or go to your nearest emergency room right now. You matter, and this feeling can change with the right support.",
+        "I'm very concerned about you. Please reach out to a crisis helpline immediately or go to your nearest hospital. You deserve to be here.",
+        "This is a crisis moment, and you deserve immediate support. Please call emergency services or a crisis line right now. I'm here with you until you do."
+      ],
+      "context": "crisis",
+      "severity": "critical",
+      "always_show_resources": true,
+      "immediate_escalation": true
+    },
+
+    {
+      "tag": "crisis_abuse",
+      "patterns": [
+        "I'm being abused", "Someone is hurting me", "I'm in a dangerous situation",
+        "My partner hits me", "I'm scared of someone at home",
+        "I'm being threatened", "I feel unsafe at home",
+        "Someone is controlling me", "I'm experiencing domestic violence",
+        "I'm afraid to go home"
+      ],
+      "responses": [
+        "Your safety is the most important thing right now. If you are in immediate danger, please call emergency services. You are not alone and this is not your fault.",
+        "What you're describing is serious and you deserve to be safe. Please reach out to a domestic violence helpline or emergency services as soon as you can.",
+        "I'm very concerned about your safety. Please contact emergency services or a local support shelter immediately. You deserve to be safe."
+      ],
+      "context": "crisis",
+      "severity": "critical",
+      "always_show_resources": true,
+      "immediate_escalation": true
+    },
+
+    // ─────────────────────────────────────────────
+    // SECTION 16: COPING & SUPPORT
+    // ─────────────────────────────────────────────
+
+    {
+      "tag": "coping_breathing",
+      "patterns": [
+        "Help me calm down", "I need to calm down", "I'm panicking right now",
+        "I can't breathe properly", "I feel like I'm going to lose control",
+        "I need something to calm me", "How do I calm anxiety",
+        "I need a coping technique", "Help me with breathing"
+      ],
+      "responses": [
+        "Let's try this together. Breathe in slowly for 4 counts... hold for 4... and out for 6. Repeat this 3 times. How do you feel?",
+        "Try the 5-4-3-2-1 grounding technique: name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, 1 you can taste. This can bring you back to the present.",
+        "Place one hand on your chest and breathe slowly into your belly. In for 4 seconds, out for 8 seconds. You're safe right now."
+      ],
+      "context": "coping",
+      "severity": "medium"
+    },
+
+    {
+      "tag": "coping_journaling",
+      "patterns": [
+        "How do I process my feelings", "What can I do to feel better",
+        "How do I deal with my emotions", "I want to understand myself better",
+        "What coping strategies are there", "How do I manage my mental health",
+        "I want to help myself", "What can I do right now"
+      ],
+      "responses": [
+        "Journaling can be a powerful tool. Try writing about what you're feeling without judgment — just let it flow onto the page.",
+        "Some strategies that help many people: daily journaling, gentle exercise, limiting social media, talking to someone you trust, and consistent sleep.",
+        "Small steps matter. Even 5 minutes of quiet reflection, a short walk, or writing down three things you're grateful for can shift your state.",
+        "Being here and asking these questions is already a coping strategy. What feels most manageable to try today?"
+      ],
+      "context": "coping",
+      "severity": "low"
+    },
+
+    {
+      "tag": "professional_referral",
+      "patterns": [
+        "Should I see a therapist", "Do I need professional help",
+        "How do I find a counsellor", "Is therapy right for me",
+        "I think I need help", "I want to talk to someone professional",
+        "How do I get mental health support", "Where can I get help"
+      ],
+      "responses": [
+        "Reaching out for professional help is one of the bravest things you can do. A therapist or counsellor can provide the personalised support you deserve.",
+        "Yes — based on what you've shared, speaking with a mental health professional would be really valuable. Your doctor can refer you, or you can search for licensed therapists in your area.",
+        "Therapy is not just for crisis moments — it's for anyone who wants to understand themselves better and feel more supported. I'd encourage you to explore it.",
+        "You've taken a great first step by talking here. A professional can offer tools and ongoing support that go far beyond what I'm able to provide."
+      ],
+      "context": "support",
+      "severity": "medium"
+    }
+
+  ]
+}
