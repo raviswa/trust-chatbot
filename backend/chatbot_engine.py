@@ -213,6 +213,140 @@ except Exception as _rr_err:
 _sessions: Dict[str, dict] = {}
 
 
+# ── CLINICAL HANDSHAKE: Binary feedback protocol (Layer 5) ───────────────────
+# Intercepts special feedback tokens in Layer 1.65 before the full LLM pipeline.
+# Token contract (sent by FeedbackCard buttons in the frontend):
+#   “feedback_thumbsup”          → Stabilize exit (Rule 2)
+#   “feedback_pivot_overwhelmed”  → Co-presence Plan B (Rule 3)
+#   “feedback_pivot_urge”         → Somatic reset Plan B (Rule 3)
+#   “feedback_pivot_stealth”      → Stealth grounding Plan B (Rule 3)
+#   “quiet” / “sos”              → Opt-out / final closure (Rule 4)
+
+_FEEDBACK_THUMBSUP_TOKENS: frozenset = frozenset({"feedback_thumbsup", "👍"})
+_FEEDBACK_PIVOT_TOKENS: Dict[str, str] = {
+    "feedback_pivot_overwhelmed": "overwhelmed",
+    "feedback_pivot_urge":        "urge",
+    "feedback_pivot_stealth":     "stealth",
+}
+_FEEDBACK_OPTOUT_TOKENS: frozenset = frozenset({"quiet", "sos"})
+
+_HANDSHAKE_STABILIZE = (
+    "Noted. That tool is now marked as a high-value resource for you.\n\n"
+    "Take a ten-second breath to let this feeling of control settle in.\n\n"
+    "I'm standing by. If the urge shifts or returns, just type 'Help' or tap a tool below. "
+    "Go ahead with your next task when you're ready."
+)
+
+_HANDSHAKE_OPTOUT = (
+    "Your only job for the next hour is to stay hydrated and notice your breathing. "
+    "I am right here if the wave peaks again."
+)
+
+_SOS_RESPONSE = (
+    "Reaching out to your primary contact now.\n\n"
+    "While you wait: press both feet firmly to the floor. Breathe in for four counts, "
+    "out for six. You are not alone and this moment will pass.\n\n"
+    "UK Crisis Line: 0808 808 8000  •  US: 988 (Suicide & Crisis Lifeline)  •  "
+    "Text HOME to 741741 (Crisis Text Line)."
+)
+
+_HANDSHAKE_PIVOT: Dict[str, str] = {
+    "overwhelmed": (
+        "Understood. Recovery is about finding the right key for the lock. "
+        "Let's try Co-Presence instead.\n\n"
+        "I'm right here with you. No need to do anything at all. Just breathe.\n\n"
+        "If this doesn't feel right either, type 'Quiet' for a five-minute silent frame, "
+        "or 'SOS' for your primary contact."
+    ),
+    "urge": (
+        "Understood. Recovery is about finding the right key for the lock. "
+        "Let's try a somatic reset instead.\n\n"
+        "Splash cold water on your face right now. Hold there for ten seconds. "
+        "This activates your dive reflex and slows your heart rate.\n\n"
+        "If this doesn't feel right either, type 'Quiet' for a five-minute silent frame, "
+        "or 'SOS' for your primary contact."
+    ),
+    "stealth": (
+        "Understood. Recovery is about finding the right key for the lock. "
+        "Let's try a stealth grounding exercise instead.\n\n"
+        "Close your eyes for three seconds. Name five things you can see, "
+        "four you can physically touch, three you can hear. Eyes open. Breathe.\n\n"
+        "If this doesn't feel right either, type 'Quiet' for a five-minute silent frame, "
+        "or 'SOS' for your primary contact."
+    ),
+}
+
+
+def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
+    """
+    Layer 1.65 — Clinical Handshake intercept.
+
+    Returns a ready-to-return response dict when the message is a feedback token,
+    or None to let the normal LLM/RAG pipeline continue.
+
+    No questions are asked. No open-ended prompts issued.
+    Transitions the patient to Equanimity (Stabilize) or Alternative Action (Re-Route).
+    """
+    msg_stripped = message.strip()
+    msg_lower    = msg_stripped.lower()
+
+    # — Rule 2: Thumbs-up → Stabilize exit —
+    if msg_stripped in _FEEDBACK_THUMBSUP_TOKENS:
+        session["pending_feedback_intent"] = None
+        return {
+            "response":       _HANDSHAKE_STABILIZE,
+            "intent":         "feedback_thumbsup",
+            "severity":       "low",
+            "show_resources": False,
+            "citations":      [],
+            "show_score":     False,
+            "video":          None,
+            "show_feedback":  False,
+        }
+
+    # — Rule 3: Pivot selection → Re-Route exit with Plan B tool —
+    if msg_stripped in _FEEDBACK_PIVOT_TOKENS:
+        pivot_type = _FEEDBACK_PIVOT_TOKENS[msg_stripped]
+        session["pending_feedback_intent"] = None
+        return {
+            "response":       _HANDSHAKE_PIVOT[pivot_type],
+            "intent":         f"feedback_pivot_{pivot_type}",
+            "severity":       "low",
+            "show_resources": False,
+            "citations":      [],
+            "show_score":     False,
+            "video":          None,
+            "show_feedback":  False,
+        }
+
+    # — Rule 4: Opt-out / final closure —
+    if msg_lower == "sos":
+        return {
+            "response":       _SOS_RESPONSE,
+            "intent":         "feedback_sos",
+            "severity":       "high",
+            "show_resources": True,
+            "citations":      [],
+            "show_score":     False,
+            "video":          None,
+            "show_feedback":  False,
+        }
+
+    if msg_lower == "quiet":
+        return {
+            "response":       _HANDSHAKE_OPTOUT,
+            "intent":         "feedback_optout",
+            "severity":       "low",
+            "show_resources": False,
+            "citations":      [],
+            "show_score":     False,
+            "video":          None,
+            "show_feedback":  False,
+        }
+
+    return None
+
+
 def get_session(session_id: str) -> Dict:
     """Get or create session."""
     if session_id not in _sessions:
@@ -224,6 +358,7 @@ def get_session(session_id: str) -> Dict:
             "message_count": 0,
             "last_question_asked": False,
             "seen_chunk_ids": set(),  # RAG deduplication: tracks chunks shown this session
+            "pending_feedback_intent": None,  # Clinical Handshake: last delivered intervention intent
         }
     return _sessions[session_id]
 
@@ -512,6 +647,23 @@ def handle_message(
                 "timestamp":       datetime.now().isoformat(),
                 "show_score":      False,
                 "video":           None,
+            }
+
+    # ── LAYER 1.65: CLINICAL HANDSHAKE FEEDBACK INTERCEPT ────────────────
+    # Intercepts binary feedback tokens (👍 / pivot choices / "quiet" / "sos")
+    # before the full LLM/RAG pipeline and returns the Clinical Handshake immediately.
+    # Crisis intercepts always have priority, so this gates on NOT _semantic_crisis_override.
+    if not _semantic_crisis_override:
+        _feedback_result = _handle_feedback_intercept(message, session)
+        if _feedback_result is not None:
+            logger.info(
+                "[%s] Clinical Handshake intercept: intent=%s",
+                session_id, _feedback_result.get("intent"),
+            )
+            return {
+                **_feedback_result,
+                "session_id": session_id,
+                "timestamp":  datetime.now().isoformat(),
             }
 
     # ── LAYER 2: INTENT CLASSIFICATION ───────────────────────────────────
@@ -879,12 +1031,18 @@ Core guidelines:
                 if _pv:
                     video = _pv
 
+    # Tag session with the last intervention intent so downstream tooling can
+    # correlate a Clinical Handshake 👍/👎 response back to the tool that was served.
+    if response_meta.get("show_feedback"):
+        session["pending_feedback_intent"] = intent
+
     return {
         "response": response_text,
         "intent": intent,
         "severity": severity,
         "show_resources": response_meta.get("show_resources", False),
         "resource_links": safety_checker.get_resource_links(intent) if response_meta.get("show_resources") else {},
+        "show_feedback": response_meta.get("show_feedback", False),
         "video": video,
         "session_id": session_id,
         "patient_code": patient_code,

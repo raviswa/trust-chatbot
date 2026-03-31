@@ -153,7 +153,45 @@ function VideoCard({ video }) {
     </div>
   );
 }
+// ── Feedback card component (binary 👍/👎 — Clinical Handshake, Layer 5) ────────
+function FeedbackCard({ onFeedback }) {
+  const [phase, setPhase] = useState('initial'); // 'initial' | 'pivot' | 'done'
 
+  function handleThumbsUp() {
+    setPhase('done');
+    onFeedback('feedback_thumbsup');
+  }
+
+  function handleThumbsDown() {
+    setPhase('pivot');
+  }
+
+  function handlePivot(token) {
+    setPhase('done');
+    onFeedback(token);
+  }
+
+  if (phase === 'done') return null;
+
+  return (
+    <div className="fb-card">
+      {phase === 'initial' && (
+        <div className="fb-buttons">
+          <button className="fb-btn fb-up"  onClick={handleThumbsUp}>👍 Helped</button>
+          <button className="fb-btn fb-down" onClick={handleThumbsDown}>👎 Didn’t work</button>
+        </div>
+      )}
+      {phase === 'pivot' && (
+        <div className="fb-pivot">
+          <div className="fb-pivot-label">Choose a different approach — steady:</div>
+          <button className="fb-btn fb-pivot-btn" onClick={() => handlePivot('feedback_pivot_overwhelmed')}>Too overwhelmed</button>
+          <button className="fb-btn fb-pivot-btn" onClick={() => handlePivot('feedback_pivot_urge')}>Not hitting the urge</button>
+          <button className="fb-btn fb-pivot-btn" onClick={() => handlePivot('feedback_pivot_stealth')}>Can’t do this here</button>
+        </div>
+      )}
+    </div>
+  );
+}
 // ── Main page ────────────────────────────────────────────────────
 export default function ChatPage() {
   const [screen, setScreen]         = useState('select');
@@ -220,6 +258,7 @@ export default function ChatPage() {
         showResources:data.showResources, citations:data.citations||[],
         scoreData: data.score_data || null,
         video:     data.video     || null,
+        showFeedback: data.showFeedback || false,
       }]);
     } catch(e) {
       setMessages(prev => [...prev, { role:'assistant', content:'I am sorry, something went wrong. Please try again.', intent:'error' }]);
@@ -235,6 +274,31 @@ export default function ChatPage() {
 
   function handleScoreSubmit(group, val) {
     setScores(prev => ({ ...prev, [group]: val }));
+  }
+
+  async function sendFeedback(token) {
+    // Sends a Clinical Handshake token through the normal /api/chat endpoint.
+    // The backend Layer 1.65 intercept handles it before the LLM pipeline.
+    setLoading(true);
+    try {
+      const res  = await fetch('/api/chat', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ message:token, sessionId: sessionIdRef.current, patientCode:patient?.code }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setMessages(prev => [...prev, {
+        role:'assistant', content:data.response,
+        intent:data.intent, severity:data.severity,
+        showResources:data.showResources, citations:data.citations||[],
+        scoreData:null, video:null, showFeedback:false,
+      }]);
+    } catch(e) {
+      setMessages(prev => [...prev, { role:'assistant', content:'Something went wrong. Please try again.', intent:'error' }]);
+    } finally {
+      setLoading(false);
+      inputRef.current?.focus();
+    }
   }
 
   return (
@@ -315,6 +379,19 @@ export default function ChatPage() {
         .sbtn:disabled{opacity:0.3;cursor:not-allowed}
         .sbtn:not(:disabled):hover{opacity:0.85;transform:scale(1.04)}
         .disc{text-align:center;font-size:11px;color:#334155;padding:0 24px 10px;flex-shrink:0}
+
+        /* binary feedback / pivot */
+        .fb-card{margin-top:8px;background:#192337;border:1px solid rgba(45,106,159,0.3);border-radius:12px;padding:12px 14px}
+        .fb-buttons{display:flex;gap:8px;flex-wrap:wrap}
+        .fb-btn{border:none;border-radius:10px;padding:9px 18px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+        .fb-up{background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.35)}
+        .fb-up:hover{background:rgba(74,222,128,0.25)}
+        .fb-down{background:rgba(248,113,113,0.12);color:#f87171;border:1px solid rgba(248,113,113,0.28)}
+        .fb-down:hover{background:rgba(248,113,113,0.22)}
+        .fb-pivot{display:flex;flex-direction:column;gap:7px}
+        .fb-pivot-label{font-size:11.5px;color:#64748b;margin-bottom:1px;letter-spacing:0.3px}
+        .fb-pivot-btn{background:rgba(45,106,159,0.18);color:#93c5fd;border:1px solid rgba(45,106,159,0.35);text-align:left;width:100%}
+        .fb-pivot-btn:hover{background:rgba(45,106,159,0.28)}
       `}</style>
 
       <div className="shell">
@@ -417,6 +494,13 @@ export default function ChatPage() {
                     {/* Video thumbnail card */}
                     {msg.role === 'assistant' && msg.video && (
                       <VideoCard video={msg.video} />
+                    )}
+
+                    {/* Binary feedback card — Clinical Handshake, shown once per intervention */}
+                    {msg.role === 'assistant' && msg.showFeedback && (
+                      <FeedbackCard
+                        onFeedback={sendFeedback}
+                      />
                     )}
 
                     {msg.intent && msg.role === 'assistant' && (

@@ -938,6 +938,7 @@ class ResponseGenerator:
             "show_resources": template.get("show_resources", False) if template else False,
             "generated_at": datetime.now().isoformat(),
             "routing": routing,  # full routing info for chatbot_engine video selection
+            "show_feedback": intent in self._INTERVENTION_INTENTS,
         }
         return response, metadata
 
@@ -1130,6 +1131,20 @@ class ResponseGenerator:
         "crisis_suicidal", "crisis_abuse", "medication_request", "psychosis_indicator",
     })
 
+    # Intents where an active coping tool was delivered — eligible for binary feedback.
+    # Layer 5, Rule 1: all these responses receive a feedback nudge + 👍/👎 UI buttons.
+    _INTERVENTION_INTENTS: frozenset = frozenset({
+        "mood_sad", "mood_anxious", "mood_angry", "severe_distress",
+        "behaviour_sleep", "behaviour_aggression", "behaviour_exercise",
+        "trigger_stress", "trigger_grief",
+        "addiction_drugs", "addiction_gaming", "addiction_nicotine",
+        "addiction_gambling", "addiction_social_media", "addiction_work",
+        "relapse_disclosure",
+    })
+
+    # Closing line appended after every intervention (Layer 5 Rule 1 — binary feedback).
+    _FEEDBACK_NUDGE = "Did that help quiet the noise? Tap below when you're ready."
+
     def _enforce_5layer_rules(self, response_text: str, intent: str) -> str:
         """
         Layer 5 compliance: every response must end with a tool, practice, or opt-out.
@@ -1160,6 +1175,11 @@ class ResponseGenerator:
         if stripped_question:
             agency = self._AGENCY_CLOSE.get(intent, "I'm here whenever you're ready to continue.")
             response_text = response_text.rstrip() + "\n\n" + agency
+
+        # Binary feedback nudge — appended unconditionally for all active-coping interventions.
+        # The frontend renders 👍/👎 buttons when show_feedback=True; this text frames them.
+        if intent in self._INTERVENTION_INTENTS:
+            response_text = response_text.rstrip() + "\n\n" + self._FEEDBACK_NUDGE
 
         return response_text.strip()
 
