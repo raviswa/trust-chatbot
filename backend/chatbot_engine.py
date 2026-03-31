@@ -1,823 +1,1098 @@
 """
-chatbot_engine.py — Mental Health Chatbot Main Engine
-"""
-import json, random, re, logging
-from datetime import datetime
-from typing import Optional, List, Dict
+chatbot_engine.py — Refactored Mental Health Chatbot Engine (Microservices Architecture)
 
-import ollama
-from language_sanitiser import sanitise_response, check_self_stigma, PERSON_FIRST_RULES
-from rag_pipeline import retrieve, assemble_context, format_citations
-from ethical_policy import (
-    check_policy, validate_crisis_response,
-    POLICY_DISCLOSURE_SHORT, POLICY_SUMMARY
+Orchestrates multiple microservices for:
+- Context-aware minimal-question conversations
+- Intent classification
+- Safety-first response generation
+- Policy compliance
+
+Architecture:
+1. Intent Classifier Service - Classifies user intent
+2. Context Manager Service - Tracks patient context vector
+3. Response Generator Service - Generates personalized responses
+4. Safety Checker Service - Validates safety and policies
+"""
+
+import json
+import logging
+import re
+from datetime import datetime
+from typing import Optional, Dict, List
+
+from services_pipeline import IntentClassifier, ResponseGenerator, SafetyChecker, PolicyChecker, _init_response_router
+from db_comprehensive_update import update_all_tables_from_chatbot_interaction
+from patient_context import (
+    build_context, format_context_for_prompt, get_opening_line,
+    get_current_layer, enforce_5layer_rules, record_video_shown,
+    should_show_video, add_layer_awareness_to_system_prompt,
+    get_tone_mode,
 )
-from trust_layers import (
-    apply_layer5_close,
-    generate_clarifying_question,
-    generate_trust_opening,
-    is_ambiguous_message,
-    layer4_resolution_suffix,
-    register_video_shown,
-    trust_context_or_default,
-    trust_select_video,
+from patient_context import (
+    get_or_create_context, update_context_from_turn, clear_context,
+    synthesize_patient_context, SubjectiveState, PhysiologicalState, HistoricalContext,
+    build_clinical_context_block, get_response_length_instruction, build_enriched_query,
 )
-from db import (
-    ensure_patient, get_patient, get_patient_sessions,
-    get_patient_full_history, get_checkin_status,
-    get_recent_checkin_activity,
-    get_session_scores, save_patient_score,
-    ensure_session, update_session_meta, save_message,
-    log_policy_violation, log_crisis_event,
-    get_pending_crisis_events, get_policy_violation_summary,
-    get_session_history, get_all_sessions, get_crisis_sessions,
-    get_conversation_stats, get_top_intents
-)
-from video_map import get_video, get_score_group, get_score_label
+from greeting_generator import generate_greeting_message
+from video_map import get_video, get_video_for_patient
+try:
+    from conversational_intake import (
+        coerce_profile_flags,
+        is_intake_active,
+        is_intake_complete,
+        should_start_intake,
+        handle_intake_turn,
+        init_intake,
+        restore_intake_from_db,
+        INTAKE_QUESTIONS,
+        INTAKE_KEY,
+    )
+except ImportError:
+    def coerce_profile_flags(profile):          return profile          # type: ignore[misc]
+    def is_intake_active(session):              return False            # type: ignore[misc]
+    def is_intake_complete(session):            return False            # type: ignore[misc]
+    def should_start_intake(session, count):    return False            # type: ignore[misc]
+    def handle_intake_turn(msg, session):       return None             # type: ignore[misc]
+    def init_intake(session, is_returning=False): return session        # type: ignore[misc]
+    def restore_intake_from_db(session, profile): return False         # type: ignore[misc]
+    INTAKE_QUESTIONS = {}                                               # type: ignore[misc]
+    INTAKE_KEY = "intake_state"                                         # type: ignore[misc]
+
+
+
+# Database initialization (same as before - three-tier fallback)
+logger_startup = logging.getLogger(__name__)
+
+try:
+    from db_supabase import (
+        ensure_patient, get_patient, get_patient_sessions,
+        get_patient_full_history, get_checkin_status,
+        ensure_session, update_session_meta, save_message,
+        log_policy_violation, log_crisis_event,
+        get_pending_crisis_events, get_policy_violation_summary,
+        get_session_history, get_all_sessions, get_crisis_sessions,
+        get_conversation_stats, get_top_intents,
+        get_latest_daily_checkin, get_latest_wearable_reading, get_historical_context,
+        save_context_vector, get_patient_context_vectors, get_context_vector_trends, get_contradiction_patterns,
+        get_watched_video_ids, get_patient_onboarding, save_intake_progress,
+        get_patient_addictions, get_response_routing_table
+    )
+    logger_startup.info("✓ Using Supabase PostgreSQL backend")
+except Exception as e:
+    logger_startup.warning(f"Supabase unavailable ({type(e).__name__}: {str(e)[:50]}), trying PostgreSQL...")
+    try:
+        from db import (
+            ensure_patient, get_patient, get_patient_sessions,
+            get_patient_full_history, get_checkin_status,
+            ensure_session, update_session_meta, save_message,
+            log_policy_violation, log_crisis_event,
+            get_pending_crisis_events, get_policy_violation_summary,
+            get_session_history, get_all_sessions, get_crisis_sessions,
+            get_conversation_stats, get_top_intents,
+            get_latest_daily_checkin, get_latest_wearable_reading, get_historical_context,
+            save_context_vector, get_patient_context_vectors, get_context_vector_trends, get_contradiction_patterns
+        )
+        def get_watched_video_ids(patient_id):
+            return set()  # PostgreSQL fallback — watch history not implemented
+        def get_patient_onboarding(patient_code):
+            return None  # PostgreSQL fallback — onboarding not implemented
+        def save_intake_progress(patient_code, phase, pct):
+            pass         # PostgreSQL fallback — intake progress not persisted
+        def get_patient_addictions(patient_code):
+            return []  # PostgreSQL fallback — addictions table not yet implemented
+        def get_response_routing_table():
+            return []  # PostgreSQL fallback — routing table not yet implemented
+        logger_startup.info("✓ Using PostgreSQL database")
+    except Exception as pg_error:
+        logger_startup.warning(f"PostgreSQL unavailable ({type(pg_error).__name__}), using mock database for development")
+        from db_mock import (
+            ensure_patient, get_patient, get_patient_sessions,
+            get_patient_full_history, get_checkin_status,
+            ensure_session, update_session_meta, save_message,
+            log_policy_violation, log_crisis_event,
+            get_pending_crisis_events, get_policy_violation_summary,
+            get_session_history, get_all_sessions, get_crisis_sessions,
+            get_patient_addictions, get_response_routing_table
+        )
+        def get_conversation_stats(session_id):
+            return {"total_messages": 0, "user_messages": 0, "assistant_messages": 0}
+        def get_top_intents(limit=10):
+            return []
+        def get_latest_daily_checkin(patient_code, within_hours=24):
+            return None
+        def get_latest_wearable_reading(patient_code, within_hours=48):
+            return None
+        def get_historical_context(patient_code, days_back=30):
+            return {"recurring_themes": [], "recent_intents": [], "crisis_history": False, "last_session_timestamp": None, "days_since_last_session": None, "session_count": 0}
+        def save_context_vector(patient_id, patient_code, session_id, context_vector, greeting_text):
+            return None  # Mock — audit not persisted
+        def get_patient_context_vectors(patient_code, limit=50):
+            return []
+        def get_context_vector_trends(patient_code, days=30):
+            return {"risk_trend": [], "tone_distribution": {}, "theme_distribution": {}, "contradiction_count": 0, "avg_data_freshness": {}, "greetings_generated": 0}
+        def get_contradiction_patterns(patient_code=None, limit=100):
+            return []
+        def get_watched_video_ids(patient_id):
+            return set()  # Mock — no watch history in dev mode
+        def get_patient_onboarding(patient_code):
+            # Build minimal onboarding payload from seeded mock addictions.
+            addictions = get_patient_addictions(patient_code)
+            if not addictions:
+                return None
+            primary = next((a for a in addictions if a.get("is_primary")), addictions[0])
+            patient = get_patient(patient_code) or {}
+            return {
+                "name": patient.get("display_name", f"Patient {patient_code}"),
+                "addiction_type": primary.get("addiction_type", ""),
+                "addictions": addictions,
+                "baseline_mood": [],
+                "primary_triggers": [],
+                "support_network": {},
+                "work_status": "",
+                "last_intake_phase": 0,        # fresh — no prior intake in mock mode
+                "intake_consent_given": False, # never completed in mock mode
+            }
+        def save_intake_progress(patient_code, phase, pct):
+            pass  # Mock — intake progress not persisted to DB in dev mode
+
+# Import language safety and RAG
+try:
+    from language_sanitiser import sanitise_response, check_self_stigma
+    from rag_pipeline import retrieve, assemble_context, format_citations
+    from ethical_policy import (
+        check_policy,
+        validate_crisis_response,
+        POLICY_SUMMARY,
+        POLICY_DISCLOSURE_SHORT,
+    )
+except Exception as e:
+    logger_startup.warning(f"Optional modules unavailable: {e}")
+    def sanitise_response(text): return text
+    def check_self_stigma(text): return None
+    def retrieve(query, top_k=5, seen_chunk_ids=None, severity=None): return []  # type: ignore[misc]
+    def assemble_context(docs): return ""
+    def format_citations(docs): return []
+    def check_policy(text): return {"policy_check": "passed"}
+    def validate_crisis_response(text): return True
+    POLICY_SUMMARY = {"status": "missing"}
+    POLICY_DISCLOSURE_SHORT = "Policy information not available"
+
+# Import semantic crisis detector (3-tier: exact → fuzzy → embedding)
+try:
+    from crisis_detector import get_crisis_detector, CONFIDENCE_INTERCEPT, CONFIDENCE_WARN
+    _crisis_detector = get_crisis_detector()
+    logger_startup.info("✓ CrisisDetector loaded (3-tier semantic detection active)")
+except Exception as _cd_err:
+    logger_startup.warning(f"CrisisDetector unavailable: {_cd_err}")
+    _crisis_detector = None
+    CONFIDENCE_INTERCEPT = 0.72
+    CONFIDENCE_WARN = 0.45
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-# ── Load intents ─────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────
+# MICROSERVICES INITIALIZATION
+# ────────────────────────────────────────────────────────────────────────────
 
-def _load_intents(path="intents.json"):
-    with open(path) as f:
-        raw = re.sub(r"//.*", "", f.read())
-        return json.loads(raw)
+intent_classifier = IntentClassifier(intents_path="intents.json")
+safety_checker = SafetyChecker()
+policy_checker = PolicyChecker()
+response_generator = ResponseGenerator(intents_path="intents.json")
 
-INTENTS    = _load_intents()
-INTENT_MAP = {i["tag"]: i for i in INTENTS["intents"]}
-PATTERN_TAG_MAP = {}
-for _intent in INTENTS["intents"]:
-    for _pat in _intent.get("patterns", []):
-        PATTERN_TAG_MAP[_pat.lower()] = _intent["tag"]
+# Initialise ResponseRouter from DB routing table (falls back to code rules if DB unavailable)
+try:
+    _routing_rows = get_response_routing_table()
+    _init_response_router(_routing_rows)
+    logger_startup.info(f"✓ ResponseRouter initialised with {len(_routing_rows)} routing rules")
+except Exception as _rr_err:
+    logger_startup.warning(f"Could not load routing table ({_rr_err}), using code-based fallback")
+    _init_response_router([])
 
-# ── Hard-coded safety responses ──────────────────────────────────────────────
-
-MEDICATION_REFUSAL = """
-I’m not able to recommend medications, dosages, or prescriptions.
-
-Medication decisions require assessment by a licensed healthcare 
-professional who can evaluate your symptoms, medical history, and 
-possible risks.
-
-For medication guidance, please consult:
-
-• Your treating psychiatrist or physician
-• A licensed mental health clinic
-• Emergency services if symptoms feel urgent
-
-I’m here to provide general information and support if that would help.
-""".strip()
-
-CRISIS_RESPONSE = """
-I'm really sorry that you're going through something so painful right now. 
-What you're describing sounds very difficult, and you deserve support.
-
-You don't have to face this alone. If you can, please consider reaching out 
-to someone right now who can help keep you safe.
-
-Immediate support options:
-• Emergency services: 112 / 911 / 999
-• Crisis Text Line: Text HOME to 741741
-• International crisis centres: https://www.iasp.info/resources/Crisis_Centres/
-
-If possible, contacting a trusted friend, family member, or mental health 
-professional right now can help you get through this moment.
-
-If you'd like, you can also tell me what has been weighing on you.
-""".strip()
-
-ABUSE_RESPONSE = """Your safety is the most important thing right now.
-
-If you are in immediate danger, please call emergency services immediately.
-  • Emergency Services: 911 / 999 / 112
-  • National Domestic Violence Hotline (US): 1-800-799-7233
-  • Refuge (UK): 0808 2000 247
-
-You are not alone. This is not your fault.""".strip()
-
-SELF_HARM_RESPONSE = """
-Thank you for sharing something so difficult. It sounds like you may be 
-coping with a lot of emotional pain right now.
-
-Many people who experience urges to harm themselves are trying to manage 
-overwhelming feelings. You deserve understanding and support.
-
-If you can, please consider reaching out today to someone who can support you:
-
-• Emergency services: 112 / 911 / 999
-• Crisis Text Line: Text HOME to 741741
-• Local mental health professional or helpline
-
-If you feel comfortable, you can tell me what has been happening recently.
-""".strip()
-
-SEVERE_DISTRESS_RESPONSE = (
-    "I hear you, and I want you to know that what you are feeling matters deeply. "
-    "Feelings of hopelessness or emptiness can be overwhelming, "
-    "and you do not have to carry this alone.\n\n"
-    "Please consider reaching out to someone who can support you right now:\n"
-    "\u2022 Emergency services: 112 / 911 / 999\n"
-    "\u2022 Crisis Text Line: Text HOME to 741741\n"
-    "\u2022 International crisis centres: https://www.iasp.info/resources/Crisis_Centres/\n\n"
-    "You deserve support. If you feel comfortable, I am here to listen."
-)
-
-PSYCHOSIS_RESPONSE = (
-    "Thank you for sharing what you are experiencing. "
-    "What you are going through sounds very distressing, "
-    "and it is important that you speak with a qualified mental health professional as soon as possible.\n\n"
-    "Please reach out for support now:\n"
-    "\u2022 Emergency services: 112 / 911 / 999\n"
-    "\u2022 Contact your treating psychiatrist or mental health team\n"
-    "\u2022 Crisis Text Line: Text HOME to 741741\n\n"
-    "If you are in immediate distress or feel unsafe, please call emergency services."
-)
-
-TRAUMA_RESPONSE_INTRO = (
-    "Thank you for trusting me with something so personal and painful. "
-    "What you have been through sounds very difficult, "
-    "and it takes real courage to speak about it.\n\n"
-    "Trauma affects people in many ways, and your feelings are completely valid. "
-    "A trauma-informed therapist can offer support specifically designed for what you are experiencing.\n\n"
-    "I am here to listen if you would like to share more, "
-    "and I would gently encourage you to reach out to a professional when you feel ready.\n\n"
-)
-
-# ── Output safety filter ─────────────────────────────────────────────────────
-
-UNSAFE_PATTERNS = [
-    r"i recommend taking",    r"you should take",      r"the dosage is",
-    r"\d+\s?mg\b",            r"twice daily",          r"once daily",
-    r"take this medication",  r"prescrib",             r"the medication for this is",
-    r"start taking",          r"increase the dose",    r"decrease the dose",
-    r"three times a day",     r"as needed",            r"titrate",
-]
-
-def _is_unsafe(text):
-    l = text.lower()
-    return any(re.search(p, l) for p in UNSAFE_PATTERNS)
-
-# ── Session memory ───────────────────────────────────────────────────────────
-
+# Session cache for context window and conversation history
 _sessions: Dict[str, dict] = {}
 
-def get_session(sid):
-    if sid not in _sessions:
-        _sessions[sid] = {
-            "history": [], "last_topic": None, "last_topic_label": None,
-            "message_count": 0, "severity_flags": [],
+
+def get_session(session_id: str) -> Dict:
+    """Get or create session."""
+    if session_id not in _sessions:
+        _sessions[session_id] = {
+            "history": [],
             "started_at": datetime.now().isoformat(),
-            "continuity_prompt": None,
-            "prior_topics": [],
-            "trust_videos_shown": [],
+            "last_intent": None,
+            "severity_flags": [],
+            "message_count": 0,
+            "last_question_asked": False,
+            "seen_chunk_ids": set(),  # RAG deduplication: tracks chunks shown this session
         }
-    return _sessions[sid]
+    return _sessions[session_id]
 
-def update_session(sid, role, content, intent=None, severity=None,
-                   citations=None, show_resources=False,
-                   patient_id=None, patient_code=None,
-                   policy_checked=False, policy_violation=False,
-                   policy_violation_type=None):
-    # ── In-memory (fast, used for context window) ─────────────
-    s = get_session(sid)
-    s["history"].append({"role": role, "content": content, "timestamp": datetime.now().isoformat()})
-    s["message_count"] += 1
-    skip = {"greeting","farewell","gratitude","unclear","coping_breathing",
-            "coping_journaling","medication_request","rag_query"}
-    if intent and intent not in skip:
-        s["last_topic"]       = intent
-        s["last_topic_label"] = _topic_label(intent)
-    if severity and severity not in s["severity_flags"]:
-        s["severity_flags"].append(severity)
-    # Cache patient identity in session for reuse across turns
-    if patient_id:   s["patient_id"]   = patient_id
-    if patient_code: s["patient_code"] = patient_code
-    # ── PostgreSQL persistence (permanent) ────────────────────
-    try:
-        _pid      = patient_id   or s.get("patient_id")
-        _code     = patient_code or s.get("patient_code")
-        is_crisis = intent in {"crisis_suicidal","crisis_abuse","behaviour_self_harm"}
-        conv_id   = save_message(
-            session_id=sid, role=role, content=content, intent=intent,
-            severity=severity, citations=citations or [],
-            show_resources=show_resources,
-            has_rag_context=bool(citations),
-            policy_checked=policy_checked,
-            policy_violation=policy_violation,
-            policy_violation_type=policy_violation_type,
-            patient_id=_pid, patient_code=_code
-        )
-        update_session_meta(
-            session_id=sid, role=role, intent=intent,
-            last_topic=_topic_label(intent) if intent and intent not in skip else None,
-            last_topic_tag=intent if intent and intent not in skip else None,
-            severity=severity, is_crisis=is_crisis,
-            crisis_intent=intent if is_crisis else None
-        )
-        if is_crisis and role == "assistant":
-            log_crisis_event(
-                session_id=sid, crisis_type=intent,
-                trigger_message=s["history"][-2]["content"] if len(s["history"]) >= 2 else "",
-                bot_response=content,
-                patient_id=_pid, patient_code=_code,
-                conversation_id=conv_id
-            )
-    except Exception as e:
-        logger.error(f"DB persist failed (non-fatal): {e}")
 
-def _history_text(sid, n=4):
-    return "\n".join(
-        ("User" if m["role"]=="user" else "Assistant") + ": " + m["content"]
-        for m in get_session(sid)["history"][-n:]
-    )
-
-def _topic_label(tag):
-    M = {
-        "mood_sad":"feelings of sadness","mood_anxious":"anxiety",
-        "mood_angry":"anger and frustration","mood_lonely":"loneliness",
-        "mood_guilty":"feelings of guilt","behaviour_isolation":"social withdrawal",
-        "behaviour_sleep":"sleep difficulties","behaviour_eating":"eating patterns",
-        "behaviour_aggression":"managing anger","trigger_stress":"stress management",
-        "trigger_trauma":"trauma","trigger_relationship":"relationship challenges",
-        "trigger_grief":"grief and loss","trigger_financial":"financial stress",
-        "addiction_alcohol":"alcohol use disorder","addiction_drugs":"substance use disorder",
-        "addiction_gaming":"gaming habits","addiction_social_media":"social media use",
-        "addiction_gambling":"gambling","addiction_food":"emotional eating",
-        "addiction_work":"work-life balance","addiction_shopping":"compulsive shopping",
-        "addiction_nicotine":"smoking and nicotine use",
-        "addiction_pornography":"compulsive behaviour patterns",
+def _intent_name_to_display(intent: str) -> str:
+    """Convert intent tag to readable topic label."""
+    labels = {
+        "mood_sad": "feelings of sadness",
+        "mood_anxious": "anxiety",
+        "mood_angry": "anger and frustration",
+        "mood_lonely": "loneliness",
+        "mood_guilty": "feelings of guilt",
+        "behaviour_sleep": "sleep difficulties",
+        "behaviour_eating": "eating patterns",
+        "trigger_trauma": "trauma",
+        "trigger_stress": "stress management",
+        "trigger_relationship": "relationship challenges",
+        "trigger_grief": "grief and loss",
+        "trigger_financial": "financial stress",
+        "addiction_drugs": "substance use",
+        "addiction_alcohol": "alcohol use",
+        "addiction_gaming": "gaming habits",
+        "addiction_social_media": "social media use",
     }
-    return M.get(tag, "what you shared earlier")
-
-def clear_session(sid):
-    _sessions.pop(sid, None)
-
-def get_session_summary(sid):
-    s = get_session(sid)
-    return {"session_id":sid,"started_at":s["started_at"],
-            "message_count":s["message_count"],"last_topic":s["last_topic_label"],
-            "severity_flags":s["severity_flags"]}
-
-# ── Intent classification ────────────────────────────────────────────────────
-
-_GREETING   = {"hi","hello","hey","good morning","good afternoon","good evening",
-                "good night","howdy","greetings","what's up","how are you","is anyone there"}
-_FAREWELL   = {"bye","goodbye","see you","see you later","take care","i have to go",
-                "gotta go","talk later","i'm leaving","that's all for now","thanks bye"}
-_GRATITUDE  = {"thank you","thanks","thank you so much","that was helpful",
-                "you helped me","i appreciate it","cheers","very helpful"}
-_MEDICATION = {"medicine","medication","prescribe","prescription","dose","dosage",
-                "tablet","capsule","what should i take","can i take","which pill",
-                "what medication","milligram"}
-_CRISIS     = {"want to die","kill myself","end my life","don't want to be here",
-                "thinking about suicide","life is not worth living","give up on life",
-                "want to disappear forever","nobody would miss me","can't go on"}
-_ABUSE      = {"being abused","someone is hurting me","partner hits me",
-                "scared of someone at home","unsafe at home","domestic violence",
-                "afraid to go home","someone is controlling me"}
-_SELF_HARM  = {"hurt myself","cut myself","self harm","harm my body","burn myself",
-                "hit myself","injure myself","punish myself","physical pain helps me cope"}
-_SEVERE_DISTRESS = { "hopeless","nothing matters","i feel empty","i feel worthless",
-    "no reason to live","life has no meaning","i feel trapped"}
-
-_SUBSTANCE_USE = {  "relapse","craving","can't stop drinking","using again",
-    "withdrawal","detox","need alcohol","need drugs"}
-
-_PSYCHOSIS_INDICATORS = { "voices talking to me","hearing voices","people watching me",
-    "someone controlling my thoughts","paranoid","they are after me"}
-
-_TRAUMA = { "i was assaulted","i was raped","childhood abuse",
-    "trauma memories","flashbacks","nightmares about it"}
-
-def classify_intent(text):
-    l = text.lower().strip()
-    # Priority 1: Immediate safety — always checked first
-    if any(p in l for p in _CRISIS):              return "crisis_suicidal"
-    if any(p in l for p in _ABUSE):               return "crisis_abuse"
-    if any(p in l for p in _SELF_HARM):           return "behaviour_self_harm"
-    # Priority 2: High-severity clinical signals — dedicated tags for targeted responses
-    if any(p in l for p in _SEVERE_DISTRESS):     return "severe_distress"
-    if any(p in l for p in _PSYCHOSIS_INDICATORS):return "psychosis_indicator"
-    if any(p in l for p in _TRAUMA):              return "trigger_trauma"
-    if any(p in l for p in _SUBSTANCE_USE):       return "addiction_drugs"
-    # Priority 3: Medication block
-    if any(p in l for p in _MEDICATION):          return "medication_request"
-    # Priority 4: Small talk
-    if any(p in l for p in _GREETING):            return "greeting"
-    if any(p in l for p in _FAREWELL):            return "farewell"
-    if any(p in l for p in _GRATITUDE):           return "gratitude"
-    # Priority 5: intents.json pattern match
-    for pat, tag in PATTERN_TAG_MAP.items():
-        if pat in l: return tag
-    # Priority 6: LLM fallback
-    return _llm_classify(text)
-
-def _llm_classify(text):
-    tags = list(INTENT_MAP.keys()) + ["medication_request","rag_query"]
-    prompt = (f"Classify this message into ONE tag from: {', '.join(tags)}\n"
-              f"If it is a general health question, return: rag_query\n"
-              f"Message: \"{text}\"\nReply with ONLY the tag.")
-    try:
-        r   = ollama.generate(model="qwen2.5:7b-instruct", prompt=prompt)
-        tag = r["response"].strip().lower().strip('"\'')
-        return tag if tag in tags else "rag_query"
-    except Exception as e:
-        logger.error(f"LLM classify failed: {e}")
-        return "rag_query"
-
-# ── System prompt builder ────────────────────────────────────────────────────
-
-def _system_prompt(context, history_text, continuity_prompt=None,
-                   trust_resolution: Optional[str] = None):
-    ctx = context or "No specific context retrieved — respond with general empathetic support."
-    continuity_block = (f"\n{continuity_prompt}\n" if continuity_prompt else "")
-    trust_block = (f"\n{trust_resolution}\n" if trust_resolution else "")
-    return f"""You are a compassionate mental health support assistant.
-Your responses are grounded strictly in the provided research document context.
-
-STRICT RULES:
-1. Answer ONLY from the retrieved context below.
-2. If not in context, say: "I don't have specific information on that in our current documents, but I'm here to listen."
-3. NEVER recommend or name any medications, dosages, or prescriptions.
-4. NEVER diagnose or provide treatment plans.
-5. Always recommend consulting a qualified healthcare professional.
-6. Be warm, empathetic, and non-judgmental.
-7. Keep the reply concise (roughly 2-4 short lines of text) unless more detail is clearly needed.
-{continuity_block}{trust_block}
-{PERSON_FIRST_RULES}
-
-RECENT CONVERSATION:
-{history_text}
-
-RETRIEVED CONTEXT:
-{ctx}"""
-
-# ── Response generators ──────────────────────────────────────────────────────
-
-def _intents_response(tag):
-    i = INTENT_MAP.get(tag)
-    if i and i.get("responses"):
-        return random.choice(i["responses"])
-    return "I'm here and listening. Can you tell me more?"
-
-def _topic_bridge(sid, base):
-    s     = get_session(sid)
-    label = s.get("last_topic_label")
-    if not label or s["message_count"] < 2:
-        return base
-    bridges = [
-        f" Whenever you're ready, we can return to {label}.",
-        f" I'm here if you'd like to continue exploring {label}.",
-        f" Feel free to come back to {label} whenever it feels right.",
-    ]
-    return base + random.choice(bridges)
-
-def _small_talk(tag, sid, user_input, trust_ctx: Optional[Dict] = None):
-    s          = get_session(sid)
-    last_topic = s.get("last_topic_label")
-    continuity = s.get("continuity_prompt", "")
-    bridge_instr = (
-        f"\nAt the end, gently mention you can return to '{last_topic}' "
-        "whenever they are ready — one sentence only." if last_topic else ""
-    )
-    continuity_block = f"\n{continuity}\n" if continuity else ""
-    prompt = (f"You are a warm, empathetic mental health support assistant.\n"
-              f"{continuity_block}\n"
-              f"Recent conversation:\n{_history_text(sid)}\n\n"
-              f"User just said: \"{user_input}\"\n\n"
-              f"Respond warmly and naturally. 2-3 sentences. "
-              f"No medications or diagnoses.{bridge_instr}")
-    try:
-        r     = ollama.generate(model="qwen2.5:7b-instruct", prompt=prompt)
-        reply = r["response"].strip()
-        if _is_unsafe(reply):
-            reply = _topic_bridge(sid, _intents_response(tag))
-        else:
-            reply = sanitise_response(reply)
-        tc = trust_ctx or trust_context_or_default(None, sid)
-        return apply_layer5_close(reply, tag, tc, "low")
-    except Exception as e:
-        logger.error(f"Small talk failed: {e}")
-        reply = _topic_bridge(sid, _intents_response(tag))
-        tc = trust_ctx or trust_context_or_default(None, sid)
-        return apply_layer5_close(reply, tag, tc, "low")
-
-def _contextual_rag(user_input, sid, intent, trust_ctx: Optional[Dict] = None,
-                    apply_layer5: bool = True):
-    """Intent-filtered RAG for known mental health intents."""
-    chunks    = retrieve(user_input, intent=intent)
-    context   = assemble_context(chunks)
-    citations = format_citations(chunks)
-    continuity = get_session(sid).get("continuity_prompt")
-    tr_block   = layer4_resolution_suffix()
-    system    = _system_prompt(
-        context, _history_text(sid), continuity, trust_resolution=tr_block
-    )
-    try:
-        r     = ollama.generate(model="qwen2.5:7b-instruct", system=system, prompt=user_input)
-        reply = r["response"].strip()
-    except Exception as e:
-        logger.error(f"Contextual RAG failed: {e}")
-        return {"response": _intents_response(intent), "citations": []}
-    if _is_unsafe(reply):
-        return {"response": MEDICATION_REFUSAL, "citations": [],
-                "policy_checked": False, "policy_violation": False, "policy_violation_type": None}
-    # Policy layer check
-    policy = check_policy(reply, intent=intent, session_id=sid)
-    if policy.violation:
-        return {"response": policy.safe_response, "citations": [],
-                "policy_checked": True, "policy_violation": True,
-                "policy_violation_type": policy.violation_type}
-    out = sanitise_response(reply)
-    if apply_layer5:
-        tc = trust_ctx or trust_context_or_default(None, sid)
-        sev = str(INTENT_MAP.get(intent, {}).get("severity", "medium"))
-        out = apply_layer5_close(out, intent, tc, sev)
-    return {"response": out, "citations": citations,
-            "policy_checked": True, "policy_violation": False, "policy_violation_type": None}
-
-def _general_rag(user_input, sid, trust_ctx: Optional[Dict] = None,
-                 apply_layer5: bool = True):
-    """Unfiltered RAG for general health queries."""
-    chunks    = retrieve(user_input, intent=None)
-    context   = assemble_context(chunks)
-    citations = format_citations(chunks)
-    continuity = get_session(sid).get("continuity_prompt")
-    tr_block   = layer4_resolution_suffix()
-    system    = _system_prompt(
-        context, _history_text(sid), continuity, trust_resolution=tr_block
-    )
-    try:
-        r     = ollama.generate(model="qwen2.5:7b-instruct", system=system, prompt=user_input)
-        reply = r["response"].strip()
-    except Exception as e:
-        logger.error(f"General RAG failed: {e}")
-        return {"response": "I'm sorry, I had trouble retrieving information. Please try again.", "citations": []}
-    if _is_unsafe(reply):
-        return {"response": MEDICATION_REFUSAL, "citations": [],
-                "policy_checked": False, "policy_violation": False, "policy_violation_type": None}
-    # Policy layer check
-    policy = check_policy(reply, intent=None, session_id=sid)
-    if policy.violation:
-        return {"response": policy.safe_response, "citations": [],
-                "policy_checked": True, "policy_violation": True,
-                "policy_violation_type": policy.violation_type}
-    out = sanitise_response(reply)
-    if apply_layer5:
-        tc = trust_ctx or trust_context_or_default(None, sid)
-        out = apply_layer5_close(out, "rag_query", tc, "medium")
-    return {"response": out, "citations": citations,
-            "policy_checked": True, "policy_violation": False, "policy_violation_type": None}
-
-# ── Session continuity / check-in greeting ──────────────────────────────────
-
-def build_checkin_greeting(patient_code: str):
-    # Checks last 12hrs of patient activity.
-    # Returns a personalised continuity greeting dict or None.
-    activity = get_recent_checkin_activity(patient_code, within_hours=12)
-    if not activity or not activity.get("has_activity"):
-        return None
-
-    name   = activity.get("display_name") or "there"
-    topics = activity.get("topics_discussed", [])
-    crisis = activity.get("was_crisis", False)
-    count  = activity.get("message_count", 0)
-
-    # Crisis continuity — highest priority
-    if crisis:
-        msg = (
-            "Welcome back" + (", " + name if name != "there" else "") + ". "
-            "I want to check in with you — last time we spoke you were going through "
-            "something very difficult. "
-            "How are you feeling right now? Are you safe?"
-        )
-        return {"message": msg, "intent": "checkin_crisis",
-                "severity": "high", "show_resources": True,
-                "topics_discussed": topics, "was_crisis": True, "message_count": count}
-
-    # Normal continuity
-    greeting = "Welcome back" + (", " + name if name != "there" else "") + ". "
-    if not topics:
-        msg = greeting + "It is good to see you again. How are you doing today?"
-    elif len(topics) == 1:
-        msg = (greeting + f"Earlier today we were talking about {topics[0]}. "
-               "Are you still experiencing this, or is there something else on your mind?")
-    elif len(topics) == 2:
-        msg = (greeting + f"Earlier today we touched on {topics[0]} and {topics[1]}. "
-               "Are either of these still affecting you, or would you like to talk about something else?")
-    else:
-        tlist = ", ".join(topics[:-1]) + " and " + topics[-1]
-        msg = (greeting + f"Earlier today we covered quite a bit — {tlist}. "
-               "Is any of this still on your mind, or has something new come up?")
-
-    return {"message": msg, "intent": "checkin_continuity",
-            "severity": "low", "show_resources": False,
-            "topics_discussed": topics, "was_crisis": False, "message_count": count}
+    return labels.get(intent, "what you shared earlier")
 
 
-# ── Main handler ─────────────────────────────────────────────────────────────
-
-def _log_policy_if_needed(rag_result, session_id, intent, patient_id, patient_code):
-    # Writes to policy_violations table if a breach was intercepted
-    if rag_result.get("policy_violation"):
-        s = get_session(session_id)
-        log_policy_violation(
-            session_id=session_id,
-            violation_type=rag_result.get("policy_violation_type", "unknown"),
-            intent_at_time=intent,
-            patient_id=patient_id or s.get("patient_id"),
-            patient_code=patient_code or s.get("patient_code"),
-        )
-
-def handle_message(user_input: str, session_id: str,
-                   patient_code: Optional[str] = None) -> dict:
+def get_context_aware_greeting(session: Dict, patient_context) -> str:
     """
-    Main entry point. Call from FastAPI route or Next.js API.
-    Returns: response, intent, severity, show_resources, citations, session_id, timestamp
-
-    patient_code: your internal patient/user ID from your auth system.
-                  Pass this on every request so messages are linked to the patient.
+    Generate a context-aware opening greeting (never generic "how are you").
+    
+    Used after intake/check-in completion to open the main conversation.
+    Incorporates patient name, current mood/risk level, and personalization.
+    
+    Args:
+        session: The session dict
+        patient_context: PatientContext object
+        
+    Returns:
+        str: Personalized greeting string
     """
-    user_input = user_input.strip()
-    if not user_input:
-        return _result("I'm here and listening. What's on your mind?",
-                       "unclear","low",False,[],session_id)
+    return get_opening_line(patient_context)
 
-    # Resolve patient identity and ensure session exists in PostgreSQL
-    patient_id = None
-    if patient_code:
-        patient_id = ensure_patient(patient_code)
-    ensure_session(session_id, patient_id=patient_id, patient_code=patient_code)
 
-    trust_ctx = trust_context_or_default(patient_code, session_id)
+# ────────────────────────────────────────────────────────────────────────────
+# MAIN MESSAGE HANDLER - 6-LAYER SAFETY ARCHITECTURE
+# ────────────────────────────────────────────────────────────────────────────
 
-    # Save user message to DB with patient identity
-    update_session(session_id, "user", user_input,
-                   patient_id=patient_id, patient_code=patient_code)
+def handle_message(
+    message: str,
+    session_id: str,
+    patient_id: str,
+    patient_code: str,
+) -> Dict:
+    """
+    Main message handler with multi-layer safety and context awareness.
+    
+    ARCHITECTURE (6 Layers):
+    
+    Layer 0: Input Validation
+    - Check message is valid and non-empty
+    - Extract patient context
+    
+    Layer 1: Safety Checks
+    - Detect crisis indicators
+    - Check for medication requests
+    - Validate policy compliance
+    
+    Layer 2: Intent Classification
+    - Classify user intent using microservice
+    - Get intent metadata (severity, category)
+    
+    Layer 3: Context Extraction & Management
+    - Extract information from message
+    - Update patient context vector
+    - Determine relevant questions (minimal-question model)
+    
+    Layer 4: Response Generation
+    - Generate response using response generator service
+    - Incorporate minimal-question logic
+    - Add context-aware personalization
+    
+    Layer 5: Response Validation
+    - Validate response safety
+    - Check policy compliance
+    - Sanitize and finalize response
+    
+    Returns:
+        Dict with keys: response, intent, severity, resources, session_id, metadata
+    """
+    
+    # ── LAYER 0: INPUT VALIDATION ────────────────────────────────────────
+    
+    logger.info(f"[{session_id}] Processing message from {patient_code}")
+    
+    session = get_session(session_id)
+    session["message_count"] += 1
+    
+    # Store patient identifiers in session if not already present
+    if "session_id" not in session:
+        session["session_id"] = session_id
+    if "patient_id" not in session:
+        session["patient_id"] = patient_id
 
-    user_turns = sum(1 for m in get_session(session_id)["history"] if m["role"] == "user")
-
-    # ── TRUST Layer 1+2 — greet with context + invite (first user turn, greeting, with patient) ──
-    _raw_intent = classify_intent(user_input)
-    if _raw_intent == "greeting" and patient_code and user_turns == 1:
-        continuity_note = None
-        act = get_recent_checkin_activity(patient_code, within_hours=12)
-        if act and act.get("has_activity"):
-            topics = act.get("topics_discussed") or []
-            if act.get("was_crisis"):
-                continuity_note = (
-                    "Recent conversation included crisis-level distress; acknowledge with care."
+    # Pre-load onboarding profile (addiction_type etc.) from DB on first message
+    # This ensures context-aware responses even without conversational intake
+    if session["message_count"] == 1 and not session.get("intake_profile"):
+        try:
+            onboarding = get_patient_onboarding(patient_code)
+            if onboarding:
+                # Also load the full addictions list (primary + comorbid)
+                addictions_list = get_patient_addictions(patient_code)
+                if addictions_list:
+                    onboarding["addictions"] = addictions_list
+                session["intake_profile"] = coerce_profile_flags(onboarding)
+                logger.info(
+                    f"[{session_id}] Loaded onboarding profile: addiction_type={onboarding.get('addiction_type')}, "
+                    f"addictions={[a['addiction_type'] for a in addictions_list]}"
                 )
-            elif topics:
-                continuity_note = "Topics recently discussed: " + ", ".join(topics[:6])
-        msg = generate_trust_opening(
-            patient_code, session_id, continuity_note=continuity_note
+                # Restore partial intake so patient can resume mid-flow after reconnect.
+                # Fires only when last_intake_phase > 0 and consent was never given.
+                _lp = onboarding.get("last_intake_phase", 0)
+                if _lp > 0 and not onboarding.get("intake_consent_given"):
+                    if restore_intake_from_db(session, onboarding):
+                        logger.info(
+                            f"[{session_id}] Restored partial intake from DB: "
+                            f"phase={_lp}, resuming at '{session[INTAKE_KEY]['current_question']}'"
+                        )
+        except Exception as _ob_err:
+            logger.warning(f"Could not pre-load onboarding profile: {_ob_err}")
+
+    # Build patient context vector (assembles data from 4 sources)
+    patient_context = build_context(session)
+    
+    if not message or not message.strip():
+        return {
+            "response": "I'm here to listen. Please share what's on your mind.",
+            "intent": "unclear",
+            "severity": "low",
+            "session_id": session_id,
+            "show_resources": False,
+            "timestamp": datetime.now().isoformat(),
+        }
+    
+    message = message.strip()
+    
+    # Ensure patient context exists
+    context = get_or_create_context(session_id, patient_id, patient_code)
+    
+    # ── LAYER 1: SAFETY CHECKS ───────────────────────────────────────────
+    
+    is_safe, safety_violation = safety_checker.check_safety(message, "user_input")
+    
+    if not is_safe:
+        logger.error(f"Safety violation detected: {safety_violation}")
+        return {
+            "response": "I'm sorry, I encountered an issue. Please try again or contact support.",
+            "intent": "error",
+            "severity": "high",
+            "session_id": session_id,
+            "show_resources": False,
+            "timestamp": datetime.now().isoformat(),
+        }
+    
+    # ── LAYER 1.5: SEMANTIC CRISIS GATE ─────────────────────────────────
+    # Three-tier detection (exact → fuzzy → embedding cosine similarity).
+    # Runs BEFORE intent classification so oblique crisis phrases are caught
+    # before they fall through to the RAG/LLM pipeline.
+    #
+    # Severity / confidence → action
+    # ─────────────────────────────────────────────────────────────────────
+    #  confidence >= CONFIDENCE_INTERCEPT (0.72)
+    #        Override intent; skip RAG + LLM; return crisis template.
+    #  confidence >= CONFIDENCE_WARN (0.45, < 0.72)
+    #        Continue normal flow but inject a safety-context note into the
+    #        system prompt so the LLM responds with appropriate care.
+    # ─────────────────────────────────────────────────────────────────────
+
+    _semantic_crisis_override = False   # True → skip RAG, use crisis template
+    _potential_crisis_context = ""      # Injected into system_prompt when warn-level
+
+    if _crisis_detector is not None:
+        _cr = _crisis_detector.detect(message)
+        if _cr.confidence >= CONFIDENCE_INTERCEPT:
+            logger.warning(
+                "[%s] Semantic crisis INTERCEPT [%s]: %s confidence=%.2f — overriding intent",
+                session_id, _cr.method, _cr.category, _cr.confidence,
+            )
+            # Override intent and severity; skip the LLM/RAG path entirely
+            intent = _cr.category
+            severity = _cr.severity
+            _semantic_crisis_override = True
+
+        elif _cr.confidence >= CONFIDENCE_WARN:
+            logger.warning(
+                "[%s] Semantic crisis WARN [%s]: %s confidence=%.2f — injecting safety context",
+                session_id, _cr.method, _cr.category, _cr.confidence,
+            )
+            _potential_crisis_context = (
+                "\n\n⚠ SAFETY NOTE: The patient's message shows possible signs of "
+                f"{_cr.category.replace('_', ' ')} (confidence {_cr.confidence:.0%}). "
+                "Respond with extra care and empathy. Do NOT dismiss or minimise feelings. "
+                "Gently offer crisis resources if relevant without being alarmist."
+            )
+
+    # ── LAYER 1.6: CONVERSATIONAL INTAKE ROUTING ─────────────────────────
+    # Intake turns are handled entirely within conversational_intake.py and
+    # bypass the LLM/RAG pipeline.  Crisis intercepts always take priority
+    # (patient safety > intake flow), so this block is gated on NOT
+    # _semantic_crisis_override.
+
+    if not _semantic_crisis_override:
+        _intake_state = session.get(INTAKE_KEY, {})
+
+        # Sub-case A: intake was just restored from DB (reconnect) OR just
+        # started fresh.  We need to display the current question to the
+        # patient before processing any of their input as an answer.
+        if _intake_state.get("active") and _intake_state.pop("_show_question", False):
+            _prefix = (
+                "Welcome back! Let's pick up where you left off. 🙌\n\n"
+                if _intake_state.pop("_resumed_from_db", False)
+                else ""
+            )
+            _q_key  = _intake_state.get("current_question", "opening")
+            _q_def  = INTAKE_QUESTIONS.get(_q_key, {})
+            _name   = _intake_state.get("collected", {}).get("name", "there")
+            _q_text = _q_def.get("question", "").format(name=_name)
+            logger.info(f"[{session_id}] Intake resume display: question='{_q_key}'")
+            return {
+                "response":        _prefix + _q_text,
+                "intent":          "intake",
+                "severity":        "low",
+                "show_resources":  False,
+                "citations":       [],
+                "intake_complete": False,
+                "intake_profile":  coerce_profile_flags(_intake_state.get("collected", {})),
+                "intake_phase":    _q_def.get("phase", 0),
+                "session_id":      session_id,
+                "timestamp":       datetime.now().isoformat(),
+                "show_score":      False,
+                "video":           None,
+            }
+
+        # Sub-case B: intake already in-progress — patient is answering a question.
+        if is_intake_active(session):
+            _ir = handle_intake_turn(message, session)
+            if _ir is not None:
+                _phase = _ir.get("intake_phase", 0)
+                try:
+                    save_intake_progress(patient_code, _phase, min(100, _phase * 20))
+                except Exception as _ipe:
+                    logger.warning(f"Could not persist intake progress: {_ipe}")
+                if _ir.get("intake_complete"):
+                    session["intake_profile"] = coerce_profile_flags(
+                        _ir.get("intake_profile", {})
+                    )
+                    logger.info(f"[{session_id}] Intake complete — profile stored in session")
+                return {
+                    **_ir,
+                    "session_id": session_id,
+                    "timestamp":  datetime.now().isoformat(),
+                    "show_score": False,
+                    "video":      None,
+                    "citations":  _ir.get("citations", []),
+                }
+
+        # Sub-case C: first message from a patient who has never done intake.
+        elif should_start_intake(session, session["message_count"]):
+            init_intake(session, is_returning=False)
+            try:
+                save_intake_progress(patient_code, 0, 0)
+            except Exception as _ipe:
+                logger.warning(f"Could not persist intake start: {_ipe}")
+            _first_q = INTAKE_QUESTIONS.get("opening", {})
+            logger.info(f"[{session_id}] Starting intake (new user)")
+            return {
+                "response":        _first_q.get("question", ""),
+                "intent":          "intake",
+                "severity":        "low",
+                "show_resources":  False,
+                "citations":       [],
+                "intake_complete": False,
+                "intake_profile":  {},
+                "intake_phase":    0,
+                "session_id":      session_id,
+                "timestamp":       datetime.now().isoformat(),
+                "show_score":      False,
+                "video":           None,
+            }
+
+    # ── LAYER 2: INTENT CLASSIFICATION ───────────────────────────────────
+
+    # Extract addiction_type early so the classifier can resolve generic craving language
+    # (e.g. "craving is so strong") to the correct addiction-specific intent.
+    _early_addiction_type = (
+        (session.get("intake_profile") or {}).get("addiction_type") or ""
+    ).lower().strip() or None
+
+    if not _semantic_crisis_override:
+        intent = intent_classifier.classify(message, addiction_type=_early_addiction_type)
+    intent_metadata = intent_classifier.get_intent_metadata(intent)
+    if not _semantic_crisis_override:
+        severity = intent_metadata["severity"]
+
+    logger.info(f"[{session_id}] Classified intent: {intent} (severity: {severity})")
+
+    # Update session with intent
+    session["last_intent"] = intent
+    if severity not in session["severity_flags"]:
+        session["severity_flags"].append(severity)
+
+    # ── LAYER 3: CONTEXT EXTRACTION & MANAGEMENT ─────────────────────────
+
+    # Extract context from user message
+    update_context_from_turn(session_id, message, intent, intent_metadata)
+
+    # Determine minimal questions to ask (if appropriate)
+    next_questions = context.determine_questions_to_ask_next()
+    should_ask_question = (
+        len(next_questions) > 0
+        and session["message_count"] >= 2
+        and not session["last_question_asked"]
+        and severity in {"low", "medium"}  # Don't ask during crises
+        and not _semantic_crisis_override   # Never ask during semantic crisis intercept
+    )
+
+    # ── LAYER 4: RESPONSE GENERATION WITH 5-LAYER MODEL ──────────────────
+    
+    # Determine current 5-layer stage
+    current_layer = get_current_layer(session["message_count"])
+    
+    # Build LLM system prompt with patient context injection
+    # This ensures every response is tailored to the patient's current state and risk level
+    patient_context_block = format_context_for_prompt(patient_context)
+    layer_guidance = add_layer_awareness_to_system_prompt(patient_context, current_layer)
+
+    # Extract addiction type and profile flags for clinical context differentiation
+    addiction_type = (patient_context.onboarding.addiction_type or "").lower() or None
+    profile_flags = session.get("intake_profile", {})
+
+    # Build addiction×intent clinical context block (differentiates alcohol vs gaming for same symptom)
+    clinical_context_block = build_clinical_context_block(addiction_type, intent, profile_flags)
+    response_length_instruction = get_response_length_instruction(profile_flags)
+
+    # Resolve active tone mode (Slide 7: 6 modes, driven by risk_level × todays_mood)
+    _tone_mode = get_tone_mode(
+        patient_context.risk.risk_level,
+        patient_context.checkin.todays_mood,
+    )
+
+    system_prompt = f"""You are a mental health support chatbot specialising in recovery and peer support.
+Active tone mode: {_tone_mode['label']} — apply this strictly throughout your response.
+
+{patient_context_block}
+
+{layer_guidance}
+{clinical_context_block}
+{_potential_crisis_context}
+
+Core guidelines:
+- Respect the patient's autonomy and recovery journey
+- Use the context above to personalize your response
+- Match the TONE directive above
+- Never ask generic questions like "how are you"
+- Reference specific context from the patient's profile when appropriate
+- For High/Critical risk: Be direct, skip pleasantries, focus on stabilization
+- THIS IS LAYER {current_layer} OF THE 5-LAYER CONVERSATION MODEL — FOLLOW THE RULES ABOVE STRICTLY
+- {response_length_instruction}
+"""
+    
+    # Get base response from response generator
+    # Extract addictions list (primary + comorbid) for ResponseRouter
+    addictions_list = patient_context.onboarding.addictions or []
+
+    response_text, response_meta = response_generator.generate(
+        intent=intent,
+        user_message=message,
+        context_vector=context,
+        addiction_type=addiction_type,  # Pass patient addiction type for differentiated responses
+        addictions=addictions_list,     # Full list enables comorbidity detection
+        system_prompt=system_prompt,    # Pass context-aware prompt
+        profile_flags=profile_flags,    # Pass flags so psychosis/bipolar guard fires on template responses
+    )
+    
+    # Try RAG for general queries and high/critical severity turns.
+    # RAG is suppressed when a semantic crisis INTERCEPT is active — the crisis
+    # template is the authoritative response and RAG could dilute or contradict it.
+    # For high/critical severity (WARN-level or intent-classified), we still run
+    # RAG with a lowered score threshold so evidence-based grounding is included.
+    _rag_intents = {"rag_query"}
+    _run_rag = (
+        not _semantic_crisis_override
+        and (intent in _rag_intents or severity in {"high", "critical"})
+    )
+    if _run_rag:
+        try:
+            enriched_query = build_enriched_query(message, intent, addiction_type)
+            retrieved_docs = retrieve(
+                enriched_query,
+                top_k=3,
+                seen_chunk_ids=session["seen_chunk_ids"],
+                severity=severity,      # lowers threshold for high/critical turns
+            )
+            if retrieved_docs:
+                rag_context = assemble_context(retrieved_docs)
+                response_text = f"{response_text}\n\n{rag_context}"
+                response_meta["citations"] = format_citations(retrieved_docs)
+        except Exception as e:
+            logger.warning(f"RAG failed (non-critical): {e}")
+    
+    # Enforce 5-layer rules on response
+    response_text, layer_notes = enforce_5layer_rules(
+        response_text, 
+        current_layer, 
+        session.get("last_question_asked", False)
+    )
+    if layer_notes:
+        logger.info(f"[{session_id}] 5-Layer enforcement: {'; '.join(layer_notes)}")
+    
+    # Add minimal question if appropriate (Layer 3 only)
+    if current_layer == 3 and should_ask_question and next_questions:
+        question_obj = next_questions[0]
+        response_text = response_text + f"\n\n{question_obj['text']}"
+        context.mark_question_asked(question_obj["id"])
+        session["last_question_asked"] = True
+        response_meta["minimal_question_id"] = question_obj["id"]
+    else:
+        session["last_question_asked"] = False
+    
+    # Track content for Layer 4 (video) and future recommendations
+    if response_meta.get("video_shown"):
+        video = response_meta.get("video_shown")
+        record_video_shown(session, {
+            "title": video.get("title"),
+            "intent": intent,
+            "url": video.get("url"),
+            "completion_pct": 0
+        })
+    
+    # ── LAYER 5: RESPONSE VALIDATION ─────────────────────────────────────
+    
+    # Validate response safety
+    is_valid, error_msg = safety_checker.validate_response(response_text, intent)
+    if not is_valid:
+        logger.error(f"Response validation failed: {error_msg}")
+        response_text = "Thank you for sharing. I want to make sure I give you appropriate support. This requires a mental health professional to discuss further."
+    
+    # Check policy compliance
+    compliant, policy_violation = policy_checker.check_policy_compliance(response_text, intent)
+    if not compliant:
+        logger.error(f"Policy violation: {policy_violation}")
+        response_text = "I apologize, but I need to provide a more appropriate response. Please contact a mental health professional for guidance on this topic."
+    
+    # Sanitize response (language safety, person-first language, etc.)
+    try:
+        response_text = sanitise_response(response_text)
+    except Exception as e:
+        logger.warning(f"Sanitization failed: {e}")
+    
+    # Check for self-stigma and reframe if needed
+    try:
+        stigma_reframe = check_self_stigma(message)
+        if stigma_reframe:
+            response_text = stigma_reframe + " " + response_text
+    except Exception as e:
+        logger.warning(f"Stigma check failed: {e}")
+    
+    # ── PERSISTENCE LAYER: COMPREHENSIVE DATABASE UPDATE ────────────────
+    
+    try:
+        base_risk_score = (
+            patient_context.current_risk_score
+            if patient_context and hasattr(patient_context, 'current_risk_score')
+            else None
         )
-        if msg:
-            update_session(
-                session_id,
-                "assistant",
-                msg,
-                "greeting",
-                "low",
+        persisted_risk_score = base_risk_score
+        if intent == "relapse_disclosure":
+            # Relapse disclosure should increase persisted risk tracking,
+            # even when immediate crisis language is absent.
+            if base_risk_score is None:
+                persisted_risk_score = 70
+            else:
+                persisted_risk_score = min(100, int(base_risk_score) + 15)
+
+        # Prepare checkin data if extractable from this interaction
+        checkin_data = None
+        if intent in ["mood_sad", "mood_anxious", "mood_angry", "mood_lonely", "mood_guilty", "behaviour_sleep", "relapse_disclosure"]:
+            # Extract basic health data from context if available
+            if patient_context:
+                checkin_data = {
+                    "mood": intent.replace("mood_", "") if intent.startswith("mood_") else None,
+                    "craving_intensity": persisted_risk_score,
+                    "trigger_exposure_flag": "trigger_stress" in intent or "trigger_" in intent,
+                    "relapse_disclosed": intent == "relapse_disclosure",
+                }
+        
+        # Determine if crisis was detected
+        crisis_detected = severity in ["high", "critical"] and intent != "relapse_disclosure"
+        crisis_details = None
+        if crisis_detected:
+            crisis_details = {
+                "type": intent if intent not in ["unclear", "error"] else "unspecified",
+                "severity": severity,
+                "escalation_status": "pending_review" if severity == "critical" else "identified",
+            }
+        
+        # Call comprehensive update function to update ALL relevant tables
+        db_update_results = update_all_tables_from_chatbot_interaction(
+            patient_id=patient_id,
+            patient_code=patient_code,
+            session_id=session_id,
+            user_message=message,
+            bot_response=response_text,
+            intent=intent,
+            severity=severity,
+            checkin_data=checkin_data,
+            risk_score=persisted_risk_score,
+            policy_violations=[policy_violation] if not compliant else None,
+            crisis_detected=crisis_detected,
+            crisis_details=crisis_details,
+            video_shown=response_meta.get("video_shown"),
+            current_layer=current_layer,
+            response_tone=response_meta.get("tone"),
+            response_latency_ms=response_meta.get("latency_ms"),
+            rag_sources=response_meta.get("citations") if response_meta.get("rag_context_used") else None,
+        )
+        
+        logger.info(f"[{session_id}] Comprehensive DB update completed: {db_update_results}")
+        
+    except Exception as db_error:
+        logger.error(f"Comprehensive database update failed (non-critical): {db_error}")
+        # Fall back to basic save_message if comprehensive update fails
+        try:
+            save_message(
+                session_id=session_id,
+                role="user",
+                message=message,
+                intent=intent,
+                severity=severity,
                 patient_id=patient_id,
                 patient_code=patient_code,
             )
-            return _result(
-                msg,
-                "greeting",
-                "low",
-                False,
-                [],
-                session_id,
-                trust_layers="1+2",
+            save_message(
+                session_id=session_id,
+                role="assistant",
+                message=response_text,
+                intent=intent,
+                severity=severity,
+                patient_id=patient_id,
+                patient_code=patient_code,
             )
+            logger.info(f"[{session_id}] Fallback to basic save_message completed")
+        except Exception as fallback_error:
+            logger.error(f"Even fallback persistence failed: {fallback_error}")
+    
+    # Update session history (in-memory)
+    session["history"].append({
+        "role": "user",
+        "content": message,
+        "intent": intent,
+        "timestamp": datetime.now().isoformat()
+    })
+    session["history"].append({
+        "role": "assistant",
+        "content": response_text,
+        "intent": intent,
+        "severity": severity,
+        "timestamp": datetime.now().isoformat()
+    })
+    
+    # ── BUILD RESPONSE OBJECT ────────────────────────────────────────────
+    
+    # Retrieve video for this intent — skip videos already seen by this patient
+    watched_video_ids = set()
+    try:
+        if patient_id:
+            watched_video_ids = get_watched_video_ids(patient_id)
+    except Exception as _ve:
+        logger.warning(f"Could not fetch video watch history: {_ve}")
+    video = get_video_for_patient(intent, watched_video_ids)
 
-    # Pipeline: Self-stigma reframe
-    reframe = check_self_stigma(user_input)
-    if reframe:
-        intent = classify_intent(user_input)
-        reply = apply_layer5_close(reframe, intent, trust_ctx, "medium")
-        update_session(session_id, "assistant", reply, intent, "medium",
-                       patient_id=patient_id, patient_code=patient_code)
-        return _result(reply, intent, "medium", False, [], session_id)
+    # When the patient has a known addiction type, select the most clinically
+    # relevant video:
+    #   PRIMARY craving  → patient's own specific addiction video
+    #   CROSS  craving   → video for the thing they're currently craving
+    #                       (most immediately relevant education)
+    #   Non-addiction intent with craving keywords → patient's primary video
+    if addiction_type:
+        _addtype = addiction_type.lower().strip().replace(" ", "_").replace("-", "_")
 
-    # Pipeline: Classify intent
-    intent = classify_intent(user_input)
-    logger.info(f"[{session_id}] intent={intent} | '{user_input[:60]}'")
+        # addiction_type → video MAP key (alcohol gets specific video, not generic drugs)
+        _PRIMARY_VIDEO: Dict[str, str] = {
+            "alcohol":      "addiction_alcohol",
+            "drugs":        "addiction_drugs",
+            "gaming":       "addiction_gaming",
+            "social_media": "addiction_social_media",
+            "nicotine":     "addiction_nicotine",
+            "smoking":      "addiction_nicotine",
+            "gambling":     "addiction_gambling",
+            "work":         "addiction_work",
+        }
+        # Which intent is each addiction_type's primary craving
+        _PRIMARY_INTENT_VIDEO: Dict[str, str] = {
+            "alcohol":      "addiction_drugs",
+            "drugs":        "addiction_drugs",
+            "gaming":       "addiction_gaming",
+            "social_media": "addiction_social_media",
+            "nicotine":     "addiction_nicotine",
+            "smoking":      "addiction_nicotine",
+            "gambling":     "addiction_gambling",
+        }
+        # All addiction-craving intents and their video keys
+        _ADDICTION_INTENT_VIDEO: Dict[str, str] = {
+            "addiction_drugs":        "addiction_drugs",
+            "addiction_gaming":       "addiction_gaming",
+            "addiction_social_media": "addiction_social_media",
+            "addiction_nicotine":     "addiction_nicotine",
+            "addiction_gambling":     "addiction_gambling",
+            "addiction_work":         "addiction_work",
+        }
+        # Keywords that signal a craving message for each addiction_type
+        _CRAVING_KEYWORDS: Dict[str, List[str]] = {
+            "alcohol":      ["beer", "wine", "vodka", "drink", "alcohol", "whiskey", "rum", "gin", "spirits", "pub", "bar"],
+            "drugs":        ["drug", "substance", "cocaine", "heroin", "meth", "pills", "using", "relapse"],
+            "gaming":       ["game", "gaming", "play", "console", "controller", "stream", "online"],
+            "social_media": ["instagram", "twitter", "tiktok", "scroll", "feed", "social media", "refresh", "notifications"],
+            "nicotine":     ["smoke", "smoking", "cigarette", "vape", "vaping", "nicotine", "fag"],
+            "smoking":      ["smoke", "smoking", "cigarette", "vape", "vaping", "nicotine", "fag"],
+            "gambling":     ["bet", "betting", "casino", "gamble", "gambling", "poker", "slot", "wager", "flutter", "lottery"],
+        }
 
-    # Pipeline: Critical safety (hard-coded) — crisis_events via update_session
-    sess = get_session(session_id)
-    if intent == "crisis_suicidal":
-        vid = get_video("mood_anxious")
-        if vid:
-            register_video_shown(sess, vid)
-        update_session(session_id,"assistant",CRISIS_RESPONSE,intent,"critical",show_resources=True,
-                       patient_id=patient_id, patient_code=patient_code)
-        return _result(CRISIS_RESPONSE,intent,"critical",True,[],session_id, video=vid)
-    if intent == "crisis_abuse":
-        update_session(session_id,"assistant",ABUSE_RESPONSE,intent,"critical",show_resources=True,
-                       patient_id=patient_id, patient_code=patient_code)
-        return _result(ABUSE_RESPONSE,intent,"critical",True,[],session_id)
-    if intent == "behaviour_self_harm":
-        vid = get_video("mood_anxious")
-        if vid:
-            register_video_shown(sess, vid)
-        update_session(session_id,"assistant",SELF_HARM_RESPONSE,intent,"critical",show_resources=True,
-                       patient_id=patient_id, patient_code=patient_code)
-        return _result(SELF_HARM_RESPONSE,intent,"critical",True,[],session_id, video=vid)
+        _primary_video_key = _PRIMARY_VIDEO.get(_addtype)
+        _primary_intent    = _PRIMARY_INTENT_VIDEO.get(_addtype)
+        _msg_lower         = message.lower()
 
-    # Severe distress / psychosis — optional TRUST-aligned video
-    scores_for_video = get_session_scores(session_id) or {}
+        if _primary_video_key and intent in _ADDICTION_INTENT_VIDEO:
+            if intent == _primary_intent:
+                # PRIMARY craving — use patient's own specific video
+                # (e.g. alcohol patient craving alcohol → addiction_alcohol video, not generic)
+                _chosen_key = _primary_video_key
+            else:
+                # CROSS-addiction craving — use video for what they're craving right now
+                _chosen_key = _ADDICTION_INTENT_VIDEO[intent]
+            _chosen_video = get_video_for_patient(_chosen_key, watched_video_ids)
+            if _chosen_video:
+                video = _chosen_video
 
-    if intent == "severe_distress":
-        vid = trust_select_video(
-            intent, trust_ctx, scores_for_video, sess.get("trust_videos_shown", [])
-        )
-        if vid:
-            register_video_shown(sess, vid)
-        update_session(session_id,"assistant",SEVERE_DISTRESS_RESPONSE,intent,"high",show_resources=True,
-                       patient_id=patient_id, patient_code=patient_code)
-        return _result(SEVERE_DISTRESS_RESPONSE,intent,"high",True,[],session_id, video=vid)
+        elif _primary_video_key:
+            # Intent is not an addiction intent — show patient's primary video only
+            # if the message contains recognisable craving signals
+            if any(kw in _msg_lower for kw in _CRAVING_KEYWORDS.get(_addtype, [])):
+                _pv = get_video_for_patient(_primary_video_key, watched_video_ids)
+                if _pv:
+                    video = _pv
 
-    if intent == "psychosis_indicator":
-        vid = trust_select_video(
-            intent, trust_ctx, scores_for_video, sess.get("trust_videos_shown", [])
-        )
-        if vid:
-            register_video_shown(sess, vid)
-        update_session(session_id,"assistant",PSYCHOSIS_RESPONSE,intent,"critical",show_resources=True,
-                       patient_id=patient_id, patient_code=patient_code)
-        return _result(PSYCHOSIS_RESPONSE,intent,"critical",True,[],session_id, video=vid)
-
-    # Medication block
-    if intent == "medication_request":
-        reply = apply_layer5_close(MEDICATION_REFUSAL, intent, trust_ctx, "low")
-        update_session(session_id,"assistant",reply,intent,"low",
-                       patient_id=patient_id, patient_code=patient_code)
-        return _result(reply,intent,"low",False,[],session_id)
-
-    # ── TRUST Layer 3 — one clarifying question when intent is still ambiguous ──
-    if intent in ("unclear", "rag_query") and is_ambiguous_message(user_input):
-        q = generate_clarifying_question(user_input)
-        update_session(session_id, "assistant", q, intent, "low",
-                       patient_id=patient_id, patient_code=patient_code)
-        return _result(q, intent, "low", False, [], session_id, trust_layers="3")
-
-    # Trauma — RAG + intro; TRUST Layer 4 in RAG, Layer 5 on full message
-    if intent == "trigger_trauma":
-        r        = _contextual_rag(
-            user_input, session_id, intent, trust_ctx, apply_layer5=False
-        )
-        _log_policy_if_needed(r, session_id, intent, patient_id, patient_code)
-        response = TRAUMA_RESPONSE_INTRO + r["response"]
-        response = apply_layer5_close(response, intent, trust_ctx, "high")
-        update_session(session_id,"assistant",response,intent,"high",
-                       citations=r["citations"],show_resources=True,
-                       patient_id=patient_id, patient_code=patient_code,
-                       policy_checked=r.get("policy_checked",False),
-                       policy_violation=r.get("policy_violation",False),
-                       policy_violation_type=r.get("policy_violation_type"))
-        return _result(response,intent,"high",True,r["citations"],session_id,
-                       trust_layers="4+5")
-
-    # Small talk — TRUST Layer 5 on generator output; no video
-    if intent in {"greeting","farewell","gratitude","unclear"}:
-        reply    = _small_talk(intent, session_id, user_input, trust_ctx)
-        severity = INTENT_MAP.get(intent, {}).get("severity","low")
-        update_session(session_id,"assistant",reply,intent,severity,
-                       patient_id=patient_id, patient_code=patient_code)
-        get_session(session_id)["continuity_prompt"] = None
-        return _result(reply, intent, severity, False, [], session_id,
-                       show_score=False, video=None, trust_layers="5")
-
-    # ── Score + video helpers (video_map.py + db + TRUST) ─────────────────────
-    def _should_show_score(sid, cur_intent):
-        """Returns score prompt dict if not yet captured for this group, else None."""
-        group = get_score_group(cur_intent)
-        if not group:
-            return None
-        try:
-            existing = get_session_scores(sid)
-            if group in existing:
-                return None
-        except Exception:
-            pass
-        # Mark in memory immediately to prevent double-showing
-        s = get_session(sid)
-        if "pending_scores" not in s:
-            s["pending_scores"] = set()
-        if group in s.get("pending_scores", set()):
-            return None
-        s["pending_scores"].add(group)
-        return {"needed": True, "group": group, "label": get_score_label(cur_intent)}
-
-    def _resolve_trust_video(cur_intent: str):
-        s = get_session(session_id)
-        sc = get_session_scores(session_id) or {}
-        v = trust_select_video(
-            cur_intent, trust_ctx, sc, s.get("trust_videos_shown", [])
-        )
-        if v:
-            register_video_shown(s, v)
-        return v
-
-    # Known intent → intent-filtered RAG (TRUST Layers 4–5 inside _contextual_rag)
-    if intent in INTENT_MAP:
-        obj        = INTENT_MAP[intent]
-        severity   = obj.get("severity","medium")
-        show_res   = obj.get("always_show_resources",False)
-        r          = _contextual_rag(user_input, session_id, intent, trust_ctx)
-        _log_policy_if_needed(r, session_id, intent, patient_id, patient_code)
-        show_score = _should_show_score(session_id, intent)
-        video      = _resolve_trust_video(intent)
-        update_session(session_id,"assistant",r["response"],intent,severity,
-                       citations=r["citations"],show_resources=show_res,
-                       policy_checked=r.get("policy_checked",False),
-                       policy_violation=r.get("policy_violation",False),
-                       policy_violation_type=r.get("policy_violation_type"),
-                       patient_id=patient_id, patient_code=patient_code)
-        return _result(r["response"],intent,severity,show_res,r["citations"],
-                       session_id, show_score=show_score, video=video,
-                       trust_layers="4+5")
-
-    # General query → full RAG
-    r          = _general_rag(user_input, session_id, trust_ctx)
-    _log_policy_if_needed(r, session_id, "rag_query", patient_id, patient_code)
-    show_score = _should_show_score(session_id, intent)
-    video      = _resolve_trust_video("rag_query")
-    update_session(session_id,"assistant",r["response"],"rag_query","medium",
-                   citations=r["citations"],
-                   policy_checked=r.get("policy_checked",False),
-                   policy_violation=r.get("policy_violation",False),
-                   policy_violation_type=r.get("policy_violation_type"),
-                   patient_id=patient_id, patient_code=patient_code)
-    return _result(r["response"],"rag_query","medium",False,r["citations"],
-                   session_id, show_score=show_score, video=video,
-                   trust_layers="4+5")
-
-
-def _result(response, intent, severity, show_resources,
-            citations, session_id, show_score=None, video=None, score_data=None,
-            trust_layers: Optional[str] = None, **extra):
-    out = {
-        "response":       response,
-        "intent":         intent,
-        "severity":       severity,
-        "show_resources": show_resources,
-        "citations":      citations,
-        "session_id":     session_id,
-        "timestamp":      datetime.now().isoformat(),
-        "score_data":     show_score or score_data,
-        "video":          video,
+    return {
+        "response": response_text,
+        "intent": intent,
+        "severity": severity,
+        "show_resources": response_meta.get("show_resources", False),
+        "resource_links": safety_checker.get_resource_links(intent) if response_meta.get("show_resources") else {},
+        "video": video,
+        "session_id": session_id,
+        "patient_code": patient_code,
+        "patient_id": patient_id,
+        "message_number": session["message_count"],
+        "context_summary": context.get_relevant_context_summary(),
+        "has_minimal_question": "minimal_question_id" in response_meta,
+        "timestamp": datetime.now().isoformat(),
+        "current_layer": current_layer,
+        "metadata": {
+            "intent_category": intent_metadata.get("category"),
+            "requires_follow_up": intent_metadata.get("requires_follow_up"),
+            "citations": response_meta.get("citations", []),
+            "5layer_stage": f"Layer {current_layer} of 5-layer conversation model",
+            "risk_level": patient_context.risk.risk_level,
+            "risk_score": patient_context.risk.live_risk_score,
+        }
     }
-    if trust_layers is not None:
-        out["trust_layers"] = trust_layers
-    out.update(extra)
-    return out
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# SESSION MANAGEMENT
+# ────────────────────────────────────────────────────────────────────────────
+
+def get_session_summary(session_id: str) -> Dict:
+    """Get summary of a session."""
+    session = get_session(session_id)
+    context = _get_context_if_exists(session_id)
+    
+    return {
+        "session_id": session_id,
+        "started_at": session["started_at"],
+        "message_count": session["message_count"],
+        "last_intent": session.get("last_intent"),
+        "severity_flags": session["severity_flags"],
+        "context_summary": context.get_relevant_context_summary() if context else "No context tracked",
+    }
+
+
+def _get_context_if_exists(session_id: str):
+    """Get context if it exists in cache (helper)."""
+    from patient_context import _context_cache
+    return _context_cache.get(session_id)
+
+
+def end_session(session_id: str) -> Dict:
+    """End a session and clean up context."""
+    summary = get_session_summary(session_id)
+    _sessions.pop(session_id, None)
+    clear_context(session_id)
+    logger.info(f"Session {session_id} ended. Message count: {summary['message_count']}")
+    return summary
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# ANALYTICS & MONITORING
+# ────────────────────────────────────────────────────────────────────────────
+
+def get_session_stats(session_id: str) -> Dict:
+    """Get detailed session statistics."""
+    session = get_session(session_id)
+    context = _get_context_if_exists(session_id)
+    
+    intents_used = {}
+    for msg in session["history"]:
+        if "intent" in msg:
+            intent = msg["intent"]
+            intents_used[intent] = intents_used.get(intent, 0) + 1
+    
+    return {
+        "session_id": session_id,
+        "total_turns": session["message_count"],
+        "intents_detected": intents_used,
+        "severity_progression": session["severity_flags"],
+        "context_awareness": context.to_dict() if context else None,
+        "session_duration_seconds": (
+            (datetime.fromisoformat(session["history"][-1]["timestamp"]) -
+             datetime.fromisoformat(session["history"][0]["timestamp"])).total_seconds()
+            if session["history"] else 0
+        ),
+    }
+
+
+# Keep original function names for backward compatibility
+def classify_intent(text: str) -> str:
+    """Backward compatibility wrapper."""
+    return intent_classifier.classify(text)
+
 
 # ── FastAPI wrapper ──────────────────────────────────────────────────────────
-
 try:
-    from fastapi import FastAPI
+    from contextlib import asynccontextmanager
+    from fastapi import FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
     from pydantic import BaseModel
 
-    app = FastAPI(title="Mental Health Chatbot API", version="1.0.0")
-    app.add_middleware(CORSMiddleware, allow_origins=["*"],
-                       allow_methods=["*"], allow_headers=["*"])
+    # ── Daily data refresh scheduler ─────────────────────────────────────────
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        from daily_data_refresh import run_daily_refresh
+
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            # Seed today's data on startup (skips gracefully if already present)
+            try:
+                run_daily_refresh()
+            except Exception as _e:
+                logger_startup.warning(f"Startup daily refresh failed: {_e}")
+
+            scheduler = BackgroundScheduler()
+            scheduler.add_job(run_daily_refresh, CronTrigger(hour=0, minute=0), id="daily_refresh")
+            scheduler.start()
+            logger_startup.info("✓ Daily data refresh scheduler started (runs at midnight UTC)")
+            yield
+            scheduler.shutdown(wait=False)
+            logger_startup.info("Daily data refresh scheduler stopped")
+
+    except ImportError as _sched_err:
+        logger_startup.warning(f"APScheduler not available ({_sched_err}) — daily refresh disabled. Run: pip install apscheduler")
+
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            yield
+
+    app = FastAPI(title="Trust AI Chatbot API", version="2.0.0", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     class ChatRequest(BaseModel):
-        message:      str
-        session_id:   str
-        patient_code: Optional[str] = None  # your internal patient/user ID
+        message: str
+        session_id: str
+        patient_id: Optional[str] = None
+        patient_code: Optional[str] = None
 
     class SessionRequest(BaseModel):
         session_id: str
 
     @app.post("/chat")
     async def chat(req: ChatRequest):
-        return handle_message(req.message, req.session_id, req.patient_code)
+        """Chat endpoint (main conversation loop)."""
+        patient_id = req.patient_id or f"user_{req.session_id}"
+        patient_code = req.patient_code or "UNKNOWN"
+        
+        # ── CRITICAL: Initialize patient and session in database ──────────────
+        # These MUST be called before handle_message() to ensure FK constraints pass
+        try:
+            ensure_patient(patient_code=patient_code)
+            ensure_session(session_id=req.session_id, 
+                          patient_id=patient_id, 
+                          patient_code=patient_code)
+        except Exception as e:
+            logger.error(f"Failed to initialize patient/session: {e}")
+            # Continue anyway - messages will be saved in-memory but not to DB
+        
+        result = handle_message(
+            message=req.message,
+            session_id=req.session_id,
+            patient_id=patient_id,
+            patient_code=patient_code,
+        )
+        return {"status": "ok", **result}
 
     @app.post("/session/clear")
     async def session_clear(req: SessionRequest):
-        clear_session(req.session_id)
-        return {"status":"cleared","session_id":req.session_id}
+        summary = end_session(req.session_id)
+        return {"status": "cleared", "session_id": req.session_id, "summary": summary}
 
     @app.get("/session/{session_id}/summary")
     async def session_summary(session_id: str):
-        return get_session_summary(session_id)
+        try:
+            summary = get_session_summary(session_id)
+            return {"status": "ok", **summary}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/session/{session_id}/stats")
+    async def session_stats(session_id: str):
+        try:
+            stats = get_session_stats(session_id)
+            return {"status": "ok", **stats}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/")
+    async def root():
+        return {
+            "service": "Trust AI Chatbot API",
+            "version": "2.0.0",
+            "status": "running",
+            "note": "The chatbot UI is on port 3000. API docs at /docs"
+        }
 
     @app.get("/health")
     async def health():
-        return {"status":"ok","timestamp":datetime.now().isoformat()}
+        return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
     @app.get("/documents")
     async def documents():
-        from rag_pipeline import get_document_list
-        return {"documents": get_document_list()}
+        try:
+            from rag_pipeline import get_document_list
+            return {"documents": get_document_list()}
+        except Exception:
+            return {"documents": []}
 
     @app.get("/policy")
     async def policy():
@@ -826,14 +1101,6 @@ try:
     @app.get("/policy/disclosure")
     async def policy_disclosure():
         return {"disclosure": POLICY_DISCLOSURE_SHORT}
-
-    @app.get("/checkin/{patient_code}")
-    async def checkin_status(patient_code: str):
-        result = build_checkin_greeting(patient_code)
-        if result:
-            return {"has_activity": True, **result}
-        return {"has_activity": False, "message": None,
-                "topics_discussed": [], "was_crisis": False}
 
     @app.get("/patient/{patient_code}")
     async def patient_profile(patient_code: str):
@@ -847,30 +1114,180 @@ try:
     async def patient_history(patient_code: str):
         return {"history": get_patient_full_history(patient_code)}
 
+    # ── NEW: GREETING CONTEXT ENDPOINTS ──────────────────────────────────────
+    
     @app.get("/patient/{patient_code}/checkin-status")
-    async def checkin_status(patient_code: str, hours: int = 12):
+    async def get_patient_checkin_context(patient_code: str, hours: int = 240):
         """
-        Called by Flutter on app open BEFORE the chat screen loads.
-        Returns topics covered in last 12 hrs and a continuity_prompt
-        for the bot to use as its opening message context.
+        Get synthesized patient context for greeting generation.
+        
+        Returns: greeting message, tone, risk score, and data freshness info.
+        
+        Query params:
+          hours: Look back this many hours for recent data (default 240 = 10 days)
         """
-        return get_checkin_status(patient_code, hours)
-
+        try:
+            # Fetch from all three data sources
+            subjective_data = get_latest_daily_checkin(patient_code, within_hours=hours)
+            physiological_data = get_latest_wearable_reading(patient_code, within_hours=min(hours, 48))
+            historical_data = get_historical_context(patient_code, days_back=max(1, hours // 24))
+            
+            # Convert to domain objects
+            subjective = None
+            if subjective_data:
+                # Map DB column names to domain field names
+                emotional_state = (
+                    subjective_data.get("emotional_state")
+                    or subjective_data.get("todays_mood")
+                    or "neutral"
+                ).lower()
+                # Calculate hours_ago from created_at if not present
+                hours_ago = subjective_data.get("hours_ago")
+                if hours_ago is None and subjective_data.get("created_at"):
+                    try:
+                        from datetime import timezone
+                        from dateutil import parser as dateparser
+                        created = dateparser.parse(subjective_data["created_at"])
+                        if created.tzinfo is None:
+                            created = created.replace(tzinfo=timezone.utc)
+                        hours_ago = (datetime.now(timezone.utc) - created).total_seconds() / 3600
+                    except Exception:
+                        pass
+                subjective = SubjectiveState(
+                    emotional_state=emotional_state,
+                    craving_intensity=subjective_data.get("craving_intensity", 5),
+                    sleep_quality=subjective_data.get("sleep_quality", 5),
+                    medication_taken=subjective_data.get("medication_taken", True),
+                    triggers_today=subjective_data.get("triggers_today") or [],
+                    checkin_timestamp=subjective_data.get("checkin_timestamp") or subjective_data.get("created_at"),
+                    hours_ago=hours_ago,
+                )
+            
+            physiological = None
+            if physiological_data:
+                physiological = PhysiologicalState(
+                    heart_rate=physiological_data.get("heart_rate"),
+                    hrv=physiological_data.get("hrv"),
+                    sleep_hours=physiological_data.get("sleep_hours"),
+                    steps_today=physiological_data.get("steps_today"),
+                    stress_score=physiological_data.get("stress_score"),
+                    spo2=physiological_data.get("spo2"),
+                    personal_anomaly_flag=physiological_data.get("personal_anomaly_flag", False),
+                    anomaly_detail=physiological_data.get("anomaly_detail"),
+                    wearable_timestamp=physiological_data.get("wearable_timestamp"),
+                    hours_ago=physiological_data.get("hours_ago"),
+                )
+            
+            historical = None
+            if historical_data:
+                historical = HistoricalContext(
+                    recurring_themes=historical_data.get("recurring_themes", []),
+                    recent_intents=historical_data.get("recent_intents", []),
+                    crisis_history=historical_data.get("crisis_history", False),
+                    last_session_timestamp=historical_data.get("last_session_timestamp"),
+                    days_since_last_session=historical_data.get("days_since_last_session"),
+                    session_count=historical_data.get("session_count", 0),
+                )
+            
+            # Get patient name
+            patient = get_patient(patient_code)
+            patient_name = (
+                patient.get("first_name") or patient.get("display_name") or "there"
+            ) if patient else "there"
+            
+            # Synthesize context
+            context = synthesize_patient_context(
+                subjective=subjective,
+                physiological=physiological,
+                historical=historical,
+                patient_name=patient_name
+            )
+            
+            # Generate greeting
+            greeting_result = generate_greeting_message(context, include_sources=False)
+            
+            # Persist context vector to audit table (non-blocking)
+            patient_id = patient.get("patient_id") or patient.get("id") if patient else None
+            if patient_id:
+                try:
+                    audit_context = {
+                        "dominant_theme": context.dominant_theme,
+                        "emotional_anchor": context.emotional_anchor,
+                        "tone_directive": greeting_result["tone"],
+                        "subjective_risk_score": context.subjective_risk_score,
+                        "objective_risk_score": context.objective_risk_score,
+                        "clinical_risk_score": greeting_result["risk_score"],
+                        "contradiction_detected": context.contradiction_detected,
+                        "contradiction_type": context.contradiction_type,
+                        "layers": greeting_result.get("layers", {}),
+                        "subjective_state": {
+                            "emotional_state": context.subjective.emotional_state,
+                            "craving_intensity": context.subjective.craving_intensity,
+                            "sleep_quality": context.subjective.sleep_quality,
+                        },
+                        "physiological_state": {
+                            "heart_rate": context.physiological.heart_rate if context.physiological else None,
+                            "stress_score": context.physiological.stress_score if context.physiological else None,
+                        },
+                        "historical_context": {
+                            "recurring_themes": context.historical.recurring_themes,
+                            "session_count": context.historical.session_count,
+                        },
+                        "data_freshness": {
+                            "subjective_hours_ago": context.subjective.hours_ago if context.subjective else None,
+                            "physiological_hours_ago": context.physiological.hours_ago if context.physiological else None,
+                            "historical_hours_ago": context.historical.days_since_last_session * 24 if context.historical.days_since_last_session else None,
+                        }
+                    }
+                    
+                    save_context_vector(patient_id, patient_code, "unknown", audit_context, greeting_result["greeting"])
+                except Exception as audit_e:
+                    logger.warning(f"Audit save failed (non-blocking): {audit_e}")
+            
+            # Return formatted response
+            return {
+                "status": "ok",
+                "has_recent_activity": context.is_returning_user,
+                "topics_covered": context.historical.recurring_themes,
+                "hours_since_checkin": context.subjective.hours_ago,
+                "greeting": greeting_result["greeting"],
+                "tone": greeting_result["tone"],
+                "risk_score": greeting_result["risk_score"],
+                "dominant_theme": greeting_result["dominant_theme"],
+                "data_freshness": greeting_result["data_freshness"],
+                "layers": greeting_result["layers"],
+            }
+        except Exception as e:
+            logger.error(f"get_patient_checkin_context failed: {e}")
+            return {
+                "status": "error",
+                "has_recent_activity": False,
+                "topics_covered": [],
+                "greeting": f"Hi there, I'm here to listen and support you. What's on your mind today?",
+                "error": str(e)
+            }
+    
     @app.post("/patient/{patient_code}/set-continuity")
-    async def set_continuity(patient_code: str, req: SessionRequest):
+    async def set_continuity_flag(patient_code: str, req: dict = None):
         """
-        Called by Flutter after the summary card is shown.
-        Loads the continuity_prompt into the in-memory session so the
-        first bot response references prior topics naturally.
+        Record that continuity greeting was used.
+        This flag helps the backend understand the greeting context was applied.
         """
-        status = get_checkin_status(patient_code)
-        if status["has_recent_activity"] and status["continuity_prompt"]:
-            s = get_session(req.session_id)
-            s["continuity_prompt"] = status["continuity_prompt"]
-            s["prior_topics"]      = status["topics_covered"]
-            return {"status": "continuity_set", "topics": status["topics_covered"]}
-        return {"status": "no_recent_activity"}
-
+        try:
+            session_id = req.get("session_id") if isinstance(req, dict) else None
+            
+            # Update session metadata to flag that continuity greeting was applied
+            if session_id:
+                update_session_meta(session_id, {
+                    "continuity_greeting_shown": True,
+                    "continuity_at": datetime.now().isoformat()
+                })
+            
+            return {"status": "ok", "message": "Continuity flag set"}
+        except Exception as e:
+            logger.error(f"set_continuity_flag failed: {e}")
+            return {"status": "error"}
+    
     @app.get("/admin/sessions")
     async def admin_sessions():
         return {"sessions": get_all_sessions()}
@@ -879,108 +1296,82 @@ try:
     async def admin_crisis():
         return {"crisis_sessions": get_crisis_sessions()}
 
-    class ScoreRequest(BaseModel):
-        session_id:   str
-        patient_code: Optional[str] = None
-        score_group:  str
-        score:        int
-        intent:       Optional[str] = None
-
-    @app.post("/session/score")
-    async def save_score(req: ScoreRequest):
-        """Called by frontend when patient submits a score slider value."""
-        s   = get_session(req.session_id)
-        pid = s.get("patient_id")
-        save_patient_score(
-            session_id   = req.session_id,
-            patient_code = req.patient_code or s.get("patient_code"),
-            score_group  = req.score_group,
-            score        = req.score,
-            intent       = req.intent,
-            patient_id   = pid
-        )
-        # Clear pending flag so group won't be asked again this session
-        if "pending_scores" in s:
-            s["pending_scores"].discard(req.score_group)
-        return {"status": "saved", "group": req.score_group, "score": req.score}
-
     @app.get("/admin/crisis/pending")
     async def admin_crisis_pending():
-        return {"pending": get_pending_crisis_events()}
+        return {"pending_crisis_events": get_pending_crisis_events()}
 
     @app.get("/admin/stats")
     async def admin_stats():
-        return get_conversation_stats()
+        return {"stats": get_conversation_stats()}
 
     @app.get("/admin/intents")
     async def admin_intents():
         return {"top_intents": get_top_intents()}
 
-    class ScoreRequest(BaseModel):
-        session_id:   str
-        patient_code: Optional[str] = None
-        score_group:  str
-        score:        int
-        intent:       Optional[str] = None
+    @app.get("/admin/context-vectors/{patient_code}")
+    async def admin_context_vectors(patient_code: str, limit: int = 50):
+        """
+        Retrieve context vector history for a patient.
+        Clinical review of greeting synthesis decisions.
+        """
+        try:
+            vectors = get_patient_context_vectors(patient_code, limit=limit)
+            return {
+                "status": "ok",
+                "patient_code": patient_code,
+                "count": len(vectors),
+                "vectors": vectors
+            }
+        except Exception as e:
+            logger.error(f"admin_context_vectors failed: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
 
-    @app.post("/session/score")
-    async def save_score(req: ScoreRequest):
-        """Called by frontend when patient submits a score slider value."""
-        s   = get_session(req.session_id)
-        pid = s.get("patient_id")
-        save_patient_score(
-            session_id   = req.session_id,
-            patient_code = req.patient_code or s.get("patient_code"),
-            score_group  = req.score_group,
-            score        = req.score,
-            intent       = req.intent,
-            patient_id   = pid
-        )
-        # Clear pending flag so group won't be asked again this session
-        if "pending_scores" in s:
-            s["pending_scores"].discard(req.score_group)
-        return {"status": "saved", "group": req.score_group, "score": req.score}
+    @app.get("/admin/context-trends/{patient_code}")
+    async def admin_context_trends(patient_code: str, days: int = 30):
+        """
+        Analyze trends in synthesis decisions over time.
+        Used for identifying patterns and clinical insights.
+        """
+        try:
+            trends = get_context_vector_trends(patient_code, days=days)
+            return {
+                "status": "ok",
+                "patient_code": patient_code,
+                "days": days,
+                "trends": trends
+            }
+        except Exception as e:
+            logger.error(f"admin_context_trends failed: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
 
-    @app.get("/admin/crisis/pending")
-    async def admin_crisis_pending():
-        return {"pending_crisis_events": get_pending_crisis_events()}
-
-    @app.get("/admin/policy/violations")
-    async def admin_policy_violations():
-        return {"violation_summary": get_policy_violation_summary()}
-
-    @app.get("/session/{session_id}/history")
-    async def session_history(session_id: str):
-        from db import get_session_history
-        return {"history": get_session_history(session_id)}
+    @app.get("/admin/contradictions")
+    async def admin_contradictions(patient_code: Optional[str] = None, limit: int = 100):
+        """
+        Retrieve all contradictions detected during synthesis.
+        All patients if no patient_code, filtered to one patient otherwise.
+        Used to identify patients needing clinical review.
+        """
+        try:
+            contradictions = get_contradiction_patterns(patient_code, limit=limit)
+            return {
+                "status": "ok",
+                "scope": f"patient:{patient_code}" if patient_code else "all_patients",
+                "count": len(contradictions),
+                "contradictions": contradictions
+            }
+        except Exception as e:
+            logger.error(f"admin_contradictions failed: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
 
 except ImportError:
-    pass  # FastAPI optional
-
-# ── Quick test ───────────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("Mental Health Chatbot Engine — Test Mode")
-    print("=" * 60)
-    sid   = "test-001"
-    tests = [
-        "Hello",
-        "I'm an alcoholic and I can't stop drinking",
-        "I've been feeling very anxious lately",
-        "I spend all night gaming and skip meals",
-        "What medication should I take for anxiety?",
-        "I want to die",
-        "Thanks, that was really helpful",
-        "Bye"
-    ]
-    for msg in tests:
-        print(f"\nUser    : {msg}")
-        r = handle_message(msg, sid)
-        print(f"Bot     : {r['response'][:200]}")
-        print(f"Intent  : {r['intent']} | Severity: {r['severity']}")
-        if r.get("citations"):
-            print(f"Sources : {', '.join(r['citations'])}")
-        if r.get("show_resources"):
-            print("⚠️  Show crisis resources")
-        print("-" * 50)
+    # FastAPI is optional (e.g., when running unit tests without HTTP server)
+    pass

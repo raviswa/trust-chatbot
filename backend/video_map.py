@@ -168,12 +168,64 @@ VIDEO_MAP = {
         "thumbnail":   yt_thumb("jDTBTMHzFjQ"),
         "description": "Grounding techniques for moments of intense distress",
     },
-    "trigger_financial": {
-        "url":         "https://www.youtube.com/watch?v=xelO4ZnFDkc",
-        "video_id":    "xelO4ZnFDkc",
-        "title":       "Financial Stress and Mental Health",
-        "thumbnail":   yt_thumb("xelO4ZnFDkc"),
-        "description": "Managing the mental health impact of financial stress",
+    # ── Venting / Implicit Distress ─────────────────────────────────
+    # Emotional regulation: grounding / breathing — no advice, no solutions
+    "venting": {
+        "url":         "https://www.youtube.com/watch?v=WWloIAQpMkQ",
+        "video_id":    "WWloIAQpMkQ",
+        "title":       "5-Minute Breathing Exercise to Calm Your Nervous System",
+        "thumbnail":   yt_thumb("WWloIAQpMkQ"),
+        "description": "A simple breathing technique to ease overwhelm and emotional fatigue",
+    },
+    # ── Fallback / General Support ───────────────────────────────
+    "rag_query": {
+        "url":         "https://www.youtube.com/watch?v=POPpLzKxFww",
+        "video_id":    "POPpLzKxFww",
+        "title":       "Mental Health Support — You're Not Alone",
+        "thumbnail":   yt_thumb("POPpLzKxFww"),
+        "description": "General mental health support and recovery resources",
+    },
+    "greeting": {
+        "url":         "https://www.youtube.com/watch?v=POPpLzKxFww",
+        "video_id":    "POPpLzKxFww",
+        "title":       "Mental Health Support — You're Not Alone",
+        "thumbnail":   yt_thumb("POPpLzKxFww"),
+        "description": "General mental health support and recovery resources",
+    },
+    "farewell": {
+        "url":         "https://www.youtube.com/watch?v=gGJNq-2cjAI",
+        "video_id":    "gGJNq-2cjAI",
+        "title":       "Keep Going — Self-Care and Resilience",
+        "thumbnail":   yt_thumb("gGJNq-2cjAI"),
+        "description": "Building lasting resilience and sustainable self-care",
+    },
+    "gratitude": {
+        "url":         "https://www.youtube.com/watch?v=gGJNq-2cjAI",
+        "video_id":    "gGJNq-2cjAI",
+        "title":       "Keep Going — Self-Care and Resilience",
+        "thumbnail":   yt_thumb("gGJNq-2cjAI"),
+        "description": "Building lasting resilience and sustainable self-care",
+    },
+    "unclear": {
+        "url":         "https://www.youtube.com/watch?v=POPpLzKxFww",
+        "video_id":    "POPpLzKxFww",
+        "title":       "Mental Health Support — You're Not Alone",
+        "thumbnail":   yt_thumb("POPpLzKxFww"),
+        "description": "General mental health support and recovery resources",
+    },
+    "medication_request": {
+        "url":         "https://www.youtube.com/watch?v=hnpQrMqDoqE",
+        "video_id":    "hnpQrMqDoqE",
+        "title":       "Stress Management Techniques",
+        "thumbnail":   yt_thumb("hnpQrMqDoqE"),
+        "description": "Simple daily techniques to manage stress and anxiety",
+    },
+    "error": {
+        "url":         "https://www.youtube.com/watch?v=POPpLzKxFww",
+        "video_id":    "POPpLzKxFww",
+        "title":       "Mental Health Support — You're Not Alone",
+        "thumbnail":   yt_thumb("POPpLzKxFww"),
+        "description": "General mental health support and recovery resources",
     },
 }
 
@@ -215,9 +267,244 @@ SCORE_GROUPS = {
 }
 
 
+# ── Alternative videos per intent (backup pool to avoid repetition) ──────────
+# When a patient has already seen the primary video for an intent, these
+# alternatives are offered instead, in order, before cycling back.
+VIDEO_ALTERNATIVES = {
+    "mood_sad": [
+        {
+            "url":         "https://www.youtube.com/watch?v=5CJPA8ahuRc",
+            "video_id":    "5CJPA8ahuRc",
+            "title":       "How to Deal with Sadness — Dr. Tracey Marks",
+            "thumbnail":   yt_thumb("5CJPA8ahuRc"),
+            "description": "Clinical guidance on processing and moving through sadness",
+        },
+        {
+            "url":         "https://www.youtube.com/watch?v=RHqTe9KZm-0",
+            "video_id":    "RHqTe9KZm-0",
+            "title":       "Self-Care When You're Feeling Low",
+            "thumbnail":   yt_thumb("RHqTe9KZm-0"),
+            "description": "Practical self-care routines to lift your mood",
+        },
+    ],
+    "mood_anxious": [
+        {
+            "url":         "https://www.youtube.com/watch?v=tybOi4hjZFQ",
+            "video_id":    "tybOi4hjZFQ",
+            "title":       "How to Stop Anxiety — Therapy in a Nutshell",
+            "thumbnail":   yt_thumb("tybOi4hjZFQ"),
+            "description": "Evidence-based techniques to reduce anxiety",
+        },
+        {
+            "url":         "https://www.youtube.com/watch?v=aXItOY0sLRY",
+            "video_id":    "aXItOY0sLRY",
+            "title":       "Grounding Techniques for Anxiety",
+            "thumbnail":   yt_thumb("aXItOY0sLRY"),
+            "description": "Quick grounding exercises to calm your nervous system",
+        },
+    ],
+    "mood_angry": [
+        {
+            "url":         "https://www.youtube.com/watch?v=BKBToGMToXQ",
+            "video_id":    "BKBToGMToXQ",
+            "title":       "Anger and the Brain — Why We Get Angry",
+            "thumbnail":   yt_thumb("BKBToGMToXQ"),
+            "description": "Understanding the neuroscience of anger",
+        },
+    ],
+    "mood_lonely": [
+        {
+            "url":         "https://www.youtube.com/watch?v=I71TZO_ZQMU",
+            "video_id":    "I71TZO_ZQMU",
+            "title":       "The Loneliness Epidemic — Finding Connection",
+            "thumbnail":   yt_thumb("I71TZO_ZQMU"),
+            "description": "Why loneliness is rising and what to do about it",
+        },
+    ],
+    "mood_guilty": [
+        {
+            "url":         "https://www.youtube.com/watch?v=IvtZBUSplr4",
+            "video_id":    "IvtZBUSplr4",
+            "title":       "How to Forgive Yourself",
+            "thumbnail":   yt_thumb("IvtZBUSplr4"),
+            "description": "Steps toward self-forgiveness and moving forward",
+        },
+    ],
+    "behaviour_sleep": [
+        {
+            "url":         "https://www.youtube.com/watch?v=t0kACis_dJE",
+            "video_id":    "t0kACis_dJE",
+            "title":       "Sleep and Mental Health — The Connection",
+            "thumbnail":   yt_thumb("t0kACis_dJE"),
+            "description": "How sleep affects mood, anxiety and recovery",
+        },
+    ],
+    "behaviour_eating": [
+        {
+            "url":         "https://www.youtube.com/watch?v=0pS50j-ScEk",
+            "video_id":    "0pS50j-ScEk",
+            "title":       "Mindful Eating — Rebuilding Your Relationship with Food",
+            "thumbnail":   yt_thumb("0pS50j-ScEk"),
+            "description": "Mindfulness practices for healthier eating habits",
+        },
+    ],
+    "addiction_alcohol": [
+        {
+            "url":         "https://www.youtube.com/watch?v=vOBJNv0DmAg",
+            "video_id":    "vOBJNv0DmAg",
+            "title":       "Life in Recovery from Alcohol — Real Stories",
+            "thumbnail":   yt_thumb("vOBJNv0DmAg"),
+            "description": "Personal experiences of building a sober life",
+        },
+        {
+            "url":         "https://www.youtube.com/watch?v=T4dJBNBNEVA",
+            "video_id":    "T4dJBNBNEVA",
+            "title":       "Craving Management — Surfing the Urge",
+            "thumbnail":   yt_thumb("T4dJBNBNEVA"),
+            "description": "Urge surfing technique to ride out alcohol cravings",
+        },
+    ],
+    "addiction_drugs": [
+        {
+            "url":         "https://www.youtube.com/watch?v=ao8L-0nSYzg",
+            "video_id":    "ao8L-0nSYzg",
+            "title":       "The Science of Addiction and Recovery",
+            "thumbnail":   yt_thumb("ao8L-0nSYzg"),
+            "description": "How addiction changes the brain and how recovery works",
+        },
+    ],
+    "addiction_gambling": [
+        {
+            "url":         "https://www.youtube.com/watch?v=jEpE37F2q_M",
+            "video_id":    "jEpE37F2q_M",
+            "title":       "Gambling Disorder — How to Break the Cycle",
+            "thumbnail":   yt_thumb("jEpE37F2q_M"),
+            "description": "Understanding gambling disorder triggers and recovery steps",
+        },
+    ],
+    "addiction_nicotine": [
+        {
+            "url":         "https://www.youtube.com/watch?v=2VKCgUHkKW8",
+            "video_id":    "2VKCgUHkKW8",
+            "title":       "Managing Nicotine Withdrawal",
+            "thumbnail":   yt_thumb("2VKCgUHkKW8"),
+            "description": "What to expect and how to cope with withdrawal symptoms",
+        },
+    ],
+    "trigger_stress": [
+        {
+            "url":         "https://www.youtube.com/watch?v=0fL-pn80s-c",
+            "video_id":    "0fL-pn80s-c",
+            "title":       "How Stress Affects Your Body",
+            "thumbnail":   yt_thumb("0fL-pn80s-c"),
+            "description": "The physiology of stress and practical relief strategies",
+        },
+        {
+            "url":         "https://www.youtube.com/watch?v=15o4a4yPBDE",
+            "video_id":    "15o4a4yPBDE",
+            "title":       "Progressive Muscle Relaxation for Stress",
+            "thumbnail":   yt_thumb("15o4a4yPBDE"),
+            "description": "Guided PMR technique to physically release stress",
+        },
+    ],
+    "trigger_trauma": [
+        {
+            "url":         "https://www.youtube.com/watch?v=YSjpPe7kGdQ",
+            "video_id":    "YSjpPe7kGdQ",
+            "title":       "PTSD Explained — Symptoms and Recovery",
+            "thumbnail":   yt_thumb("YSjpPe7kGdQ"),
+            "description": "What PTSD is, how it develops, and evidence-based treatments",
+        },
+    ],
+    "trigger_grief": [
+        {
+            "url":         "https://www.youtube.com/watch?v=khkJkR-ipfw",
+            "video_id":    "khkJkR-ipfw",
+            "title":       "The Stages of Grief — What to Expect",
+            "thumbnail":   yt_thumb("khkJkR-ipfw"),
+            "description": "Understanding the grief process and finding your way through",
+        },
+    ],
+    "trigger_relationship": [
+        {
+            "url":         "https://www.youtube.com/watch?v=PHQ1qqbPSl4",
+            "video_id":    "PHQ1qqbPSl4",
+            "title":       "Setting Healthy Boundaries in Relationships",
+            "thumbnail":   yt_thumb("PHQ1qqbPSl4"),
+            "description": "How to communicate and enforce healthy boundaries",
+        },
+    ],
+    "trigger_financial": [
+        {
+            "url":         "https://www.youtube.com/watch?v=GqpB6Y7jBGA",
+            "video_id":    "GqpB6Y7jBGA",
+            "title":       "Reducing Money Anxiety — Practical Steps",
+            "thumbnail":   yt_thumb("GqpB6Y7jBGA"),
+            "description": "Actionable ways to reduce anxiety around financial stress",
+        },
+    ],
+    "severe_distress": [
+        {
+            "url":         "https://www.youtube.com/watch?v=5P-_OvYIGZ4",
+            "video_id":    "5P-_OvYIGZ4",
+            "title":       "Getting Through a Mental Health Crisis",
+            "thumbnail":   yt_thumb("5P-_OvYIGZ4"),
+            "description": "Step-by-step guide to navigating a crisis moment",
+        },
+    ],
+}
+
+
 def get_video(intent: str) -> dict | None:
-    """Returns video data for a given intent, or None if not mapped."""
-    return VIDEO_MAP.get(intent)
+    """
+    Returns video data for a given intent, or a fallback video if not mapped.
+    Ensures every message gets a supportive video resource.
+    NOTE: Prefer get_video_for_patient() to avoid showing the same video repeatedly.
+    """
+    # Try specific intent first
+    if intent in VIDEO_MAP:
+        return VIDEO_MAP.get(intent)
+
+    # Fallback: Always return a general support video
+    return VIDEO_MAP.get("rag_query")  # Default general support video
+
+
+def get_video_for_patient(intent: str, watched_video_ids: set = None) -> dict | None:
+    """
+    Returns the best unwatched video for the given intent.
+
+    Builds a candidate list: [primary video] + [alternatives].
+    Returns the first video whose video_id is not in watched_video_ids.
+    If all candidates have been watched, returns the primary video
+    (least disruptive fallback — repetition is better than no content).
+
+    Args:
+        intent:           The classified intent for this turn.
+        watched_video_ids: Set of video_id strings the patient has already seen
+                          (across all sessions). Pass an empty set or None when
+                          no history is available.
+
+    Returns:
+        A video dict with url / video_id / title / thumbnail / description,
+        or None if no video is mapped for this intent.
+    """
+    if watched_video_ids is None:
+        watched_video_ids = set()
+
+    # Build ordered candidate list: primary first, then alternatives
+    primary = VIDEO_MAP.get(intent) or VIDEO_MAP.get("rag_query")
+    if primary is None:
+        return None
+
+    candidates = [primary] + VIDEO_ALTERNATIVES.get(intent, [])
+
+    # Return first unwatched candidate
+    for video in candidates:
+        if video["video_id"] not in watched_video_ids:
+            return video
+
+    # All candidates already watched — return the primary (graceful repeat)
+    return primary
 
 
 def get_score_group(intent: str) -> str | None:

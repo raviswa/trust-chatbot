@@ -164,35 +164,32 @@ export default function ChatPage() {
   const [input, setInput]           = useState('');
   const [loading, setLoading]       = useState(false);
   const [showCrisis, setShowCrisis] = useState(false);
-  const [sessionId]                 = useState(() => generateId());
+  const sessionIdRef                 = useRef(generateId());
   const bottomRef                   = useRef(null);
   const inputRef                    = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [messages, loading]);
 
   async function selectPatient(p) {
+    sessionIdRef.current = generateId();  // fresh session per patient — prevents cross-patient memory
     setPatient(p);
     setScreen('loading');
     setScores({});
     try {
-      const res    = await fetch(`${API}/patient/${p.code}/checkin-status?hours=240`);
+      const res    = await fetch(`/api/checkin-status?code=${p.code}&hours=240`);
       const status = await res.json();
       setCheckin(status);
 
-      let opening = '';
-      if (status.has_recent_activity && status.topics_covered?.length > 0) {
-        const topics  = status.topics_covered.join(', ');
-        const timeAgo = status.hours_since_checkin < 1
-          ? `${Math.round(status.hours_since_checkin * 60)} minutes ago`
-          : `${Math.round(status.hours_since_checkin)} hour${Math.round(status.hours_since_checkin) === 1 ? '' : 's'} ago`;
-        opening = `Welcome back, ${p.name}. Last time we spoke about ${topics} (${timeAgo}). Are those still on your mind today, or is there something new you would like to talk about?`;
+      // Use the clinical contextual greeting from the backend if available,
+      // otherwise fall back to a warm default.
+      const opening = status.greeting
+        || `Hi ${p.name}, I am here to support you. What is on your mind today?`;
 
+      if (status.has_recent_activity) {
         await fetch(`${API}/patient/${p.code}/set-continuity`, {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ session_id: sessionId }),
+          body: JSON.stringify({ session_id: sessionIdRef.current }),
         }).catch(() => {});
-      } else {
-        opening = `Hi ${p.name}, welcome. I am here to listen and support you. This is a safe, confidential space — feel free to share what is on your mind today.`;
       }
 
       setMessages([{ role:'assistant', content:opening, intent: status.has_recent_activity ? 'continuity_greeting' : 'greeting' }]);
@@ -212,7 +209,7 @@ export default function ChatPage() {
     try {
       const res  = await fetch('/api/chat', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ message:text, sessionId, patientCode:patient?.code }),
+        body: JSON.stringify({ message:text, sessionId: sessionIdRef.current, patientCode:patient?.code }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -410,7 +407,7 @@ export default function ChatPage() {
                     {msg.role === 'assistant' && msg.scoreData?.needed && !scores[msg.scoreData.group] && (
                       <ScoreCard
                         scoreData={msg.scoreData}
-                        sessionId={sessionId}
+                        sessionId={sessionIdRef.current}
                         patientCode={patient?.code}
                         intent={msg.intent}
                         onSubmit={(val) => handleScoreSubmit(msg.scoreData.group, val)}

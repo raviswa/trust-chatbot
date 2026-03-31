@@ -1,0 +1,17 @@
+{
+  "name": "trust-chatbot",
+  "version": "1.0.0",
+  "description": "Trust AI — Mental Health Chatbot",
+  "private": true,
+  "scripts": {
+    "start": "npm run start --prefix frontend",
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "lint": "npm run lint --prefix frontend",
+    "install-all": "npm install && npm install --prefix frontend"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

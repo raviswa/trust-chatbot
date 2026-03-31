@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'message and sessionId are required' });
   }
 
-  const apiUrl    = process.env.CHATBOT_API_URL || 'http://127.0.0.1:8001';
+  const apiUrl    = process.env.CHATBOT_API_URL || 'http://127.0.0.1:8000';
   const targetUrl = `${apiUrl}/chat`;
   const payload   = JSON.stringify({
     message:      message,

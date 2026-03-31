@@ -296,116 +296,7 @@ def get_checkin_data(session: dict) -> dict:
     return session.get(CHECKIN_KEY, {}).get("collected", {})
 
 
-# ── Intake phase → first question key mapping ─────────────────────────────────
-# Used by restore_intake_from_db to determine where to resume on reconnect.
-_PHASE_TO_FIRST_QUESTION: dict = {
-    0: "opening",
-    1: "emotional_state",
-    2: "addiction_type",
-    3: "sleep_quality",
-    4: "triggers_exposure",
-    5: "physical_health",
-}
-
-
-def restore_intake_from_db(session: dict, onboarding_profile: dict) -> bool:
-    """
-    Restore in-memory intake state from a DB-backed onboarding_profile dict.
-
-    Called on the first message of a reconnected session when last_intake_phase > 0
-    and intake_consent_given is False.  Sets INTAKE_KEY so the session resumes
-    at the correct question rather than restarting from Phase 0.
-
-    Returns True if the state was restored, False if no action needed.
-    """
-    phase = onboarding_profile.get("last_intake_phase") or 0
-    if phase <= 0 or onboarding_profile.get("intake_consent_given"):
-        return False
-
-    resume_q = _PHASE_TO_FIRST_QUESTION.get(phase, "opening")
-
-    # Re-populate collected with whatever the DB already knows so that
-    # later questions can still interpolate {name}, etc.
-    collected: dict = {}
-    if onboarding_profile.get("name"):
-        collected["name"] = onboarding_profile["name"]
-    if onboarding_profile.get("addiction_type"):
-        collected["addiction_type"] = onboarding_profile["addiction_type"]
-    if onboarding_profile.get("work_status"):
-        collected["work_status"] = onboarding_profile["work_status"]
-
-    session[INTAKE_KEY] = {
-        "active": True,
-        "current_question": resume_q,
-        "phase": phase,
-        "collected": collected,
-        "complete": False,
-        "_show_question": True,      # flag: re-display question before processing next answer
-        "_resumed_from_db": True,    # flag: prepend "welcome back" prefix
-    }
-    return True
-
-
-# ── Boolean flag normaliser ───────────────────────────────────────────────────
-# All keys listed below are boolean-intent fields used by CLINICAL_SAFETY_OVERRIDES
-# in patient_context.py.  The intake extractor (_extract_yes_no) and mobile-app DB
-# records both return "yes"/"no" strings for these fields.
-# • "no" is truthy in Python — leaving it as a string causes overrides to fire
-#   incorrectly for patients who answered no.
-# • keys absent from the profile dict are falsy (None) — correct, no action needed.
-# This function normalises the strings to proper booleans at both write points:
-#   1. Inside _build_completion_response (conversational intake path)
-#   2. At the DB-load site in chatbot_engine.py (mobile-app / Supabase path)
-
-_BOOLEAN_FLAG_FIELDS: frozenset = frozenset({
-    # Clinical safety override flags
-    "uses_substance_for_sleep",
-    "family_member_uses",
-    "suicide_attempt_history",
-    "trauma_history",
-    "avoidant_coping",
-    "high_impulsivity",
-    "cognitive_impairment",
-    "bipolar_or_psychosis_history",
-    # Intake yes/no fields (used elsewhere in the pipeline)
-    "medication_adherence",
-    "triggers_exposure",
-    "social_support",
-    "consent",
-    "triggers_today",
-    "medication_missed",
-})
-
-_YES_STRINGS: frozenset = frozenset({"yes", "yeah", "yep", "yup", "true", "1"})
-_NO_STRINGS:  frozenset = frozenset({"no", "nope", "nah", "false", "0"})
-
-
-def coerce_profile_flags(profile: dict) -> dict:
-    """
-    Return a copy of *profile* where every key in _BOOLEAN_FLAG_FIELDS whose
-    current value is a yes/no string is converted to a proper Python bool.
-
-    "yes" / "yeah" / "true" / "1"  →  True
-    "no"  / "nope" / "false" / "0" →  False
-    booleans, None, or other values →  unchanged
-
-    This must be called at every point where a dict is written to
-    session["intake_profile"] so that downstream flag checks
-    (profile_flags.get("uses_substance_for_sleep") etc.) behave correctly.
-    """
-    result = dict(profile)
-    for key in _BOOLEAN_FLAG_FIELDS:
-        val = result.get(key)
-        if isinstance(val, bool):
-            continue  # already a boolean
-        if isinstance(val, str):
-            normalised = val.strip().lower()
-            if normalised in _YES_STRINGS:
-                result[key] = True
-            elif normalised in _NO_STRINGS:
-                result[key] = False
-            # otherwise leave as-is (e.g. a free-text answer)
-    return result
+# ── Natural language extraction helpers ──────────────────────────────────────
 
 def _extract_name(text: str) -> Optional[str]:
     """Extract a first name / nickname from a response."""
@@ -570,7 +461,7 @@ def handle_intake_turn(user_input: str, session: dict) -> Optional[dict]:
         "show_resources": False,
         "citations": [],
         "intake_complete": False,
-        "intake_profile": coerce_profile_flags(collected),
+        "intake_profile": collected,
         "intake_phase": next_q_def.get("phase", 0),
     }
 
@@ -672,7 +563,7 @@ def _build_completion_response(collected: dict, session: dict) -> dict:
         "show_resources": False,
         "citations": [],
         "intake_complete": True,
-        "intake_profile": coerce_profile_flags(collected),
+        "intake_profile": collected,
     }
 
 
@@ -742,19 +633,11 @@ def _build_checkin_completion_response(collected: dict, session: dict) -> dict:
 # ── Helper: should we start intake? ──────────────────────────────────────────
 
 def should_start_intake(session: dict, message_count: int) -> bool:
-    """Return True if we should initiate intake on this session's first message.
-
-    message_count is the *already-incremented* session counter (>= 1 when called
-    from handle_message).  We gate on <= 1 so we fire on the very first turn.
-    intake_consent_given in intake_profile is the DB-backed completion guard —
-    prevents re-starting intake for patients who already finished it in a prior
-    session and whose profile was pre-loaded by the onboarding fetch.
-    """
+    """Return True if we should initiate intake on this session's first message."""
     return (
-        message_count <= 1
+        message_count == 0
         and not is_intake_active(session)
         and not is_intake_complete(session)
-        and not session.get("intake_profile", {}).get("intake_consent_given")
     )
 
 

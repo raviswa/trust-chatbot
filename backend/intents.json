@@ -74,6 +74,30 @@
       "context": "general"
     },
 
+    {
+      "tag": "venting",
+      "patterns": [
+        "This is so hard", "I can't do this anymore", "I'm exhausted",
+        "I'm so exhausted", "Everything is too much", "It's all too much",
+        "I can't take it anymore", "I'm at my limit", "I'm at breaking point",
+        "I'm breaking down", "I'm falling apart", "I just need to vent",
+        "I need to let it out", "I just want to let it out",
+        "I'm done", "I can't cope", "I just can't", "I give up",
+        "I'm so tired of this", "I'm worn out", "I'm drained",
+        "I'm burned out", "I don't know how much more I can take",
+        "I can't keep going like this", "I'm running on empty"
+      ],
+      "responses": [
+        "That sounds really hard, and it makes complete sense you're feeling this way. You don't have to have the answers right now.",
+        "I hear you. What you're carrying sounds genuinely heavy — it's okay to just let it out here.",
+        "Sometimes things just pile up until they feel impossible. I'm here, and there's no rush.",
+        "That level of exhaustion is real. You don't have to explain or justify it — I'm listening.",
+        "It makes sense you feel this way. Just being here and saying it out loud takes courage."
+      ],
+      "context": "mood",
+      "severity": "medium"
+    },
+
     // ─────────────────────────────────────────────
     // SECTION 2: MOOD
     // ─────────────────────────────────────────────
@@ -453,7 +477,11 @@
         "I'm hooked on painkillers", "I use opioids",
         "I've tried to quit drugs but relapsed", "Drug use is taking over my life",
         "I spend all my money on drugs", "I use drugs to numb the pain",
-        "I can't function without using"
+        "I can't function without using",
+        "need cocaine", "need some cocaine", "want cocaine", "need heroin",
+        "need meth", "need crack", "need ecstasy", "need fentanyl",
+        "need some drugs", "craving cocaine", "craving heroin", "craving meth",
+        "using cocaine", "using heroin", "using meth", "using crack"
       ],
       "responses": [
         "Thank you for trusting me with this. What you're going through is serious, and you deserve proper support.",
