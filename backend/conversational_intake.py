@@ -410,16 +410,30 @@ def coerce_profile_flags(profile: dict) -> dict:
 def _extract_name(text: str) -> Optional[str]:
     """Extract a first name / nickname from a response."""
     text = text.strip()
+    # Words that are common English words, not names — prevent false positives
+    _NON_NAMES = {
+        "yes", "no", "hi", "hey", "hello", "sure", "okay", "ok",
+        "my", "me", "i", "it", "its", "just", "the", "a", "an",
+        "good", "bad", "fine", "not", "well", "so", "oh", "um",
+        "friend", "friends", "need", "some", "beer", "help",
+    }
     # "My name is X", "I'm X", "Call me X", "It's X"
     for pat in [
         r"(?:my name is|i'm|i am|call me|it's|its|just)\s+([A-Za-z]+)",
         r"^([A-Za-z]{2,20})$",  # bare single word
-        r"^([A-Za-z]{2,20})[,\s]",  # first word before comma/space
     ]:
         m = re.search(pat, text, re.IGNORECASE)
         if m:
             name = m.group(1).capitalize()
-            if name.lower() not in {"yes", "no", "hi", "hey", "hello", "sure", "okay", "ok"}:
+            if name.lower() not in _NON_NAMES:
+                return name
+    # Only try first-word-before-comma/space when the text is a short, likely-name reply
+    # (5 words or fewer) to avoid extracting nouns from full sentences
+    if len(text.split()) <= 5:
+        m = re.search(r"^([A-Za-z]{2,20})[,\s]", text, re.IGNORECASE)
+        if m:
+            name = m.group(1).capitalize()
+            if name.lower() not in _NON_NAMES:
                 return name
     return None
 
@@ -558,6 +572,26 @@ def handle_intake_turn(user_input: str, session: dict) -> Optional[dict]:
     next_q_def = INTAKE_QUESTIONS.get(next_q_key)
     state["current_question"] = next_q_key
     state["phase"] = next_q_def.get("phase", state["phase"])
+
+    # Skip questions whose fields are already pre-populated (e.g. from the
+    # patient's first message or from a pre-loaded onboarding profile).
+    _skip_limit = len(INTAKE_QUESTIONS)  # safety cap to prevent infinite loop
+    while _skip_limit > 0:
+        _skip_field = next_q_def.get("extract")
+        if _skip_field and _skip_field in collected and collected[_skip_field]:
+            # Field already known — advance without asking the question
+            _next_of_next = next_q_def.get("next", "COMPLETE")
+            if _next_of_next == "COMPLETE":
+                state["active"] = False
+                state["complete"] = True
+                return _build_completion_response(collected, session)
+            next_q_key = _next_of_next
+            next_q_def = INTAKE_QUESTIONS.get(next_q_key, {})
+            state["current_question"] = next_q_key
+            state["phase"] = next_q_def.get("phase", state["phase"])
+            _skip_limit -= 1
+        else:
+            break
 
     # Format question with collected data
     name = collected.get("name", "there")
@@ -749,12 +783,20 @@ def should_start_intake(session: dict, message_count: int) -> bool:
     intake_consent_given in intake_profile is the DB-backed completion guard —
     prevents re-starting intake for patients who already finished it in a prior
     session and whose profile was pre-loaded by the onboarding fetch.
+
+    Skips intake entirely when the patient's name and addiction_type are already
+    known from the pre-loaded onboarding profile — avoids duplicate greetings and
+    asking for information the system already has.
     """
+    profile = session.get("intake_profile", {})
+    # Profile is sufficiently populated — intake would only ask redundant questions
+    if profile.get("name") and profile.get("addiction_type"):
+        return False
     return (
         message_count <= 1
         and not is_intake_active(session)
         and not is_intake_complete(session)
-        and not session.get("intake_profile", {}).get("intake_consent_given")
+        and not profile.get("intake_consent_given")
     )
 
 

@@ -126,6 +126,8 @@ class IntentClassifier:
                 "need a gin", "need some gin", "need gin",
                 "need a shot", "need some shots", "need shots",
                 "need bourbon", "need tequila", "need spirits",
+                "need alcohol", "need some alcohol", "need more alcohol",
+                "want alcohol", "want some alcohol", "want more alcohol",
                 "craving beer", "craving wine", "want a beer", "want some beer",
                 "craving vodka", "want a vodka", "want some vodka",
                 "craving rum", "craving gin", "craving tequila", "craving bourbon",
@@ -154,7 +156,8 @@ class IntentClassifier:
                 "can't stop gaming", "can't stop playing", "game marathon",
                 "need to play", "just want to play",
                 "need some gaming", "need gaming", "need more gaming",
-                "want some gaming", "want more gaming",
+                "want some gaming", "want more gaming", "more gaming",
+                "gaming", "play games", "video games",
             ],
             # Nicotine cravings
             "addiction_nicotine": [
@@ -196,7 +199,18 @@ class IntentClassifier:
                 "can't sleep", "cannot sleep", "struggling to sleep", "trouble sleeping",
                 "difficulty sleeping", "sleep problem", "sleep trouble", "sleep disorder",
                 "insomnia", "nightmares", "waking up", "wake up at", "wake up in",
-                "sleep", "sleeping", "tired",
+                "sleepless", "sleeplessness", "no sleep", "not sleeping",
+                "slept", "not slept", "haven't slept", "didn't sleep", "couldn't sleep",
+                "sleep", "sleeping",
+            ],
+            "behaviour_fatigue": [
+                "tired", "so tired", "very tired", "too tired", "much tired",
+                "exhausted", "exhaustion", "fatigue", "fatigued",
+                "drained", "physically drained", "worn out", "burnt out", "burnout",
+                "no energy", "low energy", "lacking energy", "zero energy",
+                "run down", "rundown", "feeling run down",
+                "sick", "feeling sick", "unwell", "not well", "ill",
+                "nausea", "nauseated", "body aches", "aching",
             ],
             "behaviour_eating": ["eating", "food", "appetite", "not eating", "eating habits", "weight"],
             # Priority 4: Venting (empathy-only — must fire before mood/unclear)
@@ -308,7 +322,66 @@ class IntentClassifier:
         logger.debug(f"Classified as '{fallback}' (fallback)")
         return fallback
 
-    def _llm_classify(self, text: str) -> Optional[str]:
+    def classify_multi(self, text: str, addiction_type: Optional[str] = None) -> Tuple[str, List[str]]:
+        """
+        Returns (primary_intent, secondary_intents).
+
+        Secondary intents are additional co-present signals found in the same
+        message — e.g. "can't sleep and really craving a drink" gives:
+            primary:    addiction_drugs
+            secondary: [behaviour_sleep]
+
+        Rules:
+        - Safety-critical intents (crisis, self-harm, medication) are NEVER
+          relegated to secondary.  If the primary is a safety intent, the
+          secondary scan is skipped entirely.
+        - Cap: at most 3 secondary intents to avoid noise.
+        - When Ollama is available, secondary scan uses a single LLM multi-label
+          call so synonyms, context, and paraphrasing are all understood.
+        - Falls back to pattern-based scan when Ollama is unavailable.
+        """
+        primary = self.classify(text, addiction_type=addiction_type)
+
+        _safety_intents = {
+            "crisis_suicidal", "crisis_abuse", "behaviour_self_harm",
+            "severe_distress", "psychosis_indicator", "medication_request",
+        }
+        # Never look for secondary signals when the primary is a safety event
+        if primary in _safety_intents:
+            return primary, []
+
+        # ── LLM multi-label secondary scan ────────────────────────────────
+        if self.ollama_available:
+            secondary = self._llm_classify_multi(text, primary, _safety_intents, addiction_type)
+            if secondary is not None:          # None = LLM failed → fall through to patterns
+                return primary, secondary
+
+        # ── Pattern-based fallback (Ollama unavailable or LLM call failed) ─
+        text_lower = text.lower().strip()
+        secondary: List[str] = []
+        seen: set = {primary}
+
+        for intent, patterns in self.priority_patterns.items():
+            if intent in seen or intent in _safety_intents:
+                continue
+            if any(p in text_lower for p in patterns):
+                secondary.append(intent)
+                seen.add(intent)
+                if len(secondary) >= 3:
+                    return primary, secondary
+
+        for pattern, tag in self.pattern_tag_map.items():
+            if tag in seen or tag in _safety_intents:
+                continue
+            if pattern in text_lower:
+                secondary.append(tag)
+                seen.add(tag)
+                if len(secondary) >= 3:
+                    return primary, secondary
+
+        return primary, secondary
+
+    def _llm_classify(self, text: str, addiction_type: Optional[str] = None) -> Optional[str]:
         try:
             tags = list(self.intents_map.keys()) + ["medication_request", "rag_query", "venting"]
             prompt = (
@@ -327,6 +400,94 @@ class IntentClassifier:
         except Exception as e:
             logger.error(f"LLM classification failed: {e}")
             return None
+
+    def _llm_classify_multi(
+        self,
+        text: str,
+        primary: str,
+        safety_intents: set,
+        addiction_type: Optional[str] = None,
+    ) -> Optional[List[str]]:
+        """
+        Ask the LLM to identify ALL secondary intents present in the message.
+
+        Returns a list of secondary intent tags (excluding primary and safety intents),
+        capped at 3. Returns None if the LLM call fails (caller falls back to patterns).
+
+        Using a single LLM call means synonyms, paraphrasing, and contextual meaning
+        are all understood — e.g. "wiped out" → behaviour_fatigue, "zonked" → behaviour_sleep,
+        "fancy a flutter" → addiction_gambling.
+        """
+        try:
+            # Build a focused tag list: exclude safety intents and primary already found
+            all_tags = (
+                list(self.intents_map.keys())
+                + ["medication_request", "rag_query", "venting",
+                   "behaviour_fatigue", "behaviour_sleep", "behaviour_eating",
+                   "behaviour_isolation"]
+            )
+            candidate_tags = [
+                t for t in all_tags
+                if t != primary and t not in safety_intents
+            ]
+            # De-duplicate while preserving order
+            seen_tags: set = set()
+            unique_candidates: List[str] = []
+            for t in candidate_tags:
+                if t not in seen_tags:
+                    seen_tags.add(t)
+                    unique_candidates.append(t)
+
+            addiction_hint = (
+                f"The patient's registered addiction is '{addiction_type}'. "
+                if addiction_type else ""
+            )
+
+            prompt = (
+                f"You are a clinical intent classifier for an addiction support chatbot.\n"
+                f"{addiction_hint}"
+                f"The primary intent '{primary}' has already been identified.\n\n"
+                f"Identify ALL additional concerns present in this message.\n"
+                f"Consider synonyms, informal language, paraphrasing, and implied meaning.\n"
+                f"Examples:\n"
+                f"  'wiped out' → behaviour_fatigue\n"
+                f"  'tossing and turning' → behaviour_sleep\n"
+                f"  'fancy a flutter' → addiction_gambling\n"
+                f"  'doom scrolling' → addiction_social_media\n"
+                f"  'hitting the bottle' → addiction_alcohol\n\n"
+                f"Choose ONLY from these tags (comma-separated, no explanations, max 3):\n"
+                f"{', '.join(unique_candidates[:40])}\n\n"
+                f"If no additional concerns are present, reply with: none\n\n"
+                f"Message: \"{text}\"\n"
+                f"Additional tags:"
+            )
+
+            response = ollama.generate(model="qwen2.5:7b-instruct", prompt=prompt, stream=False)
+            raw = response["response"].strip().lower()
+
+            if raw in ("none", "none.", "", "-", "n/a"):
+                return []
+
+            valid_tags = set(self.intents_map.keys()) | {
+                "medication_request", "rag_query", "venting",
+                "behaviour_fatigue",
+            }
+            secondary: List[str] = []
+            seen: set = {primary} | safety_intents
+            for token in re.split(r"[,\n]+", raw):
+                tag = token.strip().strip('"\'').strip()
+                if tag and tag in valid_tags and tag not in seen:
+                    secondary.append(tag)
+                    seen.add(tag)
+                if len(secondary) >= 3:
+                    break
+
+            logger.debug(f"LLM multi-label secondary: {secondary}")
+            return secondary
+
+        except Exception as e:
+            logger.warning(f"LLM multi-label classification failed: {e}")
+            return None   # signals caller to fall back to pattern scan
 
     def _pattern_classify_fallback(self, text_lower: str, addiction_type: Optional[str] = None) -> str:
         for intent, patterns in self.priority_patterns.items():

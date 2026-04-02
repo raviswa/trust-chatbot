@@ -41,7 +41,10 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, date
 import json
 
-from db_supabase import supabase
+try:
+    from db_supabase import supabase
+except Exception:
+    supabase = None  # Mock/offline mode — Supabase not configured
 
 logger = logging.getLogger(__name__)
 

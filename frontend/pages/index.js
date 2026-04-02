@@ -97,6 +97,11 @@ function ScoreCard({ scoreData, sessionId, patientCode, intent, onSubmit }) {
 function VideoCard({ video }) {
   const [expanded, setExpanded] = useState(false);
   if (!video) return null;
+
+  // Detect intent placeholder — real URL will be supplied when mobile app
+  // integration is complete. Until then, render a placeholder card.
+  const isPlaceholder = typeof video.url === 'string' && video.url.startsWith('{{');
+
   return (
     <div style={{
       background:'#1a2335', border:'1px solid rgba(255,255,255,0.08)',
@@ -104,15 +109,30 @@ function VideoCard({ video }) {
     }}>
       {expanded ? (
         <div>
-          <iframe
-            width="100%" height="180"
-            src={`https://www.youtube.com/embed/${video.video_id}?autoplay=1`}
-            title={video.title}
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
-            allowFullScreen
-            style={{ display:'block' }}
-          />
+          {isPlaceholder ? (
+            <div style={{
+              padding:'18px 16px', background:'#0f172a',
+              display:'flex', flexDirection:'column', alignItems:'center', gap:8
+            }}>
+              <span style={{ fontSize:11, color:'#475569', letterSpacing:'0.4px', textTransform:'uppercase' }}>Video intent</span>
+              <code style={{ fontSize:13, color:'#93c5fd', background:'rgba(45,106,159,0.18)', padding:'4px 12px', borderRadius:6 }}>
+                {video.active_intents && video.active_intents.length > 0
+                  ? `{{${video.active_intents.join(', ')}}}`
+                  : video.url}
+              </code>
+              <span style={{ fontSize:11, color:'#334155' }}>Video will be available once media integration is complete.</span>
+            </div>
+          ) : (
+            <iframe
+              width="100%" height="180"
+              src={`${video.url}${video.url.includes('?') ? '&' : '?'}autoplay=1`}
+              title={video.title}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+              allowFullScreen
+              style={{ display:'block' }}
+            />
+          )}
           <div style={{ padding:'8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <span style={{ fontSize:12, color:'#94a3b8' }}>{video.description}</span>
             <button onClick={() => setExpanded(false)} style={{
@@ -127,19 +147,33 @@ function VideoCard({ video }) {
           style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', cursor:'pointer' }}
         >
           <div style={{ position:'relative', flexShrink:0 }}>
-            <img
-              src={video.thumbnail}
-              alt={video.title}
-              style={{ width:100, height:56, objectFit:'cover', borderRadius:8, display:'block' }}
-              onError={e => { e.target.style.display='none'; }}
-            />
-            <div style={{
-              position:'absolute', top:'50%', left:'50%',
-              transform:'translate(-50%,-50%)',
-              background:'rgba(0,0,0,0.7)', borderRadius:'50%',
-              width:28, height:28, display:'flex', alignItems:'center', justifyContent:'center',
-              fontSize:12, color:'white'
-            }}>▶</div>
+            {isPlaceholder ? (
+              <div style={{
+                width:100, height:56, borderRadius:8, background:'#0f172a',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:10, color:'#475569', border:'1px solid #1e293b', textAlign:'center', padding:'0 4px'
+              }}>
+                {video.active_intents && video.active_intents.length > 0
+                  ? `{{${video.active_intents.join(', ')}}}`
+                  : video.url}
+              </div>
+            ) : (
+              <>
+                <img
+                  src={video.thumbnail}
+                  alt={video.title}
+                  style={{ width:100, height:56, objectFit:'cover', borderRadius:8, display:'block' }}
+                  onError={e => { e.target.style.display='none'; }}
+                />
+                <div style={{
+                  position:'absolute', top:'50%', left:'50%',
+                  transform:'translate(-50%,-50%)',
+                  background:'rgba(0,0,0,0.7)', borderRadius:'50%',
+                  width:28, height:28, display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:12, color:'white'
+                }}>▶</div>
+              </>
+            )}
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:12, color:'#e2e8f0', fontWeight:500, lineHeight:1.4,
@@ -255,6 +289,7 @@ export default function ChatPage() {
       setMessages(prev => [...prev, {
         role:'assistant', content:data.response,
         intent:data.intent, severity:data.severity,
+        secondaryIntents: data.secondaryIntents || [],
         showResources:data.showResources, citations:data.citations||[],
         scoreData: data.score_data || null,
         video:     data.video     || null,
@@ -290,6 +325,7 @@ export default function ChatPage() {
       setMessages(prev => [...prev, {
         role:'assistant', content:data.response,
         intent:data.intent, severity:data.severity,
+        secondaryIntents: data.secondaryIntents || [],
         showResources:data.showResources, citations:data.citations||[],
         scoreData:null, video:null, showFeedback:false,
       }]);
@@ -360,7 +396,10 @@ export default function ChatPage() {
         .bub.bot.low,.bub.bot.greeting,.bub.bot.continuity_greeting{border-left-color:#334155}
         .bub.bot.continuity_greeting{border-left-color:#4ade80}
         .bub.user{background:linear-gradient(135deg,#1e3a5f,#2d6a9f);color:#f0f9ff;border-bottom-right-radius:4px}
-        .itag{font-size:10px;color:#334155;margin-top:3px;padding-left:2px;text-transform:uppercase;letter-spacing:0.5px}
+        .itags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;padding-left:2px}
+        .itag{font-size:10px;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;display:inline-block}
+        .itag.primary{background:rgba(45,106,159,0.3);color:#93c5fd;border:1px solid rgba(45,106,159,0.5)}
+        .itag.secondary{background:rgba(71,85,105,0.3);color:#94a3b8;border:1px solid rgba(71,85,105,0.5)}
         .cits{margin-top:7px;padding-top:7px;border-top:1px solid #334155;font-size:11px;color:#64748b}
         .cits span{display:inline-block;background:rgba(45,106,159,0.2);color:#93c5fd;padding:2px 7px;border-radius:7px;margin:2px 2px 2px 0;font-size:10.5px}
         .typing{display:flex;gap:4px;padding:13px 17px;background:#1e293b;border-radius:18px;border-bottom-left-radius:4px;width:fit-content}
@@ -480,6 +519,16 @@ export default function ChatPage() {
                       )}
                     </div>
 
+                    {/* Intent tags — shown immediately below the bubble */}
+                    {msg.intent && msg.role === 'assistant' && (
+                      <div className="itags">
+                        <span className="itag primary">{msg.intent}</span>
+                        {(msg.secondaryIntents || []).map((s, si) => (
+                          <span key={si} className="itag secondary">{s}</span>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Score slider — shown once per group per session */}
                     {msg.role === 'assistant' && msg.scoreData?.needed && !scores[msg.scoreData.group] && (
                       <ScoreCard
@@ -491,7 +540,7 @@ export default function ChatPage() {
                       />
                     )}
 
-                    {/* Video thumbnail card */}
+                    {/* Video card — single best-match video for co-present intents */}
                     {msg.role === 'assistant' && msg.video && (
                       <VideoCard video={msg.video} />
                     )}
@@ -501,10 +550,6 @@ export default function ChatPage() {
                       <FeedbackCard
                         onFeedback={sendFeedback}
                       />
-                    )}
-
-                    {msg.intent && msg.role === 'assistant' && (
-                      <div className="itag">{msg.intent}</div>
                     )}
                   </div>
                 </div>

@@ -34,7 +34,7 @@ from patient_context import (
     build_clinical_context_block, get_response_length_instruction, build_enriched_query,
 )
 from greeting_generator import generate_greeting_message
-from video_map import get_video, get_video_for_patient
+from video_map import get_video, get_video_for_patient, get_video_for_intents
 try:
     from conversational_intake import (
         coerce_profile_flags,
@@ -631,11 +631,38 @@ def handle_message(
             try:
                 save_intake_progress(patient_code, 0, 0)
             except Exception as _ipe:
-                logger.warning(f"Could not persist intake start: {_ipe}")
-            _first_q = INTAKE_QUESTIONS.get("opening", {})
-            logger.info(f"[{session_id}] Starting intake (new user)")
+                logger.warning(f"Could not persist intake progress: {_ipe}")
+
+            # Pre-populate mood / addiction_type if the user's first message already
+            # contains that information (e.g. "I need a beer" → alcohol; "I feel angry")
+            _intake_state = session.get(INTAKE_KEY, {})
+            _collected = _intake_state.get("collected", {})
+            try:
+                from conversational_intake import _extract_mood, _extract_addiction_type
+                _pre_mood = _extract_mood(message)
+                _pre_addiction = _extract_addiction_type(message)
+                if _pre_mood and _pre_mood != "mixed":
+                    _collected["mood"] = _pre_mood
+                if _pre_addiction and _pre_addiction != "other":
+                    _collected["addiction_type"] = _pre_addiction
+                _intake_state["collected"] = _collected
+            except Exception:
+                pass
+
+            # Acknowledge the user's opening message in the intake greeting so their
+            # words are not ignored before jumping to name collection.
+            _first_q_text = INTAKE_QUESTIONS.get("opening", {}).get("question", "")
+            if message and len(message.split()) >= 3:
+                _ack = (
+                    "I hear you — thank you for reaching out. 🙏\n\n"
+                    + _first_q_text
+                )
+            else:
+                _ack = _first_q_text
+
+            logger.info(f"[{session_id}] Starting intake (new user, pre-populated: {list(_collected.keys())})")
             return {
-                "response":        _first_q.get("question", ""),
+                "response":        _ack,
                 "intent":          "intake",
                 "severity":        "low",
                 "show_resources":  False,
@@ -675,19 +702,21 @@ def handle_message(
     ).lower().strip() or None
 
     if not _semantic_crisis_override:
-        intent = intent_classifier.classify(message, addiction_type=_early_addiction_type)
+        intent, _secondary_intents = intent_classifier.classify_multi(message, addiction_type=_early_addiction_type)
+    else:
+        _secondary_intents: List[str] = []
     intent_metadata = intent_classifier.get_intent_metadata(intent)
     if not _semantic_crisis_override:
         severity = intent_metadata["severity"]
 
-    logger.info(f"[{session_id}] Classified intent: {intent} (severity: {severity})")
+    logger.info(f"[{session_id}] Classified intent: {intent} (severity: {severity})"
+                + (f" | secondary: {_secondary_intents}" if _secondary_intents else ""))
 
     # Update session with intent
     session["last_intent"] = intent
+    session["last_secondary_intents"] = _secondary_intents
     if severity not in session["severity_flags"]:
         session["severity_flags"].append(severity)
-
-    # ── LAYER 3: CONTEXT EXTRACTION & MANAGEMENT ─────────────────────────
 
     # Extract context from user message
     update_context_from_turn(session_id, message, intent, intent_metadata)
@@ -720,6 +749,15 @@ def handle_message(
     clinical_context_block = build_clinical_context_block(addiction_type, intent, profile_flags)
     response_length_instruction = get_response_length_instruction(profile_flags)
 
+    # Secondary-intent context hint — injected into system prompt so the LLM
+    # can acknowledge co-present concerns in a single coherent response.
+    _secondary_hint = (
+        f"\nCo-present concerns detected in this message: {', '.join(_secondary_intents)}. "
+        "Address the primary concern first, then briefly acknowledge the secondary concern(s) "
+        "if clinically appropriate — do not let the secondary overshadow the primary."
+        if _secondary_intents else ""
+    )
+
     # Resolve active tone mode (Slide 7: 6 modes, driven by risk_level × todays_mood)
     _tone_mode = get_tone_mode(
         patient_context.risk.risk_level,
@@ -734,6 +772,7 @@ Active tone mode: {_tone_mode['label']} — apply this strictly throughout your 
 {layer_guidance}
 {clinical_context_block}
 {_potential_crisis_context}
+{_secondary_hint}
 
 Core guidelines:
 - Respect the patient's autonomy and recovery journey
@@ -948,88 +987,55 @@ Core guidelines:
     
     # ── BUILD RESPONSE OBJECT ────────────────────────────────────────────
     
-    # Retrieve video for this intent — skip videos already seen by this patient
+    # Build active intent list: primary first, then secondary, for multi-intent
+    # video selection.  Skip safety intents from secondary (they have resource blocks).
+    _safety_video_skip = {
+        "crisis_suicidal", "crisis_abuse", "behaviour_self_harm",
+        "severe_distress", "psychosis_indicator", "medication_request",
+    }
+    _active_intents = [intent] + [
+        s for s in _secondary_intents if s not in _safety_video_skip
+    ]
+
+    # Inject the patient's registered addiction type as a scoring hint so that,
+    # e.g., an alcohol patient saying "need a beer" (intent=addiction_drugs)
+    # naturally pulls the addiction_alcohol video (which tags both).
+    # This works for ALL addiction types — no explicit per-type branching needed.
+    _ADDICTION_TYPE_TO_INTENT: Dict[str, str] = {
+        "alcohol":      "addiction_alcohol",
+        "drugs":        "addiction_drugs",
+        "gaming":       "addiction_gaming",
+        "social_media": "addiction_social_media",
+        "nicotine":     "addiction_nicotine",
+        "smoking":      "addiction_nicotine",
+        "gambling":     "addiction_gambling",
+        "work":         "addiction_work",
+        "food":         "addiction_eating",
+        "sex":          "addiction_sex",
+        "shopping":     "addiction_shopping",
+    }
+    if addiction_type:
+        _registered_intent = _ADDICTION_TYPE_TO_INTENT.get(
+            addiction_type.lower().strip().replace(" ", "_").replace("-", "_")
+        )
+        if _registered_intent and _registered_intent not in _active_intents:
+            _active_intents.append(_registered_intent)
+
+    # Retrieve video history for this patient
     watched_video_ids = set()
     try:
         if patient_id:
             watched_video_ids = get_watched_video_ids(patient_id)
     except Exception as _ve:
         logger.warning(f"Could not fetch video watch history: {_ve}")
-    video = get_video_for_patient(intent, watched_video_ids)
 
-    # When the patient has a known addiction type, select the most clinically
-    # relevant video:
-    #   PRIMARY craving  → patient's own specific addiction video
-    #   CROSS  craving   → video for the thing they're currently craving
-    #                       (most immediately relevant education)
-    #   Non-addiction intent with craving keywords → patient's primary video
-    if addiction_type:
-        _addtype = addiction_type.lower().strip().replace(" ", "_").replace("-", "_")
+    # Primary video: multi-intent aware — picks the video with the highest
+    # tag overlap across all active intents (primary + secondary).
+    video = get_video_for_intents(_active_intents, watched_video_ids)
 
-        # addiction_type → video MAP key (alcohol gets specific video, not generic drugs)
-        _PRIMARY_VIDEO: Dict[str, str] = {
-            "alcohol":      "addiction_alcohol",
-            "drugs":        "addiction_drugs",
-            "gaming":       "addiction_gaming",
-            "social_media": "addiction_social_media",
-            "nicotine":     "addiction_nicotine",
-            "smoking":      "addiction_nicotine",
-            "gambling":     "addiction_gambling",
-            "work":         "addiction_work",
-        }
-        # Which intent is each addiction_type's primary craving
-        _PRIMARY_INTENT_VIDEO: Dict[str, str] = {
-            "alcohol":      "addiction_drugs",
-            "drugs":        "addiction_drugs",
-            "gaming":       "addiction_gaming",
-            "social_media": "addiction_social_media",
-            "nicotine":     "addiction_nicotine",
-            "smoking":      "addiction_nicotine",
-            "gambling":     "addiction_gambling",
-        }
-        # All addiction-craving intents and their video keys
-        _ADDICTION_INTENT_VIDEO: Dict[str, str] = {
-            "addiction_drugs":        "addiction_drugs",
-            "addiction_gaming":       "addiction_gaming",
-            "addiction_social_media": "addiction_social_media",
-            "addiction_nicotine":     "addiction_nicotine",
-            "addiction_gambling":     "addiction_gambling",
-            "addiction_work":         "addiction_work",
-        }
-        # Keywords that signal a craving message for each addiction_type
-        _CRAVING_KEYWORDS: Dict[str, List[str]] = {
-            "alcohol":      ["beer", "wine", "vodka", "drink", "alcohol", "whiskey", "rum", "gin", "spirits", "pub", "bar"],
-            "drugs":        ["drug", "substance", "cocaine", "heroin", "meth", "pills", "using", "relapse"],
-            "gaming":       ["game", "gaming", "play", "console", "controller", "stream", "online"],
-            "social_media": ["instagram", "twitter", "tiktok", "scroll", "feed", "social media", "refresh", "notifications"],
-            "nicotine":     ["smoke", "smoking", "cigarette", "vape", "vaping", "nicotine", "fag"],
-            "smoking":      ["smoke", "smoking", "cigarette", "vape", "vaping", "nicotine", "fag"],
-            "gambling":     ["bet", "betting", "casino", "gamble", "gambling", "poker", "slot", "wager", "flutter", "lottery"],
-        }
-
-        _primary_video_key = _PRIMARY_VIDEO.get(_addtype)
-        _primary_intent    = _PRIMARY_INTENT_VIDEO.get(_addtype)
-        _msg_lower         = message.lower()
-
-        if _primary_video_key and intent in _ADDICTION_INTENT_VIDEO:
-            if intent == _primary_intent:
-                # PRIMARY craving — use patient's own specific video
-                # (e.g. alcohol patient craving alcohol → addiction_alcohol video, not generic)
-                _chosen_key = _primary_video_key
-            else:
-                # CROSS-addiction craving — use video for what they're craving right now
-                _chosen_key = _ADDICTION_INTENT_VIDEO[intent]
-            _chosen_video = get_video_for_patient(_chosen_key, watched_video_ids)
-            if _chosen_video:
-                video = _chosen_video
-
-        elif _primary_video_key:
-            # Intent is not an addiction intent — show patient's primary video only
-            # if the message contains recognisable craving signals
-            if any(kw in _msg_lower for kw in _CRAVING_KEYWORDS.get(_addtype, [])):
-                _pv = get_video_for_patient(_primary_video_key, watched_video_ids)
-                if _pv:
-                    video = _pv
+    # Stamp the active intents onto the video so the UI can show all covered tags.
+    if video:
+        video = {**video, "active_intents": _active_intents}
 
     # Tag session with the last intervention intent so downstream tooling can
     # correlate a Clinical Handshake 👍/👎 response back to the tool that was served.
@@ -1039,6 +1045,7 @@ Core guidelines:
     return {
         "response": response_text,
         "intent": intent,
+        "secondary_intents": _secondary_intents,
         "severity": severity,
         "show_resources": response_meta.get("show_resources", False),
         "resource_links": safety_checker.get_resource_links(intent) if response_meta.get("show_resources") else {},

@@ -7,225 +7,264 @@ Each entry has: url, title, thumbnail, description.
 ─────────────────────────────────────────────────────────────────
 """
 
-# YouTube thumbnail URL pattern
-def yt_thumb(vid_id):
-    return f"https://img.youtube.com/vi/{vid_id}/mqdefault.jpg"
+# Placeholder helper — returns intent key wrapped in double braces.
+# YouTube URLs will be replaced with real video URLs when the
+# mobile app integration is complete.
+def yt_thumb(intent_key):
+    return f"{{{{ {intent_key} }}}}"
 
 VIDEO_MAP = {
     # ── Mood ─────────────────────────────────────────────────────
     "mood_sad": {
-        "url":         "https://www.youtube.com/watch?v=jDTBTMHzFjQ",
-        "video_id":    "jDTBTMHzFjQ",
+        "url":         "{{mood_sad}}",
+        "video_id":    "{{mood_sad}}",
         "title":       "Understanding and Coping with Low Mood",
-        "thumbnail":   yt_thumb("jDTBTMHzFjQ"),
+        "thumbnail":   "{{mood_sad}}",
         "description": "Practical techniques for managing feelings of sadness",
+        "tags":        ["mood_sad"],
     },
     "mood_anxious": {
-        "url":         "https://www.youtube.com/watch?v=WWloIAQpMkQ",
-        "video_id":    "WWloIAQpMkQ",
+        "url":         "{{mood_anxious}}",
+        "video_id":    "{{mood_anxious}}",
         "title":       "5-Minute Anxiety Relief — Breathing Exercise",
-        "thumbnail":   yt_thumb("WWloIAQpMkQ"),
+        "thumbnail":   "{{mood_anxious}}",
         "description": "A simple breathing technique to calm anxiety",
+        "tags":        ["mood_anxious", "trigger_stress"],
     },
     "mood_angry": {
-        "url":         "https://www.youtube.com/watch?v=BsVq5R_F6RA",
-        "video_id":    "BsVq5R_F6RA",
+        "url":         "{{mood_angry}}",
+        "video_id":    "{{mood_angry}}",
         "title":       "Managing Anger — Healthy Coping Strategies",
-        "thumbnail":   yt_thumb("BsVq5R_F6RA"),
+        "thumbnail":   "{{mood_angry}}",
         "description": "Evidence-based techniques for managing anger",
+        "tags":        ["mood_angry"],
     },
     "mood_lonely": {
-        "url":         "https://www.youtube.com/watch?v=n3Xv_g3g-mA",
-        "video_id":    "n3Xv_g3g-mA",
+        "url":         "{{mood_lonely}}",
+        "video_id":    "{{mood_lonely}}",
         "title":       "Overcoming Loneliness — Building Connection",
-        "thumbnail":   yt_thumb("n3Xv_g3g-mA"),
+        "thumbnail":   "{{mood_lonely}}",
         "description": "Steps to rebuild social connection and reduce isolation",
+        "tags":        ["mood_lonely", "behaviour_isolation"],
     },
     "mood_guilty": {
-        "url":         "https://www.youtube.com/watch?v=ZizdB0TgAVM",
-        "video_id":    "ZizdB0TgAVM",
+        "url":         "{{mood_guilty}}",
+        "video_id":    "{{mood_guilty}}",
         "title":       "Self-Compassion — Letting Go of Guilt",
-        "thumbnail":   yt_thumb("ZizdB0TgAVM"),
+        "thumbnail":   "{{mood_guilty}}",
         "description": "Developing self-compassion and processing guilt",
+        "tags":        ["mood_guilty"],
     },
 
     # ── Behaviour ────────────────────────────────────────────────
     "behaviour_sleep": {
-        "url":         "https://www.youtube.com/watch?v=nm1TxQj9IsQ",
-        "video_id":    "nm1TxQj9IsQ",
+        "url":         "{{behaviour_sleep}}",
+        "video_id":    "{{behaviour_sleep}}",
         "title":       "Better Sleep — Science-Backed Tips",
-        "thumbnail":   yt_thumb("nm1TxQj9IsQ"),
+        "thumbnail":   "{{behaviour_sleep}}",
         "description": "Practical sleep hygiene strategies",
+        "tags":        ["behaviour_sleep", "mood_anxious"],
+    },
+    "behaviour_fatigue": {
+        "url":         "{{behaviour_fatigue}}",
+        "video_id":    "{{behaviour_fatigue}}",
+        "title":       "Managing Fatigue in Recovery",
+        "thumbnail":   "{{behaviour_fatigue}}",
+        "description": "Understanding tiredness and rebuilding energy",
+        "tags":        ["behaviour_fatigue", "behaviour_sleep", "mood_sad"],
     },
     "behaviour_isolation": {
-        "url":         "https://www.youtube.com/watch?v=n3Xv_g3g-mA",
-        "video_id":    "n3Xv_g3g-mA",
+        "url":         "{{behaviour_isolation}}",
+        "video_id":    "{{behaviour_isolation}}",
         "title":       "Overcoming Social Withdrawal",
-        "thumbnail":   yt_thumb("n3Xv_g3g-mA"),
+        "thumbnail":   "{{behaviour_isolation}}",
         "description": "Steps to re-engage with others at your own pace",
+        "tags":        ["behaviour_isolation", "mood_lonely"],
     },
     "behaviour_eating": {
-        "url":         "https://www.youtube.com/watch?v=Xv9Msv2KLmc",
-        "video_id":    "Xv9Msv2KLmc",
+        "url":         "{{behaviour_eating}}",
+        "video_id":    "{{behaviour_eating}}",
         "title":       "Emotional Eating — Breaking the Cycle",
-        "thumbnail":   yt_thumb("Xv9Msv2KLmc"),
+        "thumbnail":   "{{behaviour_eating}}",
         "description": "Understanding and addressing emotional eating patterns",
+        "tags":        ["behaviour_eating", "mood_sad"],
     },
 
     # ── Addiction ────────────────────────────────────────────────
     "addiction_alcohol": {
-        "url":         "https://www.youtube.com/watch?v=6EghiY_s2ts",
-        "video_id":    "6EghiY_s2ts",
+        "url":         "{{addiction_alcohol}}",
+        "video_id":    "{{addiction_alcohol}}",
         "title":       "Understanding Alcohol Use Disorder — Recovery",
-        "thumbnail":   yt_thumb("6EghiY_s2ts"),
+        "thumbnail":   "{{addiction_alcohol}}",
         "description": "What recovery looks like and how to start",
+        "tags":        ["addiction_alcohol", "addiction_drugs", "relapse_disclosure"],
     },
     "addiction_drugs": {
-        "url":         "https://www.youtube.com/watch?v=5-Ld6FBpXgA",
-        "video_id":    "5-Ld6FBpXgA",
+        "url":         "{{addiction_drugs}}",
+        "video_id":    "{{addiction_drugs}}",
         "title":       "Substance Use Recovery — First Steps",
-        "thumbnail":   yt_thumb("5-Ld6FBpXgA"),
+        "thumbnail":   "{{addiction_drugs}}",
         "description": "Practical first steps toward recovery",
+        "tags":        ["addiction_drugs", "relapse_disclosure"],
     },
     "addiction_gaming": {
-        "url":         "https://www.youtube.com/watch?v=XNkRdc_4yXo",
-        "video_id":    "XNkRdc_4yXo",
+        "url":         "{{addiction_gaming}}",
+        "video_id":    "{{addiction_gaming}}",
         "title":       "Gaming Addiction — Regaining Balance",
-        "thumbnail":   yt_thumb("XNkRdc_4yXo"),
+        "thumbnail":   "{{addiction_gaming}}",
         "description": "How to build a healthier relationship with gaming",
+        "tags":        ["addiction_gaming", "behaviour_sleep"],
     },
     "addiction_social_media": {
-        "url":         "https://www.youtube.com/watch?v=PmEDAzqswh8",
-        "video_id":    "PmEDAzqswh8",
+        "url":         "{{addiction_social_media}}",
+        "video_id":    "{{addiction_social_media}}",
         "title":       "Social Media and Mental Health",
-        "thumbnail":   yt_thumb("PmEDAzqswh8"),
+        "thumbnail":   "{{addiction_social_media}}",
         "description": "Understanding social media's impact and how to manage it",
+        "tags":        ["addiction_social_media", "mood_anxious", "behaviour_sleep"],
     },
     "addiction_nicotine": {
-        "url":         "https://www.youtube.com/watch?v=vkPbCDuNSo0",
-        "video_id":    "vkPbCDuNSo0",
+        "url":         "{{addiction_nicotine}}",
+        "video_id":    "{{addiction_nicotine}}",
         "title":       "Quitting Smoking — Evidence-Based Strategies",
-        "thumbnail":   yt_thumb("vkPbCDuNSo0"),
+        "thumbnail":   "{{addiction_nicotine}}",
         "description": "Practical approaches to nicotine cessation",
+        "tags":        ["addiction_nicotine", "trigger_stress"],
     },
     "addiction_gambling": {
-        "url":         "https://www.youtube.com/watch?v=1GJpBnHhZ44",
-        "video_id":    "1GJpBnHhZ44",
+        "url":         "{{addiction_gambling}}",
+        "video_id":    "{{addiction_gambling}}",
         "title":       "Problem Gambling — Getting Help",
-        "thumbnail":   yt_thumb("1GJpBnHhZ44"),
+        "thumbnail":   "{{addiction_gambling}}",
         "description": "Understanding problem gambling and recovery pathways",
+        "tags":        ["addiction_gambling", "trigger_financial", "trigger_stress"],
     },
     "addiction_work": {
-        "url":         "https://www.youtube.com/watch?v=PJSiEDnxQFQ",
-        "video_id":    "PJSiEDnxQFQ",
+        "url":         "{{addiction_work}}",
+        "video_id":    "{{addiction_work}}",
         "title":       "Work-Life Balance — Preventing Burnout",
-        "thumbnail":   yt_thumb("PJSiEDnxQFQ"),
+        "thumbnail":   "{{addiction_work}}",
         "description": "Strategies to restore balance and prevent burnout",
+        "tags":        ["addiction_work", "trigger_stress", "behaviour_sleep"],
     },
 
     # ── Triggers ─────────────────────────────────────────────────
     "trigger_stress": {
-        "url":         "https://www.youtube.com/watch?v=hnpQrMqDoqE",
-        "video_id":    "hnpQrMqDoqE",
+        "url":         "{{trigger_stress}}",
+        "video_id":    "{{trigger_stress}}",
         "title":       "Stress Management Techniques",
-        "thumbnail":   yt_thumb("hnpQrMqDoqE"),
+        "thumbnail":   "{{trigger_stress}}",
         "description": "Simple daily techniques to manage stress",
+        "tags":        ["trigger_stress", "mood_anxious", "behaviour_sleep"],
     },
     "trigger_trauma": {
-        "url":         "https://www.youtube.com/watch?v=wkHB82bJKAI",
-        "video_id":    "wkHB82bJKAI",
+        "url":         "{{trigger_trauma}}",
+        "video_id":    "{{trigger_trauma}}",
         "title":       "Understanding Trauma and Healing",
-        "thumbnail":   yt_thumb("wkHB82bJKAI"),
+        "thumbnail":   "{{trigger_trauma}}",
         "description": "What trauma does to the brain and how healing happens",
+        "tags":        ["trigger_trauma", "mood_anxious", "mood_sad"],
     },
     "trigger_grief": {
-        "url":         "https://www.youtube.com/watch?v=Forj3r_av1s",
-        "video_id":    "Forj3r_av1s",
+        "url":         "{{trigger_grief}}",
+        "video_id":    "{{trigger_grief}}",
         "title":       "Grief and Loss — Moving Through Pain",
-        "thumbnail":   yt_thumb("Forj3r_av1s"),
+        "thumbnail":   "{{trigger_grief}}",
         "description": "Understanding the grief process and finding support",
+        "tags":        ["trigger_grief", "mood_sad", "mood_lonely"],
     },
     "trigger_relationship": {
-        "url":         "https://www.youtube.com/watch?v=sa0Ks5CU4Tc",
-        "video_id":    "sa0Ks5CU4Tc",
+        "url":         "{{trigger_relationship}}",
+        "video_id":    "{{trigger_relationship}}",
         "title":       "Healthy Relationships — Communication Skills",
-        "thumbnail":   yt_thumb("sa0Ks5CU4Tc"),
+        "thumbnail":   "{{trigger_relationship}}",
         "description": "Building healthier communication and connection",
+        "tags":        ["trigger_relationship", "mood_lonely", "mood_angry"],
     },
     "trigger_financial": {
-        "url":         "https://www.youtube.com/watch?v=xelO4ZnFDkc",
-        "video_id":    "xelO4ZnFDkc",
+        "url":         "{{trigger_financial}}",
+        "video_id":    "{{trigger_financial}}",
         "title":       "Financial Stress and Mental Health",
-        "thumbnail":   yt_thumb("xelO4ZnFDkc"),
+        "thumbnail":   "{{trigger_financial}}",
         "description": "Managing the mental health impact of financial stress",
+        "tags":        ["trigger_financial", "trigger_stress", "mood_anxious"],
     },
 
     # ── Severe distress / crisis adjacent ────────────────────────
     "severe_distress": {
-        "url":         "https://www.youtube.com/watch?v=jDTBTMHzFjQ",
-        "video_id":    "jDTBTMHzFjQ",
+        "url":         "{{severe_distress}}",
+        "video_id":    "{{severe_distress}}",
         "title":       "When Everything Feels Overwhelming",
-        "thumbnail":   yt_thumb("jDTBTMHzFjQ"),
+        "thumbnail":   "{{severe_distress}}",
         "description": "Grounding techniques for moments of intense distress",
+        "tags":        ["severe_distress", "mood_anxious", "venting"],
     },
     # ── Venting / Implicit Distress ─────────────────────────────────
     # Emotional regulation: grounding / breathing — no advice, no solutions
     "venting": {
-        "url":         "https://www.youtube.com/watch?v=WWloIAQpMkQ",
-        "video_id":    "WWloIAQpMkQ",
+        "url":         "{{venting}}",
+        "video_id":    "{{venting}}",
         "title":       "5-Minute Breathing Exercise to Calm Your Nervous System",
-        "thumbnail":   yt_thumb("WWloIAQpMkQ"),
+        "thumbnail":   "{{venting}}",
         "description": "A simple breathing technique to ease overwhelm and emotional fatigue",
+        "tags":        ["venting", "mood_anxious", "severe_distress"],
     },
     # ── Fallback / General Support ───────────────────────────────
     "rag_query": {
-        "url":         "https://www.youtube.com/watch?v=POPpLzKxFww",
-        "video_id":    "POPpLzKxFww",
+        "url":         "{{rag_query}}",
+        "video_id":    "{{rag_query}}",
         "title":       "Mental Health Support — You're Not Alone",
-        "thumbnail":   yt_thumb("POPpLzKxFww"),
+        "thumbnail":   "{{rag_query}}",
         "description": "General mental health support and recovery resources",
+        "tags":        ["rag_query"],
     },
     "greeting": {
-        "url":         "https://www.youtube.com/watch?v=POPpLzKxFww",
-        "video_id":    "POPpLzKxFww",
+        "url":         "{{greeting}}",
+        "video_id":    "{{greeting}}",
         "title":       "Mental Health Support — You're Not Alone",
-        "thumbnail":   yt_thumb("POPpLzKxFww"),
+        "thumbnail":   "{{greeting}}",
         "description": "General mental health support and recovery resources",
+        "tags":        ["greeting"],
     },
     "farewell": {
-        "url":         "https://www.youtube.com/watch?v=gGJNq-2cjAI",
-        "video_id":    "gGJNq-2cjAI",
+        "url":         "{{farewell}}",
+        "video_id":    "{{farewell}}",
         "title":       "Keep Going — Self-Care and Resilience",
-        "thumbnail":   yt_thumb("gGJNq-2cjAI"),
+        "thumbnail":   "{{farewell}}",
         "description": "Building lasting resilience and sustainable self-care",
+        "tags":        ["farewell", "gratitude"],
     },
     "gratitude": {
-        "url":         "https://www.youtube.com/watch?v=gGJNq-2cjAI",
-        "video_id":    "gGJNq-2cjAI",
+        "url":         "{{gratitude}}",
+        "video_id":    "{{gratitude}}",
         "title":       "Keep Going — Self-Care and Resilience",
-        "thumbnail":   yt_thumb("gGJNq-2cjAI"),
+        "thumbnail":   "{{gratitude}}",
+        "tags":        ["gratitude", "farewell"],
         "description": "Building lasting resilience and sustainable self-care",
     },
     "unclear": {
-        "url":         "https://www.youtube.com/watch?v=POPpLzKxFww",
-        "video_id":    "POPpLzKxFww",
+        "url":         "{{unclear}}",
+        "video_id":    "{{unclear}}",
         "title":       "Mental Health Support — You're Not Alone",
-        "thumbnail":   yt_thumb("POPpLzKxFww"),
+        "thumbnail":   "{{unclear}}",
         "description": "General mental health support and recovery resources",
+        "tags":        ["unclear", "rag_query"],
     },
     "medication_request": {
-        "url":         "https://www.youtube.com/watch?v=hnpQrMqDoqE",
-        "video_id":    "hnpQrMqDoqE",
+        "url":         "{{medication_request}}",
+        "video_id":    "{{medication_request}}",
         "title":       "Stress Management Techniques",
-        "thumbnail":   yt_thumb("hnpQrMqDoqE"),
+        "thumbnail":   "{{medication_request}}",
         "description": "Simple daily techniques to manage stress and anxiety",
+        "tags":        ["medication_request", "trigger_stress"],
     },
     "error": {
-        "url":         "https://www.youtube.com/watch?v=POPpLzKxFww",
-        "video_id":    "POPpLzKxFww",
+        "url":         "{{error}}",
+        "video_id":    "{{error}}",
         "title":       "Mental Health Support — You're Not Alone",
-        "thumbnail":   yt_thumb("POPpLzKxFww"),
+        "thumbnail":   "{{error}}",
         "description": "General mental health support and recovery resources",
+        "tags":        ["error", "rag_query"],
     },
 }
 
@@ -273,182 +312,182 @@ SCORE_GROUPS = {
 VIDEO_ALTERNATIVES = {
     "mood_sad": [
         {
-            "url":         "https://www.youtube.com/watch?v=5CJPA8ahuRc",
-            "video_id":    "5CJPA8ahuRc",
+            "url":         "{{mood_sad_alt_1}}",
+            "video_id":    "{{mood_sad_alt_1}}",
             "title":       "How to Deal with Sadness — Dr. Tracey Marks",
-            "thumbnail":   yt_thumb("5CJPA8ahuRc"),
+            "thumbnail":   "{{mood_sad_alt_1}}",
             "description": "Clinical guidance on processing and moving through sadness",
         },
         {
-            "url":         "https://www.youtube.com/watch?v=RHqTe9KZm-0",
-            "video_id":    "RHqTe9KZm-0",
+            "url":         "{{mood_sad_alt_2}}",
+            "video_id":    "{{mood_sad_alt_2}}",
             "title":       "Self-Care When You're Feeling Low",
-            "thumbnail":   yt_thumb("RHqTe9KZm-0"),
+            "thumbnail":   "{{mood_sad_alt_2}}",
             "description": "Practical self-care routines to lift your mood",
         },
     ],
     "mood_anxious": [
         {
-            "url":         "https://www.youtube.com/watch?v=tybOi4hjZFQ",
-            "video_id":    "tybOi4hjZFQ",
+            "url":         "{{mood_anxious_alt_1}}",
+            "video_id":    "{{mood_anxious_alt_1}}",
             "title":       "How to Stop Anxiety — Therapy in a Nutshell",
-            "thumbnail":   yt_thumb("tybOi4hjZFQ"),
+            "thumbnail":   "{{mood_anxious_alt_1}}",
             "description": "Evidence-based techniques to reduce anxiety",
         },
         {
-            "url":         "https://www.youtube.com/watch?v=aXItOY0sLRY",
-            "video_id":    "aXItOY0sLRY",
+            "url":         "{{mood_anxious_alt_2}}",
+            "video_id":    "{{mood_anxious_alt_2}}",
             "title":       "Grounding Techniques for Anxiety",
-            "thumbnail":   yt_thumb("aXItOY0sLRY"),
+            "thumbnail":   "{{mood_anxious_alt_2}}",
             "description": "Quick grounding exercises to calm your nervous system",
         },
     ],
     "mood_angry": [
         {
-            "url":         "https://www.youtube.com/watch?v=BKBToGMToXQ",
-            "video_id":    "BKBToGMToXQ",
+            "url":         "{{mood_angry_alt_1}}",
+            "video_id":    "{{mood_angry_alt_1}}",
             "title":       "Anger and the Brain — Why We Get Angry",
-            "thumbnail":   yt_thumb("BKBToGMToXQ"),
+            "thumbnail":   "{{mood_angry_alt_1}}",
             "description": "Understanding the neuroscience of anger",
         },
     ],
     "mood_lonely": [
         {
-            "url":         "https://www.youtube.com/watch?v=I71TZO_ZQMU",
-            "video_id":    "I71TZO_ZQMU",
+            "url":         "{{mood_lonely_alt_1}}",
+            "video_id":    "{{mood_lonely_alt_1}}",
             "title":       "The Loneliness Epidemic — Finding Connection",
-            "thumbnail":   yt_thumb("I71TZO_ZQMU"),
+            "thumbnail":   "{{mood_lonely_alt_1}}",
             "description": "Why loneliness is rising and what to do about it",
         },
     ],
     "mood_guilty": [
         {
-            "url":         "https://www.youtube.com/watch?v=IvtZBUSplr4",
-            "video_id":    "IvtZBUSplr4",
+            "url":         "{{mood_guilty_alt_1}}",
+            "video_id":    "{{mood_guilty_alt_1}}",
             "title":       "How to Forgive Yourself",
-            "thumbnail":   yt_thumb("IvtZBUSplr4"),
+            "thumbnail":   "{{mood_guilty_alt_1}}",
             "description": "Steps toward self-forgiveness and moving forward",
         },
     ],
     "behaviour_sleep": [
         {
-            "url":         "https://www.youtube.com/watch?v=t0kACis_dJE",
-            "video_id":    "t0kACis_dJE",
+            "url":         "{{behaviour_sleep_alt_1}}",
+            "video_id":    "{{behaviour_sleep_alt_1}}",
             "title":       "Sleep and Mental Health — The Connection",
-            "thumbnail":   yt_thumb("t0kACis_dJE"),
+            "thumbnail":   "{{behaviour_sleep_alt_1}}",
             "description": "How sleep affects mood, anxiety and recovery",
         },
     ],
     "behaviour_eating": [
         {
-            "url":         "https://www.youtube.com/watch?v=0pS50j-ScEk",
-            "video_id":    "0pS50j-ScEk",
+            "url":         "{{behaviour_eating_alt_1}}",
+            "video_id":    "{{behaviour_eating_alt_1}}",
             "title":       "Mindful Eating — Rebuilding Your Relationship with Food",
-            "thumbnail":   yt_thumb("0pS50j-ScEk"),
+            "thumbnail":   "{{behaviour_eating_alt_1}}",
             "description": "Mindfulness practices for healthier eating habits",
         },
     ],
     "addiction_alcohol": [
         {
-            "url":         "https://www.youtube.com/watch?v=vOBJNv0DmAg",
-            "video_id":    "vOBJNv0DmAg",
+            "url":         "{{addiction_alcohol_alt_1}}",
+            "video_id":    "{{addiction_alcohol_alt_1}}",
             "title":       "Life in Recovery from Alcohol — Real Stories",
-            "thumbnail":   yt_thumb("vOBJNv0DmAg"),
+            "thumbnail":   "{{addiction_alcohol_alt_1}}",
             "description": "Personal experiences of building a sober life",
         },
         {
-            "url":         "https://www.youtube.com/watch?v=T4dJBNBNEVA",
-            "video_id":    "T4dJBNBNEVA",
+            "url":         "{{addiction_alcohol_alt_2}}",
+            "video_id":    "{{addiction_alcohol_alt_2}}",
             "title":       "Craving Management — Surfing the Urge",
-            "thumbnail":   yt_thumb("T4dJBNBNEVA"),
+            "thumbnail":   "{{addiction_alcohol_alt_2}}",
             "description": "Urge surfing technique to ride out alcohol cravings",
         },
     ],
     "addiction_drugs": [
         {
-            "url":         "https://www.youtube.com/watch?v=ao8L-0nSYzg",
-            "video_id":    "ao8L-0nSYzg",
+            "url":         "{{addiction_drugs_alt_1}}",
+            "video_id":    "{{addiction_drugs_alt_1}}",
             "title":       "The Science of Addiction and Recovery",
-            "thumbnail":   yt_thumb("ao8L-0nSYzg"),
+            "thumbnail":   "{{addiction_drugs_alt_1}}",
             "description": "How addiction changes the brain and how recovery works",
         },
     ],
     "addiction_gambling": [
         {
-            "url":         "https://www.youtube.com/watch?v=jEpE37F2q_M",
-            "video_id":    "jEpE37F2q_M",
+            "url":         "{{addiction_gambling_alt_1}}",
+            "video_id":    "{{addiction_gambling_alt_1}}",
             "title":       "Gambling Disorder — How to Break the Cycle",
-            "thumbnail":   yt_thumb("jEpE37F2q_M"),
+            "thumbnail":   "{{addiction_gambling_alt_1}}",
             "description": "Understanding gambling disorder triggers and recovery steps",
         },
     ],
     "addiction_nicotine": [
         {
-            "url":         "https://www.youtube.com/watch?v=2VKCgUHkKW8",
-            "video_id":    "2VKCgUHkKW8",
+            "url":         "{{addiction_nicotine_alt_1}}",
+            "video_id":    "{{addiction_nicotine_alt_1}}",
             "title":       "Managing Nicotine Withdrawal",
-            "thumbnail":   yt_thumb("2VKCgUHkKW8"),
+            "thumbnail":   "{{addiction_nicotine_alt_1}}",
             "description": "What to expect and how to cope with withdrawal symptoms",
         },
     ],
     "trigger_stress": [
         {
-            "url":         "https://www.youtube.com/watch?v=0fL-pn80s-c",
-            "video_id":    "0fL-pn80s-c",
+            "url":         "{{trigger_stress_alt_1}}",
+            "video_id":    "{{trigger_stress_alt_1}}",
             "title":       "How Stress Affects Your Body",
-            "thumbnail":   yt_thumb("0fL-pn80s-c"),
+            "thumbnail":   "{{trigger_stress_alt_1}}",
             "description": "The physiology of stress and practical relief strategies",
         },
         {
-            "url":         "https://www.youtube.com/watch?v=15o4a4yPBDE",
-            "video_id":    "15o4a4yPBDE",
+            "url":         "{{trigger_stress_alt_2}}",
+            "video_id":    "{{trigger_stress_alt_2}}",
             "title":       "Progressive Muscle Relaxation for Stress",
-            "thumbnail":   yt_thumb("15o4a4yPBDE"),
+            "thumbnail":   "{{trigger_stress_alt_2}}",
             "description": "Guided PMR technique to physically release stress",
         },
     ],
     "trigger_trauma": [
         {
-            "url":         "https://www.youtube.com/watch?v=YSjpPe7kGdQ",
-            "video_id":    "YSjpPe7kGdQ",
+            "url":         "{{trigger_trauma_alt_1}}",
+            "video_id":    "{{trigger_trauma_alt_1}}",
             "title":       "PTSD Explained — Symptoms and Recovery",
-            "thumbnail":   yt_thumb("YSjpPe7kGdQ"),
+            "thumbnail":   "{{trigger_trauma_alt_1}}",
             "description": "What PTSD is, how it develops, and evidence-based treatments",
         },
     ],
     "trigger_grief": [
         {
-            "url":         "https://www.youtube.com/watch?v=khkJkR-ipfw",
-            "video_id":    "khkJkR-ipfw",
+            "url":         "{{trigger_grief_alt_1}}",
+            "video_id":    "{{trigger_grief_alt_1}}",
             "title":       "The Stages of Grief — What to Expect",
-            "thumbnail":   yt_thumb("khkJkR-ipfw"),
+            "thumbnail":   "{{trigger_grief_alt_1}}",
             "description": "Understanding the grief process and finding your way through",
         },
     ],
     "trigger_relationship": [
         {
-            "url":         "https://www.youtube.com/watch?v=PHQ1qqbPSl4",
-            "video_id":    "PHQ1qqbPSl4",
+            "url":         "{{trigger_relationship_alt_1}}",
+            "video_id":    "{{trigger_relationship_alt_1}}",
             "title":       "Setting Healthy Boundaries in Relationships",
-            "thumbnail":   yt_thumb("PHQ1qqbPSl4"),
+            "thumbnail":   "{{trigger_relationship_alt_1}}",
             "description": "How to communicate and enforce healthy boundaries",
         },
     ],
     "trigger_financial": [
         {
-            "url":         "https://www.youtube.com/watch?v=GqpB6Y7jBGA",
-            "video_id":    "GqpB6Y7jBGA",
+            "url":         "{{trigger_financial_alt_1}}",
+            "video_id":    "{{trigger_financial_alt_1}}",
             "title":       "Reducing Money Anxiety — Practical Steps",
-            "thumbnail":   yt_thumb("GqpB6Y7jBGA"),
+            "thumbnail":   "{{trigger_financial_alt_1}}",
             "description": "Actionable ways to reduce anxiety around financial stress",
         },
     ],
     "severe_distress": [
         {
-            "url":         "https://www.youtube.com/watch?v=5P-_OvYIGZ4",
-            "video_id":    "5P-_OvYIGZ4",
+            "url":         "{{severe_distress_alt_1}}",
+            "video_id":    "{{severe_distress_alt_1}}",
             "title":       "Getting Through a Mental Health Crisis",
-            "thumbnail":   yt_thumb("5P-_OvYIGZ4"),
+            "thumbnail":   "{{severe_distress_alt_1}}",
             "description": "Step-by-step guide to navigating a crisis moment",
         },
     ],
@@ -505,6 +544,63 @@ def get_video_for_patient(intent: str, watched_video_ids: set = None) -> dict | 
 
     # All candidates already watched — return the primary (graceful repeat)
     return primary
+
+
+def get_video_for_intents(active_intents: list, watched_video_ids: set = None) -> dict | None:
+    """
+    Returns the best-matching video for a set of co-present intents.
+
+    Each video in VIDEO_MAP has a `tags` list declaring which intents it covers.
+    This function scores every video by the number of its tags that overlap with
+    `active_intents`, preferring unwatched videos at equal score.
+
+    Use case: when a patient message signals multiple concerns
+    (e.g. alcohol craving + sleeplessness), the video that tags both
+    intents ranks higher than one that tags only one.
+
+    Args:
+        active_intents:   Ordered list — primary intent first, then secondary.
+        watched_video_ids: Set of video_id strings already seen by this patient.
+
+    Returns:
+        Best-matching video dict, or falls back to get_video_for_patient(primary).
+    """
+    if not active_intents:
+        return None
+    if watched_video_ids is None:
+        watched_video_ids = set()
+
+    primary_intent = active_intents[0]
+    active_set = set(active_intents)
+    # Position map: lower index = higher priority (primary intent = highest)
+    intent_position = {intent: i for i, intent in enumerate(active_intents)}
+
+    best: dict | None = None
+    best_overlap = 0
+    best_position = float('inf')   # lower is better
+    best_unwatched = False
+
+    for key, vid in VIDEO_MAP.items():
+        overlap = len(set(vid.get("tags", [])) & active_set)
+        if overlap == 0:
+            continue
+        unwatched = vid.get("video_id", "") not in watched_video_ids
+        # Position score: best (lowest) position of any matching tag in active_intents
+        matching_tags = set(vid.get("tags", [])) & active_set
+        position = min(intent_position[t] for t in matching_tags)
+        # Prefer: 1) higher overlap  2) earlier position in active_intents  3) unwatched
+        better = (
+            overlap > best_overlap
+            or (overlap == best_overlap and position < best_position)
+            or (overlap == best_overlap and position == best_position and unwatched and not best_unwatched)
+        )
+        if better:
+            best = vid
+            best_overlap = overlap
+            best_position = position
+            best_unwatched = unwatched
+
+    return best if best else get_video_for_patient(primary_intent, watched_video_ids)
 
 
 def get_score_group(intent: str) -> str | None:

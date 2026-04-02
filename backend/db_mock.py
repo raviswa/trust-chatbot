@@ -83,6 +83,26 @@ _MOCK_ROUTING: List[dict] = [
     {"patient_addiction": "work",         "detected_intent": "relapse_disclosure",     "relationship": "relapse",     "severity_override": "medium", "video_key": None, "requires_escalation": False},
 ]
 
+# ── Mock seed: patient records (matches frontend PATIENTS array) ──────────────
+_MOCK_PATIENTS: Dict[str, dict] = {
+    "PAT-001": {"patient_code": "PAT-001", "display_name": "Arjun",   "first_name": "Arjun",   "programme": "Alcohol Recovery",           "risk_level": "high"},
+    "PAT-002": {"patient_code": "PAT-002", "display_name": "Priya",   "first_name": "Priya",   "programme": "Substance Use Disorder",     "risk_level": "medium"},
+    "PAT-003": {"patient_code": "PAT-003", "display_name": "Karthik", "first_name": "Karthik", "programme": "Digital Addiction (Gaming)", "risk_level": "low"},
+    "PAT-004": {"patient_code": "PAT-004", "display_name": "Divya",   "first_name": "Divya",   "programme": "Trauma & Anxiety",           "risk_level": "high"},
+    "PAT-005": {"patient_code": "PAT-005", "display_name": "Rajesh",  "first_name": "Rajesh",  "programme": "Nicotine Cessation",         "risk_level": "low"},
+    "PAT-006": {"patient_code": "PAT-006", "display_name": "Ananya",  "first_name": "Ananya",  "programme": "Digital Addiction (Social)", "risk_level": "medium"},
+    "PAT-007": {"patient_code": "PAT-007", "display_name": "Suresh",  "first_name": "Suresh",  "programme": "Grief Support",              "risk_level": "medium"},
+    "PAT-008": {"patient_code": "PAT-008", "display_name": "Lakshmi", "first_name": "Lakshmi", "programme": "Alcohol Recovery",           "risk_level": "critical"},
+    "PAT-009": {"patient_code": "PAT-009", "display_name": "Vikram",  "first_name": "Vikram",  "programme": "Behavioural Addiction",      "risk_level": "low"},
+    "PAT-010": {"patient_code": "PAT-010", "display_name": "Meera",   "first_name": "Meera",   "programme": "Substance Use (Discharged)", "risk_level": "low"},
+}
+
+# Pre-populate _patients so get_patient() works without ensure_patient() being called first
+_patients.update({
+    code: {**data, "id": str(uuid4())}
+    for code, data in _MOCK_PATIENTS.items()
+})
+
 def ensure_patient(patient_code: str,
                    display_name: Optional[str] = None,
                    programme: Optional[str] = None,

@@ -64,16 +64,17 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     return res.status(200).json({
-      response:      data.response,
-      intent:        data.intent,
-      severity:      data.severity,
-      showResources: data.show_resources,
-      citations:     data.citations      || [],
-      sessionId:     data.session_id,
-      timestamp:     data.timestamp,
-      showScore:     data.show_score     || false,
-      showFeedback:  data.show_feedback  || false,
-      video:         data.video          || null,
+      response:        data.response,
+      intent:          data.intent,
+      secondaryIntents: data.secondary_intents || [],
+      severity:        data.severity,
+      showResources:   data.show_resources,
+      citations:       data.citations      || [],
+      sessionId:       data.session_id,
+      timestamp:       data.timestamp,
+      showScore:       data.show_score     || false,
+      showFeedback:    data.show_feedback  || false,
+      video:           data.video          || null,
     });
 
   } catch (error) {
