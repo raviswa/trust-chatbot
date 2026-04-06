@@ -235,12 +235,15 @@ def get_response_routing_table() -> List[dict]:
     except Exception as e:
         logger.error(f"get_response_routing_table failed: {e}")
         return []
+
+
+def get_patient_sessions(patient_code: str) -> List[dict]:
     """Returns all sessions for a patient."""
     try:
         patient = get_patient(patient_code)
         if not patient:
             return []
-        
+
         result = supabase.table("sessions").select("*").eq("patient_id", patient["id"]).execute()
         return result.data or []
     except Exception as e:
@@ -638,6 +641,19 @@ def get_latest_wearable_reading(patient_code: str, within_hours: int = 48) -> Op
         if not result.data:
             return None
         row = result.data[0]
+        # Calculate hours_ago from created_at so PhysiologicalState.is_recent() works
+        hours_ago = None
+        raw_ts = row.get("created_at")
+        if raw_ts:
+            try:
+                from datetime import timezone
+                from dateutil import parser as _dp
+                created = _dp.parse(raw_ts)
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+                hours_ago = (datetime.now(timezone.utc) - created).total_seconds() / 3600
+            except Exception:
+                pass
         # Map schema columns → synthesis engine field names
         return {
             "heart_rate":            row.get("hr_bpm"),
@@ -648,8 +664,8 @@ def get_latest_wearable_reading(patient_code: str, within_hours: int = 48) -> Op
             "spo2":                  row.get("spo2_pct"),
             "personal_anomaly_flag": row.get("personal_anomaly_flag", False),
             "anomaly_detail":        row.get("personal_anomaly_detail"),
-            "wearable_timestamp":    row.get("created_at"),
-            "hours_ago":             None,  # calculated downstream if needed
+            "wearable_timestamp":    raw_ts,
+            "hours_ago":             hours_ago,
         }
     except Exception as e:
         logger.debug(f"get_latest_wearable_reading: {e}")

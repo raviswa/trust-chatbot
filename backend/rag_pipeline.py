@@ -230,14 +230,14 @@ def retrieve(
 
     # ── Step 5: Search Qdrant ──────────────────────────────────────────────
     try:
-        results = qdrant.search(
+        results = qdrant.query_points(
             collection_name=COLLECTION_NAME,
-            query_vector=query_vector,
+            query=query_vector,
             query_filter=qdrant_filter,
             limit=top_k,
             score_threshold=score_threshold,
             with_payload=True
-        )
+        ).points
     except Exception as e:
         logger.error(f"Qdrant search failed: {e}")
         return []
@@ -246,13 +246,13 @@ def retrieve(
     if len(results) < 2 and context_tags:
         logger.info(f"Context-filtered search returned {len(results)} results — falling back to unfiltered")
         try:
-            results = qdrant.search(
+            results = qdrant.query_points(
                 collection_name=COLLECTION_NAME,
-                query_vector=query_vector,
+                query=query_vector,
                 limit=top_k,
                 score_threshold=score_threshold,  # already severity-adjusted
                 with_payload=True
-            )
+            ).points
         except Exception as e:
             logger.error(f"Fallback search failed: {e}")
             return []
@@ -346,15 +346,13 @@ def assemble_context(chunks: List[Dict], max_chars: int = 3000) -> str:
     total_chars = 0
 
     for chunk in chunks:
-        source = f"[Source: {chunk['filename']}, Page {chunk['page_number']}]"
         chunk_text = _sanitise_chunk_text(chunk["text"])
-        block  = f"{source}\n{chunk_text}"
 
-        if total_chars + len(block) > max_chars:
+        if total_chars + len(chunk_text) > max_chars:
             break
 
-        context_parts.append(block)
-        total_chars += len(block)
+        context_parts.append(chunk_text)
+        total_chars += len(chunk_text)
 
     return "\n\n---\n\n".join(context_parts)
 

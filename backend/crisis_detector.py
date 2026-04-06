@@ -54,11 +54,39 @@ _FUZZY_MIN_RATIO: float = 0.68       # Minimum difflib ratio to count as Tier 2 
 _SEMANTIC_MIN_SCORE: float = 0.55    # Minimum cosine sim to count as Tier 3 hit
 _SEMANTIC_INTERCEPT_SCORE: float = 0.72   # Cosine sim that maps to CONFIDENCE_INTERCEPT
 
+# ── Safe-phrase exclusions ───────────────────────────────────────────────────
+# If the message matches any of these patterns the crisis tiers 2 & 3 are
+# SKIPPED entirely, even when sentinel words are present.  These cover common
+# alcohol/hangover contexts that superficially resemble crisis language.
+_CRISIS_SAFE_PHRASES: tuple = (
+    "every morning",
+    "in the morning",
+    "each morning",
+    "waking up",
+    "wake up feeling",
+    "feel sick every",
+    "feel rough",
+    "feel terrible every",
+    "feel this way every",
+    "tired of feeling like this every",
+    "tired of feeling this way",
+    "tired of this every",
+    "tired of hangovers",
+    "tired of feeling hungover",
+    "tired of feeling sick",
+    "tired of being tired",
+    "tired of waking up",
+    "sick and tired of feeling",
+    "feel awful in the morning",
+    "feel awful every",
+)
+
 # ── Tier-3 Sentinel Words ────────────────────────────────────────────────────
 # Tier-3 embedding is *only* invoked when at least one of these words appears.
 # This prevents expensive ollama calls for clearly non-crisis messages.
+# NOTE: "tired" removed — too broad, fires on morning-hangover complaints.
 _TIER3_SENTINEL_WORDS: frozenset = frozenset({
-    "point", "end", "ending", "over", "tired", "pain", "worth", "burden",
+    "point", "end", "ending", "over", "pain", "worth", "burden",
     "disappear", "gone", "better off", "miss me", "escape", "anymore",
     "hope", "future", "reason", "fighting", "dark", "thoughts", "continue",
     "existing", "exist", "leave", "without me", "keep going", "going on",
@@ -340,10 +368,19 @@ class CrisisDetector:
 
         msg_lower = message.lower()
 
+        # ── Safe-phrase gate: skip tiers 2 & 3 for known non-crisis contexts ──
+        # These are common alcohol/hangover/fatigue expressions that superficially
+        # resemble crisis language but are NOT crisis statements.
+        _is_safe_phrase = any(sp in msg_lower for sp in _CRISIS_SAFE_PHRASES)
+
         # ── Tier 1: Exact / substring match ──────────────────────────────
         t1 = self._tier1_exact(msg_lower)
         if t1.confidence >= CONFIDENCE_INTERCEPT:
             return t1
+
+        # If a safe phrase gates this message, stop here (don't run fuzzy/semantic).
+        if _is_safe_phrase:
+            return t1  # confidence = 0.0 unless tier-1 fired
 
         # ── Tier 2: Fuzzy ratio ───────────────────────────────────────────
         t2 = self._tier2_fuzzy(msg_lower)
@@ -407,7 +444,7 @@ class CrisisDetector:
             "hopeless", "worthless", "pointless", "meaningless",
             "trapped", "escape", "escaping",
             "nothing", "nobody", "no one",
-            "tired of", "sick of", "had enough",
+            "sick of", "had enough",
             "dark thoughts", "dark thought",
             "burden", "burdening",
             "miss me", "without me", "better off",

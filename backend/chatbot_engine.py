@@ -15,11 +15,14 @@ Architecture:
 """
 
 import json
+import hashlib
 import logging
+import os
 import re
 from datetime import datetime
 from typing import Optional, Dict, List
 
+from clause_analysis import analyze_recovery_clause, analyze_relationship_clause
 from services_pipeline import IntentClassifier, ResponseGenerator, SafetyChecker, PolicyChecker, _init_response_router
 from db_comprehensive_update import update_all_tables_from_chatbot_interaction
 from patient_context import (
@@ -60,11 +63,16 @@ except ImportError:
 
 
 
-# Database initialization (same as before - three-tier fallback)
+# Database — connection priority:
+#   1. db_postgres  (direct psycopg2 — when a real PG_HOST / DATABASE_URL is set)
+#   2. db_supabase  (Supabase SDK — when SUPABASE_URL + SUPABASE_KEY are present)
+#   3. db_mock      (in-memory fallback for offline / CI environments)
 logger_startup = logging.getLogger(__name__)
 
+_DB_BACKEND = None  # tracks which backend is active
+
 try:
-    from db_supabase import (
+    from db_postgres import (
         ensure_patient, get_patient, get_patient_sessions,
         get_patient_full_history, get_checkin_status,
         ensure_session, update_session_meta, save_message,
@@ -75,13 +83,32 @@ try:
         get_latest_daily_checkin, get_latest_wearable_reading, get_historical_context,
         save_context_vector, get_patient_context_vectors, get_context_vector_trends, get_contradiction_patterns,
         get_watched_video_ids, get_patient_onboarding, save_intake_progress,
-        get_patient_addictions, get_response_routing_table
+        get_patient_addictions, get_response_routing_table,
     )
-    logger_startup.info("✓ Using Supabase PostgreSQL backend")
-except Exception as e:
-    logger_startup.warning(f"Supabase unavailable ({type(e).__name__}: {str(e)[:50]}), trying PostgreSQL...")
+    # Verify the connection is actually reachable before committing to this backend.
+    # db_postgres uses a lazy pool, so the import alone never raises even if postgres
+    # is unavailable — we must probe it explicitly here.
+    import psycopg2 as _psycopg2, os as _os
+    _probe_dsn = _os.getenv("DATABASE_URL") or (
+        f"host={_os.getenv('PG_HOST','localhost')} "
+        f"port={_os.getenv('PG_PORT','5432')} "
+        f"dbname={_os.getenv('PG_DB','chatbot_db')} "
+        f"user={_os.getenv('PG_USER','chatbot_user')} "
+        f"password={_os.getenv('PG_PASSWORD','')} "
+        f"connect_timeout=3"
+    )
+    _probe = _psycopg2.connect(_probe_dsn)
+    _probe.close()
+    del _probe, _probe_dsn, _psycopg2, _os
+    _DB_BACKEND = "postgres"
+    logger_startup.info("✓ Using PostgreSQL backend (db_postgres)")
+except Exception as _pg_err:
+    logger_startup.warning(f"PostgreSQL unavailable ({type(_pg_err).__name__}: {str(_pg_err)[:80]}), trying Supabase backend...")
     try:
-        from db import (
+        import os as _os
+        if not _os.getenv("SUPABASE_URL") or not _os.getenv("SUPABASE_KEY"):
+            raise EnvironmentError("SUPABASE_URL / SUPABASE_KEY not set")
+        from db_supabase import (
             ensure_patient, get_patient, get_patient_sessions,
             get_patient_full_history, get_checkin_status,
             ensure_session, update_session_meta, save_message,
@@ -90,21 +117,17 @@ except Exception as e:
             get_session_history, get_all_sessions, get_crisis_sessions,
             get_conversation_stats, get_top_intents,
             get_latest_daily_checkin, get_latest_wearable_reading, get_historical_context,
-            save_context_vector, get_patient_context_vectors, get_context_vector_trends, get_contradiction_patterns
+            save_context_vector, get_patient_context_vectors, get_context_vector_trends, get_contradiction_patterns,
+            get_watched_video_ids, get_patient_onboarding, save_intake_progress,
+            get_patient_addictions, get_response_routing_table,
         )
-        def get_watched_video_ids(patient_id):
-            return set()  # PostgreSQL fallback — watch history not implemented
-        def get_patient_onboarding(patient_code):
-            return None  # PostgreSQL fallback — onboarding not implemented
-        def save_intake_progress(patient_code, phase, pct):
-            pass         # PostgreSQL fallback — intake progress not persisted
-        def get_patient_addictions(patient_code):
-            return []  # PostgreSQL fallback — addictions table not yet implemented
-        def get_response_routing_table():
-            return []  # PostgreSQL fallback — routing table not yet implemented
-        logger_startup.info("✓ Using PostgreSQL database")
-    except Exception as pg_error:
-        logger_startup.warning(f"PostgreSQL unavailable ({type(pg_error).__name__}), using mock database for development")
+        # Quick connectivity probe — fetch one row from patients table
+        get_patient("__probe__")
+        _DB_BACKEND = "supabase"
+        del _os
+        logger_startup.info("✓ Using Supabase backend (db_supabase)")
+    except Exception as _sb_err:
+        logger_startup.warning(f"Supabase unavailable ({type(_sb_err).__name__}: {str(_sb_err)[:80]}), falling back to mock database")
         from db_mock import (
             ensure_patient, get_patient, get_patient_sessions,
             get_patient_full_history, get_checkin_status,
@@ -112,8 +135,9 @@ except Exception as e:
             log_policy_violation, log_crisis_event,
             get_pending_crisis_events, get_policy_violation_summary,
             get_session_history, get_all_sessions, get_crisis_sessions,
-            get_patient_addictions, get_response_routing_table
+            get_patient_addictions, get_response_routing_table,
         )
+        _DB_BACKEND = "mock"
         def get_conversation_stats(session_id):
             return {"total_messages": 0, "user_messages": 0, "assistant_messages": 0}
         def get_top_intents(limit=10):
@@ -125,7 +149,7 @@ except Exception as e:
         def get_historical_context(patient_code, days_back=30):
             return {"recurring_themes": [], "recent_intents": [], "crisis_history": False, "last_session_timestamp": None, "days_since_last_session": None, "session_count": 0}
         def save_context_vector(patient_id, patient_code, session_id, context_vector, greeting_text):
-            return None  # Mock — audit not persisted
+            return None
         def get_patient_context_vectors(patient_code, limit=50):
             return []
         def get_context_vector_trends(patient_code, days=30):
@@ -133,9 +157,8 @@ except Exception as e:
         def get_contradiction_patterns(patient_code=None, limit=100):
             return []
         def get_watched_video_ids(patient_id):
-            return set()  # Mock — no watch history in dev mode
+            return set()
         def get_patient_onboarding(patient_code):
-            # Build minimal onboarding payload from seeded mock addictions.
             addictions = get_patient_addictions(patient_code)
             if not addictions:
                 return None
@@ -149,11 +172,11 @@ except Exception as e:
                 "primary_triggers": [],
                 "support_network": {},
                 "work_status": "",
-                "last_intake_phase": 0,        # fresh — no prior intake in mock mode
-                "intake_consent_given": False, # never completed in mock mode
+                "last_intake_phase": 0,
+                "intake_consent_given": False,
             }
         def save_intake_progress(patient_code, phase, pct):
-            pass  # Mock — intake progress not persisted to DB in dev mode
+            pass
 
 # Import language safety and RAG
 try:
@@ -195,10 +218,13 @@ logger = logging.getLogger(__name__)
 # MICROSERVICES INITIALIZATION
 # ────────────────────────────────────────────────────────────────────────────
 
-intent_classifier = IntentClassifier(intents_path="intents.json")
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+_INTENTS_PATH = os.path.join(_BACKEND_DIR, "intents.json")
+
+intent_classifier = IntentClassifier(intents_path=_INTENTS_PATH)
 safety_checker = SafetyChecker()
 policy_checker = PolicyChecker()
-response_generator = ResponseGenerator(intents_path="intents.json")
+response_generator = ResponseGenerator(intents_path=_INTENTS_PATH)
 
 # Initialise ResponseRouter from DB routing table (falls back to code rules if DB unavailable)
 try:
@@ -291,7 +317,7 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
     msg_lower    = msg_stripped.lower()
 
     # — Rule 2: Thumbs-up → Stabilize exit —
-    if msg_stripped in _FEEDBACK_THUMBSUP_TOKENS:
+    if msg_lower in _FEEDBACK_THUMBSUP_TOKENS:
         session["pending_feedback_intent"] = None
         return {
             "response":       _HANDSHAKE_STABILIZE,
@@ -305,8 +331,8 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
         }
 
     # — Rule 3: Pivot selection → Re-Route exit with Plan B tool —
-    if msg_stripped in _FEEDBACK_PIVOT_TOKENS:
-        pivot_type = _FEEDBACK_PIVOT_TOKENS[msg_stripped]
+    if msg_lower in _FEEDBACK_PIVOT_TOKENS:
+        pivot_type = _FEEDBACK_PIVOT_TOKENS[msg_lower]
         session["pending_feedback_intent"] = None
         return {
             "response":       _HANDSHAKE_PIVOT[pivot_type],
@@ -380,10 +406,663 @@ def _intent_name_to_display(intent: str) -> str:
         "trigger_financial": "financial stress",
         "addiction_drugs": "substance use",
         "addiction_alcohol": "alcohol use",
+        "addiction_nicotine": "nicotine use",
         "addiction_gaming": "gaming habits",
         "addiction_social_media": "social media use",
+        "addiction_gambling": "gambling urges",
+        "addiction_food": "compulsive eating",
+        "addiction_work": "overworking",
+        "addiction_shopping": "compulsive shopping",
+        "addiction_pornography": "compulsive sexual content use",
     }
     return labels.get(intent, "what you shared earlier")
+
+
+_ADDICTION_TYPE_TO_INTENT: Dict[str, str] = {
+    "alcohol":      "addiction_alcohol",
+    "drugs":        "addiction_drugs",
+    "gaming":       "addiction_gaming",
+    "social_media": "addiction_social_media",
+    "nicotine":     "addiction_nicotine",
+    "smoking":      "addiction_nicotine",
+    "gambling":     "addiction_gambling",
+    "work":         "addiction_work",
+    "food":         "addiction_food",
+    "eating":       "addiction_food",
+    "sex":          "addiction_pornography",
+    "porn":         "addiction_pornography",
+    "pornography":  "addiction_pornography",
+    "shopping":     "addiction_shopping",
+}
+
+_ADDICTION_INTENTS: frozenset = frozenset({
+    "addiction_alcohol",
+    "addiction_drugs",
+    "addiction_gaming",
+    "addiction_social_media",
+    "addiction_nicotine",
+    "addiction_gambling",
+    "addiction_food",
+    "addiction_work",
+    "addiction_shopping",
+    "addiction_pornography",
+})
+
+_ADDICTION_OVERRIDE_PATTERNS: Dict[str, tuple[str, ...]] = {
+    "addiction_alcohol": (
+        "drinking", "drink", "alcohol", "alcoholic", "beer", "wine", "whiskey",
+        "drunk", "sober", "sobriety", "rehab", "detox", "bottle", "binge drinking",
+        "blackout", "quit drinking", "problem with alcohol", "worried about my drinking",
+    ),
+    "addiction_gaming": (
+        "gaming", "game all night", "cannot stop gaming", "can't stop gaming",
+        "gamer", "skip meals to game", "instead of sleeping", "lost relationships because of gaming",
+    ),
+    "addiction_social_media": (
+        "social media", "scrolling", "instagram", "tiktok", "notifications",
+        "followers", "likes", "phone down", "screen time", "fomo",
+    ),
+    "addiction_nicotine": (
+        "nicotine", "smoking", "smoke", "cigarette", "cigarettes", "vape", "vaping",
+        "pack a day", "quit smoking", "nicotine patches",
+    ),
+    "addiction_gambling": (
+        "gambling", "gamble", "betting", "bets", "casino", "sports betting",
+        "chasing losses", "win back what i lost", "borrowed money to gamble",
+    ),
+    "addiction_food": (
+        "binge eat", "food is my addiction", "eat compulsively", "eat in secret",
+        "out of control around food", "emotional eating", "junk food", "comfort eating",
+    ),
+    "addiction_work": (
+        "workaholic", "cannot stop working", "can't stop working", "work 16 hours",
+        "guilty when i'm not working", "guilty when i am not working", "rest feels like laziness",
+        "switch off from work", "my identity is tied to my work",
+    ),
+    "addiction_shopping": (
+        "shopping addiction", "shop online", "online shopping", "buy things i don't need",
+        "hide purchases", "retail therapy", "spent all my money shopping",
+    ),
+    "addiction_pornography": (
+        "porn", "pornography", "watching porn", "compulsive pornography",
+        "porn use", "porn has replaced real intimacy",
+    ),
+}
+
+_SOFT_OVERRIDE_INTENTS: frozenset = frozenset({
+    "unclear",
+    "rag_query",
+    "greeting",
+    "mood_anxious",
+    "mood_angry",
+    "mood_guilty",
+    "mood_sad",
+    "trigger_stress",
+    "trigger_financial",
+    "behaviour_eating",
+})
+
+_RESOLUTION_SKIP_INTENTS: frozenset = frozenset({
+    "crisis_suicidal", "crisis_abuse", "behaviour_self_harm",
+    "medication_request", "psychosis_indicator",
+    "greeting", "farewell", "gratitude", "intake",
+    "feedback_thumbsup", "feedback_optout", "feedback_sos",
+    "feedback_pivot_overwhelmed", "feedback_pivot_urge", "feedback_pivot_stealth",
+})
+
+
+def _stable_pick(options: List[str], seed: str) -> str:
+    """Deterministic variant selection to keep responses varied but reproducible."""
+    if not options:
+        return ""
+    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
+    idx = int(digest[:8], 16) % len(options)
+    return options[idx]
+
+
+def _override_addiction_intent_from_message(message: str, classified_intent: str) -> Optional[str]:
+    """Promote clear addiction disclosures that otherwise collapse into mood/stress intents."""
+    if classified_intent in _ADDICTION_INTENTS and classified_intent != "addiction_drugs":
+        return None
+    if classified_intent not in _SOFT_OVERRIDE_INTENTS and classified_intent != "addiction_drugs":
+        return None
+
+    msg_lc = (message or "").lower()
+    for intent, markers in _ADDICTION_OVERRIDE_PATTERNS.items():
+        if classified_intent == "addiction_drugs" and intent == "addiction_drugs":
+            continue
+        if any(marker in msg_lc for marker in markers):
+            if classified_intent == "addiction_drugs" and intent == classified_intent:
+                continue
+            return intent
+    return None
+
+
+def _normalize_secondary_intents(primary_intent: str, secondary_intents: List[str]) -> List[str]:
+    """Keep patient-visible secondary intents unique and drop generic substance tags when a specific addiction is present."""
+    cleaned: List[str] = []
+    seen = set()
+    all_intents = [primary_intent] + list(secondary_intents or [])
+    has_specific_addiction = any(
+        intent in _ADDICTION_INTENTS and intent != "addiction_drugs"
+        for intent in all_intents
+    )
+
+    for intent in secondary_intents or []:
+        if not intent or intent == primary_intent or intent in seen:
+            continue
+        if has_specific_addiction and intent == "addiction_drugs":
+            continue
+        seen.add(intent)
+        cleaned.append(intent)
+    return cleaned
+
+
+_URGE_MARKERS: tuple[str, ...] = (
+    "craving", "urge", "want to drink", "want to use",
+    "feel like drinking", "feel like using", "tempted",
+    "about to", "need a drink", "need to use", "need a hit",
+    "pull toward", "can't resist", "cannot resist",
+    "can't stop myself", "cannot stop myself", "going to relapse",
+    "i could use a drink", "i could use", "on the verge",
+)
+
+
+def _has_urge_language(message: str) -> bool:
+    """Return True when the message explicitly describes a craving or urge."""
+    msg_lc = (message or "").lower()
+    return any(m in msg_lc for m in _URGE_MARKERS)
+
+
+def _extract_relationship_mentions(message: str) -> List[str]:
+    """Extract explicit social-circle references so responses can mirror them back precisely."""
+    return analyze_relationship_clause(message).mentions
+
+
+def _format_relationship_phrase(relationships: List[str]) -> str:
+    if not relationships:
+        return ""
+    if len(relationships) == 1:
+        return f"your {relationships[0]}"
+    if len(relationships) == 2:
+        return f"your {relationships[0]} and {relationships[1]}"
+    return f"your {', '.join(relationships[:-1])}, and {relationships[-1]}"
+
+
+def _relationship_verb(relationships: List[str]) -> str:
+    return "is" if len(relationships) == 1 else "are"
+
+
+def _relationship_do_verb(relationships: List[str]) -> str:
+    return "does" if len(relationships) == 1 else "do"
+
+
+def _detect_relationship_tone(message: str) -> Optional[str]:
+    """Infer the stance around a mentioned relationship from common verb/adjective patterns."""
+    analysis = analyze_relationship_clause(message)
+    return analysis.tone if analysis.has_relationship else None
+
+
+def _detect_resolution_focus(
+    intent: str,
+    addiction_type: Optional[str],
+    retrieved_docs: List[Dict],
+    user_message: str,
+) -> Dict[str, str]:
+    """
+    Derive an intervention focus from retrieved PDF chunks + message context.
+    Returns a small descriptor used by both text generation and video hinting.
+    """
+    recovery_analysis = analyze_recovery_clause(user_message)
+
+    def _theme_video_hint() -> str:
+        if intent in _ADDICTION_INTENTS and intent != "addiction_drugs":
+            return intent
+        return _ADDICTION_TYPE_TO_INTENT.get(
+            (addiction_type or "").lower().replace("-", "_").replace(" ", "_"),
+            intent,
+        )
+
+    explicit_by_intent = {
+        "behaviour_sleep": ("sleep_reset", "resetting your sleep and nervous system rhythm", "behaviour_sleep"),
+        "behaviour_fatigue": ("sleep_reset", "repairing sleep pressure and energy rhythm", "behaviour_sleep"),
+        "mood_anxious": ("grounding", "grounding your body before your mind spirals", "mood_anxious"),
+        "trigger_stress": ("stress_reset", "down-shifting stress before it turns into urges", "trigger_stress"),
+        "mood_guilty": ("shame_relief", "reducing shame while keeping accountability", "mood_guilty"),
+        "trigger_trauma": ("trauma_grounding", "stabilizing your body when trauma activation spikes", "trigger_trauma"),
+        "relapse_disclosure": ("reset_after_lapse", "recovering quickly after a slip without self-attack", "addiction_drugs"),
+    }
+    if recovery_analysis.theme == "shame":
+        return {
+            "key": "shame_relief",
+            "phrase": "softening shame enough to make the next honest, workable choice",
+            "video_hint_intent": _theme_video_hint() or intent,
+        }
+    if recovery_analysis.theme == "pressure":
+        return {
+            "key": "boundary_protection",
+            "phrase": "staying steady when pressure, scrutiny, or demands start tightening the nervous system",
+            "video_hint_intent": _theme_video_hint() or intent,
+        }
+    if recovery_analysis.theme == "change_readiness":
+        return {
+            "key": "change_commitment",
+            "phrase": "turning the part of you that wants change into one concrete next step",
+            "video_hint_intent": _theme_video_hint() or intent,
+        }
+    if intent in explicit_by_intent:
+        key, phrase, video_hint_intent = explicit_by_intent[intent]
+        return {"key": key, "phrase": phrase, "video_hint_intent": video_hint_intent}
+
+    msg_lc = (user_message or "").lower()
+    if intent in _ADDICTION_INTENTS:
+        addiction_hint = intent
+        if intent == "addiction_drugs":
+            addiction_hint = _ADDICTION_TYPE_TO_INTENT.get(
+                (addiction_type or "").lower().replace("-", "_").replace(" ", "_"),
+                intent,
+            )
+        relationship_analysis = analyze_relationship_clause(user_message)
+        relationships = relationship_analysis.mentions
+        relationship_tone = relationship_analysis.tone
+        sleep_markers = ["sleep", "morning", "insomnia", "awake", "wake up", "tired"]
+        cope_markers = ["unwind", "edge off", "after work", "long day", "cope", "stress"]
+        money_markers = ["money", "debt", "bills", "rent", "borrowed", "lost a lot", "losses"]
+        compare_markers = ["compare", "likes", "followers", "fomo", "notifications", "validation", "scrolling"]
+        work_markers = ["productive", "working", "work", "rest", "busy", "worthless", "weekends"]
+        intimacy_markers = ["porn", "pornography", "intimacy", "sexual", "shame", "secret"]
+        food_markers = ["binge", "food", "eat", "eating", "junk food", "comfort eating", "emotional eating"]
+        shopping_markers = ["shopping", "buy", "purchases", "cart", "spending", "orders", "online shopping"]
+        gaming_markers = ["game", "gaming", "ranked", "loot", "stream", "late night", "all night"]
+
+        if relationships and relationship_tone == "secrecy":
+            return {
+                "key": "disclosure_readiness",
+                "phrase": "carrying this while others don't yet know, and what, if anything, feels right to share",
+                "video_hint_intent": addiction_hint,
+            }
+        if relationships and relationship_tone == "conflict":
+            return {
+                "key": "relationship_friction",
+                "phrase": "staying grounded when other people's reactions feel sharp, disapproving, or hard to absorb",
+                "video_hint_intent": addiction_hint,
+            }
+        if recovery_analysis.theme == "lapse":
+            return {
+                "key": "reset_after_lapse",
+                "phrase": "recovering quickly after a slip without turning one moment into a longer spiral",
+                "video_hint_intent": addiction_hint,
+            }
+        if recovery_analysis.theme == "shame":
+            return {
+                "key": "shame_relief",
+                "phrase": "softening shame enough to make the next honest, workable choice",
+                "video_hint_intent": addiction_hint,
+            }
+        if recovery_analysis.theme == "pressure":
+            return {
+                "key": "boundary_protection",
+                "phrase": "staying steady when pressure, scrutiny, or demands start tightening the nervous system",
+                "video_hint_intent": addiction_hint,
+            }
+        if recovery_analysis.theme == "change_readiness":
+            return {
+                "key": "change_commitment",
+                "phrase": "turning the part of you that wants change into one concrete next step",
+                "video_hint_intent": addiction_hint,
+            }
+        if relationships:
+            return {
+                "key": "connection_accountability",
+                "phrase": "using supportive accountability instead of defensive coping",
+                "video_hint_intent": addiction_hint,
+            }
+        if intent == "addiction_social_media" and any(m in msg_lc for m in compare_markers):
+            return {
+                "key": "comparison_detox",
+                "phrase": "loosening the comparison and validation loop before it snowballs",
+                "video_hint_intent": "addiction_social_media",
+            }
+        if intent == "addiction_gambling" and any(m in msg_lc for m in money_markers):
+            return {
+                "key": "loss_chasing_interrupt",
+                "phrase": "interrupting the urge to chase losses before it compounds harm",
+                "video_hint_intent": "addiction_gambling",
+            }
+        if intent == "addiction_work" and any(m in msg_lc for m in work_markers):
+            return {
+                "key": "permission_to_pause",
+                "phrase": "separating self-worth from constant output so your system can downshift",
+                "video_hint_intent": "addiction_work",
+            }
+        if intent == "addiction_pornography" and any(m in msg_lc for m in intimacy_markers):
+            return {
+                "key": "shame_and_intimacy_reset",
+                "phrase": "reducing shame while rebuilding safer regulation and intimacy",
+                "video_hint_intent": "addiction_pornography",
+            }
+        if intent == "addiction_food" and any(m in msg_lc for m in food_markers):
+            return {
+                "key": "emotion_to_eating_bridge",
+                "phrase": "slowing the jump from emotional pain to automatic eating",
+                "video_hint_intent": "addiction_food",
+            }
+        if intent == "addiction_shopping" and any(m in msg_lc for m in shopping_markers):
+            return {
+                "key": "urge_spend_pause",
+                "phrase": "creating a pause between emotional urgency and spending",
+                "video_hint_intent": "addiction_shopping",
+            }
+        if intent == "addiction_gaming" and any(m in msg_lc for m in gaming_markers):
+            return {
+                "key": "screen_compulsion_reset",
+                "phrase": "breaking the dissociation and reward loop that keeps pulling you back in",
+                "video_hint_intent": "addiction_gaming",
+            }
+        if any(m in msg_lc for m in sleep_markers):
+            return {
+                "key": "sleep_reset",
+                "phrase": "resetting your sleep and nervous system rhythm",
+                "video_hint_intent": "behaviour_sleep",
+            }
+        if any(m in msg_lc for m in cope_markers):
+            return {
+                "key": "stress_to_urge_bridge",
+                "phrase": "interrupting the stress to substance loop early",
+                "video_hint_intent": addiction_hint,
+            }
+        return {
+            "key": "urge_regulation",
+            "phrase": "urge regulation in the first 15 to 20 minutes",
+            "video_hint_intent": addiction_hint,
+        }
+
+    doc_text = " ".join((d.get("text", "")[:700] for d in retrieved_docs)).lower()
+    doc_tags = " ".join(
+        " ".join(d.get("topic_tags", []) or [])
+        for d in retrieved_docs
+    ).lower()
+    signal_text = f"{user_message.lower()} {doc_text} {doc_tags}"
+
+    if any(k in signal_text for k in ["urge surfing", "craving", "delay", "halt", "relapse prevention"]):
+        hint = _ADDICTION_TYPE_TO_INTENT.get((addiction_type or "").lower().replace("-", "_").replace(" ", "_"), "addiction_drugs")
+        return {
+            "key": "urge_regulation",
+            "phrase": "urge regulation in the first 15 to 20 minutes",
+            "video_hint_intent": hint,
+        }
+    if any(k in signal_text for k in ["rem", "insomnia", "sleep hygiene", "blue light", "sleep architecture"]):
+        return {
+            "key": "sleep_reset",
+            "phrase": "resetting your sleep and nervous system rhythm",
+            "video_hint_intent": "behaviour_sleep",
+        }
+    if any(k in signal_text for k in ["grounding", "breathing", "nervous system", "panic", "anxiety"]):
+        return {
+            "key": "grounding",
+            "phrase": "grounding your body before your mind spirals",
+            "video_hint_intent": "mood_anxious",
+        }
+    if any(k in signal_text for k in ["guilt", "shame", "self compassion", "self-compassion"]):
+        return {
+            "key": "shame_relief",
+            "phrase": "reducing shame while keeping accountability",
+            "video_hint_intent": "mood_guilty",
+        }
+    if any(k in signal_text for k in ["trauma", "flashback", "hypervigil", "assault"]):
+        return {
+            "key": "trauma_grounding",
+            "phrase": "stabilizing your body when trauma activation spikes",
+            "video_hint_intent": "trigger_trauma",
+        }
+
+    hint = _ADDICTION_TYPE_TO_INTENT.get((addiction_type or "").lower().replace("-", "_").replace(" ", "_"), intent)
+    return {
+        "key": "stabilise_and_choose",
+        "phrase": "slowing the cycle so choice comes back online",
+        "video_hint_intent": hint or intent,
+    }
+
+
+def _build_resolution_active_intents(
+    intent: str,
+    secondary_intents: List[str],
+    addiction_type: Optional[str],
+    patient_context,
+    focus_hint_intent: Optional[str],
+) -> List[str]:
+    """Add patient-state hints to make video matching tighter and context-aware."""
+    active: List[str] = [intent]
+
+    def _add(tag: Optional[str]) -> None:
+        if tag and tag not in active:
+            active.append(tag)
+
+    _add(focus_hint_intent)
+
+    if patient_context and patient_context.checkin:
+        if getattr(patient_context.checkin, "sleep_quality", 5) <= 4:
+            _add("behaviour_sleep")
+        if getattr(patient_context.checkin, "craving_intensity", 3) >= 7:
+            _add(_ADDICTION_TYPE_TO_INTENT.get((addiction_type or "").lower().replace("-", "_").replace(" ", "_")))
+
+        mood_today = (getattr(patient_context.checkin, "todays_mood", "") or "").lower()
+        if mood_today in {"anxious", "stressed", "stress", "nervous", "panic", "panicking"}:
+            _add("mood_anxious")
+        elif mood_today in {"sad", "depressed", "low"}:
+            _add("mood_sad")
+        elif mood_today in {"angry", "frustrated", "irritated"}:
+            _add("mood_angry")
+
+        trigger_map = {
+            "stress": "trigger_stress",
+            "financial": "trigger_financial",
+            "money": "trigger_financial",
+            "relationship": "trigger_relationship",
+            "partner": "trigger_relationship",
+            "grief": "trigger_grief",
+            "loss": "trigger_grief",
+            "trauma": "trigger_trauma",
+        }
+        for t in getattr(patient_context.checkin, "triggers_today", []) or []:
+            tl = str(t).lower()
+            for key, mapped in trigger_map.items():
+                if key in tl:
+                    _add(mapped)
+
+    for sec in secondary_intents:
+        _add(sec)
+
+    _add(_ADDICTION_TYPE_TO_INTENT.get((addiction_type or "").lower().replace("-", "_").replace(" ", "_")))
+    return active
+
+
+def _compose_dynamic_resolution(
+    intent: str,
+    user_message: str,
+    patient_context,
+    focus: Dict[str, str],
+    selected_video: Optional[Dict],
+    session_message_count: int,
+) -> Dict:
+    """
+    Build the slide-4 compliant resolution payload:
+      - 2-3 lines of warm validation
+      - one line introducing the precisely matched therapeutic video.
+    """
+    msg_lc = (user_message or "").lower()
+    mood = (getattr(patient_context.checkin, "todays_mood", "") or "").lower() if patient_context else ""
+    craving = int(getattr(patient_context.checkin, "craving_intensity", 3) or 3) if patient_context else 3
+    sleep_quality = int(getattr(patient_context.checkin, "sleep_quality", 5) or 5) if patient_context else 5
+    risk_level = (getattr(patient_context.risk, "risk_level", "") or "").lower() if patient_context else ""
+    relationship_analysis = analyze_relationship_clause(user_message)
+    relationships = relationship_analysis.mentions
+    relationship_phrase = _format_relationship_phrase(relationships)
+    relationship_verb = _relationship_verb(relationships)
+    relationship_do_verb = _relationship_do_verb(relationships)
+    relationship_tone = relationship_analysis.tone
+    recovery_analysis = analyze_recovery_clause(user_message)
+
+    frame = "general"
+    if recovery_analysis.theme == "lapse" or intent == "relapse_disclosure":
+        frame = "reset"
+    elif recovery_analysis.theme == "shame":
+        frame = "shame"
+    elif recovery_analysis.theme == "pressure":
+        frame = "pressure"
+    elif recovery_analysis.theme == "change_readiness":
+        frame = "change"
+    elif craving >= 7:
+        frame = "urge"
+    elif intent in _ADDICTION_INTENTS and _has_urge_language(user_message):
+        frame = "urge"
+    elif intent in {"mood_anxious", "trigger_stress"} or mood in {"anxious", "stressed", "panic", "nervous"}:
+        frame = "anxious"
+    elif intent in {"behaviour_sleep", "behaviour_fatigue"} or sleep_quality <= 4 or "morning" in msg_lc:
+        frame = "fatigue"
+    elif intent in {"mood_guilty", "mood_sad", "severe_distress"}:
+        frame = "heavy_emotion"
+
+    line1_options = {
+        "urge": [
+            "What you are feeling right now is a common recovery moment, and it makes sense that it feels intense.",
+            "This kind of pull can feel urgent, and that does not mean you are weak or failing.",
+            "You are not broken for feeling this urge; this is a known nervous-system pattern in recovery.",
+        ],
+        "anxious": [
+            "Given what your system is carrying, this level of anxiety is understandable.",
+            "It makes sense that your body feels on alert right now; that reaction is human, not a flaw.",
+            "Anxiety can surge fast in recovery contexts, and what you are feeling is a valid response.",
+        ],
+        "fatigue": [
+            "Feeling this drained in your situation is understandable and clinically common.",
+            "Your exhaustion makes sense, especially when sleep and stress are both under strain.",
+            "This level of morning depletion is a known recovery signal, not a personal failure.",
+        ],
+        "heavy_emotion": [
+            "The weight you are carrying comes through clearly, and your reaction is deeply understandable.",
+            "What you are describing is emotionally heavy, and it makes sense it feels hard to hold alone.",
+            "These feelings are painful but valid, and naming them is already a meaningful step.",
+        ],
+        "reset": [
+            "A slip can set off fear and self-attack quickly, and that does not mean the whole recovery effort is gone.",
+            "Moments like this can feel discouraging, but one painful turn does not erase the work you have already done.",
+            "After a slip, the nervous system often swings hard into panic or shame; that reaction is common, and it can be steadied.",
+        ],
+        "shame": [
+            "Shame can get loud fast in recovery, and what you are feeling is painful without meaning you are beyond help.",
+            "Feeling ashamed does not mean you have failed; it means this matters to you and it hurts.",
+            "That self-critical weight is real, and it deserves care rather than more punishment.",
+        ],
+        "pressure": [
+            "Pressure can make the whole system tense up quickly, especially when recovery already feels exposed.",
+            "It makes sense that being pushed or watched would make this feel heavier, not easier.",
+            "When outside pressure builds, the body often shifts into defense before it can think clearly.",
+        ],
+        "change": [
+            "The part of you that wants something different matters, and it is worth taking seriously.",
+            "Wanting change is meaningful; it is often the point where choice starts to come back online.",
+            "The wish to do this differently is important, even if the path still feels hard.",
+        ],
+        "general": [
+            "What you are feeling right now makes sense in context.",
+            "Your response is understandable, given the pressure your system is under.",
+            "There is nothing abnormal about this reaction in recovery.",
+        ],
+    }
+
+    state_markers: List[str] = []
+    if craving >= 7:
+        state_markers.append("high craving load")
+    if sleep_quality <= 4:
+        state_markers.append("sleep depletion")
+    if mood in {"anxious", "stressed", "panic", "nervous", "sad", "lonely", "angry", "guilty"}:
+        state_markers.append(f"{mood} mood state")
+    if risk_level in {"high", "critical"}:
+        state_markers.append(f"{risk_level} risk window")
+
+    if relationship_phrase and relationship_tone == "secrecy":
+        line2 = (
+            f"Carrying this while {relationship_phrase} {relationship_do_verb} not yet know about it can add a quiet weight of its own; "
+            f"holding it alone has its own kind of pressure, and you do not have to figure out what to say to them today."
+        )
+    elif relationship_phrase and relationship_tone == "conflict":
+        line2 = (
+            f"When {relationship_phrase} {relationship_verb} reacting strongly to this, shame, defensiveness, or pressure can spike quickly; "
+            f"that reaction is understandable, and it can still be met without turning against yourself."
+        )
+    elif relationship_phrase and relationship_tone == "support":
+        line2 = (
+            f"When {relationship_phrase} {relationship_verb} trying to help, even care can bring pressure or mixed feelings; "
+            f"that does not mean you are doing recovery the wrong way."
+        )
+    elif relationship_phrase and recovery_analysis.theme == "pressure":
+        line2 = (
+            f"When {relationship_phrase} {relationship_verb} part of this and the pressure keeps building, the nervous system can go straight into defense or shutdown; "
+            f"slowing that pattern down can help you stay honest without feeling cornered."
+        )
+    elif recovery_analysis.theme == "lapse":
+        line2 = (
+            "What matters most now is the next stabilizing move rather than turning this into proof that you cannot recover; "
+            "a fast, honest reset is more protective than self-punishment."
+        )
+    elif recovery_analysis.theme == "shame":
+        line2 = (
+            "When shame takes over, it narrows options and pushes people toward hiding or giving up; "
+            "making a little room around that feeling can help choice come back online."
+        )
+    elif recovery_analysis.theme == "pressure":
+        line2 = (
+            "When pressure or scrutiny starts closing in, the mind often shifts toward defense, escape, or shutdown; "
+            "slowing that pattern down helps you respond instead of just react."
+        )
+    elif recovery_analysis.theme == "change_readiness":
+        line2 = (
+            "That part of you that wants to stop or do this differently is clinically important; "
+            "it often helps to translate that momentum into one small next step while it is available."
+        )
+    elif relationship_phrase and state_markers:
+        state_phrase = ", ".join(state_markers[:2])
+        line2 = (
+            f"When {relationship_phrase} {relationship_verb} part of this and {state_phrase} is already in the room, the mind often reaches for fast relief; that pattern is deeply human and still workable."
+        )
+    elif relationship_phrase:
+        line2 = (
+            f"When {relationship_phrase} {relationship_verb} part of this, it makes sense that your system would react quickly; closeness and concern can stir a lot at once, and that does not mean you are failing."
+        )
+    elif state_markers:
+        state_phrase = ", ".join(state_markers[:2])
+        line2 = (
+            f"When {state_phrase} overlap, the mind looks for fast relief; that pattern is expected, and it can be worked with safely."
+        )
+    else:
+        line2 = "Your system is trying to protect you quickly; that survival pattern is understandable and changeable."
+
+    video_title = (selected_video or {}).get("title", "a short therapeutic video")
+    line3 = (
+        f"I am matching you with {video_title} so the next few minutes focus on {focus.get('phrase', 'a practical regulation skill')} while you stay grounded."
+    )
+
+    seed = f"{intent}|{user_message}|{session_message_count}|{focus.get('key','') }"
+    line1 = _stable_pick(line1_options.get(frame, line1_options["general"]), seed)
+
+    lines = [line1, line2, line3]
+    return {
+        "text": "\n".join(lines),
+        "lines": lines,
+        "focus": focus.get("key", "stabilise_and_choose"),
+        "focus_phrase": focus.get("phrase", "stabilization"),
+        "video_match_reason": {
+            "focus_hint": focus.get("video_hint_intent"),
+            "active_state": {
+                "mood": mood or "unknown",
+                "sleep_quality": sleep_quality,
+                "craving_intensity": craving,
+                "risk_level": risk_level or "unknown",
+            },
+        },
+        "relationships": relationships,
+    }
 
 
 def get_context_aware_greeting(session: Dict, patient_context) -> str:
@@ -705,6 +1384,16 @@ def handle_message(
         intent, _secondary_intents = intent_classifier.classify_multi(message, addiction_type=_early_addiction_type)
     else:
         _secondary_intents: List[str] = []
+
+    _addiction_override_intent = None
+    if not _semantic_crisis_override:
+        _addiction_override_intent = _override_addiction_intent_from_message(message, intent)
+        if _addiction_override_intent:
+            if intent and intent != _addiction_override_intent and intent not in _secondary_intents:
+                _secondary_intents = [intent] + _secondary_intents
+            intent = _addiction_override_intent
+        _secondary_intents = _normalize_secondary_intents(intent, _secondary_intents)
+
     intent_metadata = intent_classifier.get_intent_metadata(intent)
     if not _semantic_crisis_override:
         severity = intent_metadata["severity"]
@@ -782,9 +1471,42 @@ Core guidelines:
 - Reference specific context from the patient's profile when appropriate
 - For High/Critical risk: Be direct, skip pleasantries, focus on stabilization
 - THIS IS LAYER {current_layer} OF THE 5-LAYER CONVERSATION MODEL — FOLLOW THE RULES ABOVE STRICTLY
-- {response_length_instruction}
+- RESPONSE FORMAT (mandatory): {response_length_instruction}
 """
     
+    # ── PRE-LLM RAG RETRIEVAL ─────────────────────────────────────────────
+    # Retrieve relevant evidence-based content and inject it into the system
+    # prompt BEFORE the LLM generates a response, so the model synthesises the
+    # information naturally into a 1-2 sentence empathetic reply.
+    # Raw chunks are NEVER appended to the final response shown to the patient.
+    _run_rag = not _semantic_crisis_override
+    _rag_citations = []
+    _retrieved_docs: List[Dict] = []
+    if _run_rag:
+        try:
+            enriched_query = build_enriched_query(message, intent, addiction_type)
+            retrieved_docs = retrieve(
+                enriched_query,
+                top_k=3,
+                seen_chunk_ids=session["seen_chunk_ids"],
+                severity=severity,
+            )
+            if retrieved_docs:
+                _retrieved_docs = retrieved_docs
+                rag_context = assemble_context(retrieved_docs)
+                _rag_citations = format_citations(retrieved_docs)
+                # Augment the system prompt with the retrieved evidence so the LLM
+                # synthesises a concise, patient-friendly response — not a dump of PDF text.
+                system_prompt += (
+                    f"\n\nEVIDENCE CONTEXT (internal use only — do NOT quote or cite sources):\n"
+                    f"Use the following clinical evidence to inform your response. "
+                    f"Synthesise it into 1-2 warm, patient-friendly sentences. "
+                    f"Never reproduce the text verbatim. Never mention PDF titles, page numbers, or sources.\n\n"
+                    f"{rag_context}"
+                )
+        except Exception as e:
+            logger.warning(f"RAG failed (non-critical): {e}")
+
     # Get base response from response generator
     # Extract addictions list (primary + comorbid) for ResponseRouter
     addictions_list = patient_context.onboarding.addictions or []
@@ -795,36 +1517,84 @@ Core guidelines:
         context_vector=context,
         addiction_type=addiction_type,  # Pass patient addiction type for differentiated responses
         addictions=addictions_list,     # Full list enables comorbidity detection
-        system_prompt=system_prompt,    # Pass context-aware prompt
+        system_prompt=system_prompt,    # Pass context-aware prompt (now includes RAG evidence)
         profile_flags=profile_flags,    # Pass flags so psychosis/bipolar guard fires on template responses
     )
-    
-    # Try RAG for general queries and high/critical severity turns.
-    # RAG is suppressed when a semantic crisis INTERCEPT is active — the crisis
-    # template is the authoritative response and RAG could dilute or contradict it.
-    # For high/critical severity (WARN-level or intent-classified), we still run
-    # RAG with a lowered score threshold so evidence-based grounding is included.
-    _rag_intents = {"rag_query"}
-    _run_rag = (
-        not _semantic_crisis_override
-        and (intent in _rag_intents or severity in {"high", "critical"})
-    )
-    if _run_rag:
+
+    if _rag_citations:
+        response_meta["citations"] = _rag_citations
+
+    # ── GREETING PERSONALISATION ──────────────────────────────────────────────
+    # When a known patient says hello, override the generic template with the
+    # wearable-/checkin-aware greeting (same logic as /checkin-status endpoint).
+    # _greeting_is_validated: set True when GreetingGenerator succeeds so the
+    # downstream ethical_policy check is skipped (greeting content is pre-validated).
+    _greeting_is_validated = False
+    if intent == "greeting" and patient_code and patient_code != "UNKNOWN":
         try:
-            enriched_query = build_enriched_query(message, intent, addiction_type)
-            retrieved_docs = retrieve(
-                enriched_query,
-                top_k=3,
-                seen_chunk_ids=session["seen_chunk_ids"],
-                severity=severity,      # lowers threshold for high/critical turns
+            _subj_data = get_latest_daily_checkin(patient_code, within_hours=48)
+            _phys_data = get_latest_wearable_reading(patient_code, within_hours=48)
+            _hist_data = get_historical_context(patient_code, days_back=30)
+            _patient_rec = get_patient(patient_code)
+            _pname = (
+                (_patient_rec.get("first_name") or _patient_rec.get("display_name") or "there")
+                if _patient_rec else "there"
             )
-            if retrieved_docs:
-                rag_context = assemble_context(retrieved_docs)
-                response_text = f"{response_text}\n\n{rag_context}"
-                response_meta["citations"] = format_citations(retrieved_docs)
-        except Exception as e:
-            logger.warning(f"RAG failed (non-critical): {e}")
-    
+            _subj = None
+            if _subj_data:
+                from datetime import timezone
+                from dateutil import parser as dateparser
+                _emo = _subj_data.get("emotional_state") or _subj_data.get("todays_mood") or "neutral"
+                _g_hours = None
+                if _subj_data.get("created_at"):
+                    try:
+                        _created = dateparser.parse(_subj_data["created_at"])
+                        if _created.tzinfo is None:
+                            _created = _created.replace(tzinfo=timezone.utc)
+                        _g_hours = (datetime.now(timezone.utc) - _created).total_seconds() / 3600
+                    except Exception:
+                        pass
+                _subj = SubjectiveState(
+                    emotional_state=_emo,
+                    craving_intensity=_subj_data.get("craving_intensity", 5),
+                    sleep_quality=_subj_data.get("sleep_quality", 5),
+                    medication_taken=_subj_data.get("medication_taken", True),
+                    triggers_today=_subj_data.get("triggers_today") or [],
+                    checkin_timestamp=_subj_data.get("checkin_timestamp") or _subj_data.get("created_at"),
+                    hours_ago=_g_hours,
+                )
+            _phys = None
+            if _phys_data:
+                _phys = PhysiologicalState(
+                    heart_rate=_phys_data.get("heart_rate"),
+                    hrv=_phys_data.get("hrv"),
+                    sleep_hours=_phys_data.get("sleep_hours"),
+                    steps_today=_phys_data.get("steps_today"),
+                    stress_score=_phys_data.get("stress_score"),
+                    spo2=_phys_data.get("spo2"),
+                    personal_anomaly_flag=_phys_data.get("personal_anomaly_flag", False),
+                    anomaly_detail=_phys_data.get("anomaly_detail"),
+                    wearable_timestamp=_phys_data.get("wearable_timestamp"),
+                    hours_ago=_phys_data.get("hours_ago"),
+                )
+            _hist = HistoricalContext(
+                session_count=_hist_data.get("session_count", 0) if _hist_data else 0,
+                days_since_last_session=_hist_data.get("days_since_last_session") if _hist_data else None,
+                recurring_themes=_hist_data.get("recurring_themes", []) if _hist_data else [],
+                crisis_history=bool(_hist_data.get("crisis_history", False)) if _hist_data else False,
+            )
+            _gctx = synthesize_patient_context(
+                subjective=_subj, physiological=_phys,
+                historical=_hist, patient_name=_pname,
+            )
+            _greeting_result = generate_greeting_message(_gctx, include_sources=False)
+            response_text = _greeting_result["greeting"]
+            _greeting_is_validated = True
+            logger.info(f"[{session_id}] Personalized greeting generated for {patient_code} (risk={_greeting_result.get('risk_score')})")
+        except Exception as _ge:
+            logger.warning(f"[{session_id}] Personalized greeting failed, using generic: {_ge}")
+
+
     # Enforce 5-layer rules on response
     response_text, layer_notes = enforce_5layer_rules(
         response_text, 
@@ -844,29 +1614,54 @@ Core guidelines:
     else:
         session["last_question_asked"] = False
     
-    # Track content for Layer 4 (video) and future recommendations
-    if response_meta.get("video_shown"):
-        video = response_meta.get("video_shown")
-        record_video_shown(session, {
-            "title": video.get("title"),
-            "intent": intent,
-            "url": video.get("url"),
-            "completion_pct": 0
-        })
-    
+    # Track content for Layer 4 (video) — handled after video selection below.
+
     # ── LAYER 5: RESPONSE VALIDATION ─────────────────────────────────────
     
     # Validate response safety
     is_valid, error_msg = safety_checker.validate_response(response_text, intent)
     if not is_valid:
         logger.error(f"Response validation failed: {error_msg}")
-        response_text = "Thank you for sharing. I want to make sure I give you appropriate support. This requires a mental health professional to discuss further."
+        # For crisis intents the fallback MUST include crisis resources so the
+        # downstream PolicyChecker (which also requires crisis keywords) does not
+        # cascade into the cold "I apologize" response.
+        if intent in {"crisis_suicidal", "crisis_abuse", "behaviour_self_harm"}:
+            response_text = (
+                "I'm really concerned about you right now. "
+                "Please call emergency services (911 / 999 / 112) or a crisis helpline immediately. "
+                "You deserve immediate support, and help is available right now."
+            )
+        else:
+            response_text = "Thank you for sharing. I want to make sure I give you appropriate support. This requires a mental health professional to discuss further."
     
-    # Check policy compliance
-    compliant, policy_violation = policy_checker.check_policy_compliance(response_text, intent)
-    if not compliant:
-        logger.error(f"Policy violation: {policy_violation}")
-        response_text = "I apologize, but I need to provide a more appropriate response. Please contact a mental health professional for guidance on this topic."
+    # Check policy compliance — use the full ethical_policy module which catches
+    # medication names, dosages, diagnosis claims, and identity violations.
+    # services_pipeline.PolicyChecker is used as a fast pre-filter only.
+    # Skip for pre-validated GreetingGenerator output (which may mention clinical
+    # observations like "missed medication dose" that are safe in context).
+    if _greeting_is_validated:
+        compliant = True
+        policy_violation = None
+    else:
+        _ep_result = check_policy(response_text, intent=intent, session_id=session_id)
+        if _ep_result.violation:
+            logger.error(
+                f"[{session_id}] Policy violation ({_ep_result.violation_type}): "
+                f"intent={intent}"
+            )
+            response_text = _ep_result.safe_response
+            compliant = False
+            policy_violation = {
+                "rule": _ep_result.violation_type,
+                "severity": "high",
+                "message": f"Ethical policy violation: {_ep_result.violation_type}",
+            }
+        else:
+            # Secondary check for crisis-resource presence on crisis intents
+            compliant, policy_violation = policy_checker.check_policy_compliance(response_text, intent)
+            if not compliant:
+                logger.error(f"[{session_id}] Policy violation (crisis resources): {policy_violation}")
+                response_text = "I apologize, but I need to provide a more appropriate response. Please contact a mental health professional for guidance on this topic."
     
     # Sanitize response (language safety, person-first language, etc.)
     try:
@@ -881,13 +1676,73 @@ Core guidelines:
             response_text = stigma_reframe + " " + response_text
     except Exception as e:
         logger.warning(f"Stigma check failed: {e}")
+
+    # ── LAYER 4 RESOLUTION COMPOSER: TEXT (2-3 lines) + ONE PRECISE VIDEO ──
+    # Slide 4 requirement:
+    #   - text holds space with warm validation
+    #   - one tightly matched video delivers the intervention
+    # Video selection is driven by active intents + current patient state.
+    _safety_video_skip = {
+        "crisis_suicidal", "crisis_abuse", "behaviour_self_harm",
+        "severe_distress", "psychosis_indicator", "medication_request",
+    }
+    _active_intents_base = [intent] + [
+        s for s in _secondary_intents if s not in _safety_video_skip
+    ]
+    _focus = _detect_resolution_focus(
+        intent=intent,
+        addiction_type=addiction_type,
+        retrieved_docs=_retrieved_docs,
+        user_message=message,
+    )
+    _active_intents = _build_resolution_active_intents(
+        intent=intent,
+        secondary_intents=_active_intents_base[1:],
+        addiction_type=addiction_type,
+        patient_context=patient_context,
+        focus_hint_intent=_focus.get("video_hint_intent"),
+    )
+
+    watched_video_ids = set()
+    try:
+        if patient_id:
+            watched_video_ids = get_watched_video_ids(patient_id)
+    except Exception as _ve:
+        logger.warning(f"Could not fetch video watch history: {_ve}")
+
+    _focus_video_intent = _focus.get("video_hint_intent")
+    video = get_video_for_patient(_focus_video_intent, watched_video_ids) if _focus_video_intent else None
+    if not video:
+        video = get_video_for_intents(_active_intents, watched_video_ids)
+    if video:
+        video = {**video, "active_intents": _active_intents}
+
+    if intent not in _RESOLUTION_SKIP_INTENTS and not _semantic_crisis_override:
+        resolution_payload = _compose_dynamic_resolution(
+            intent=intent,
+            user_message=message,
+            patient_context=patient_context,
+            focus=_focus,
+            selected_video=video,
+            session_message_count=session.get("message_count", 0),
+        )
+        _resolution_text = resolution_payload.get("text", "").strip()
+        if _resolution_text:
+            _res_ok, _res_err = safety_checker.validate_response(_resolution_text, intent)
+            if _res_ok:
+                response_text = _resolution_text
+                response_meta["resolution"] = resolution_payload
+            else:
+                logger.warning(
+                    f"[{session_id}] Resolution text rejected by safety validator: {_res_err}"
+                )
     
     # ── PERSISTENCE LAYER: COMPREHENSIVE DATABASE UPDATE ────────────────
     
     try:
         base_risk_score = (
-            patient_context.current_risk_score
-            if patient_context and hasattr(patient_context, 'current_risk_score')
+            patient_context.risk.live_risk_score
+            if patient_context
             else None
         )
         persisted_risk_score = base_risk_score
@@ -906,7 +1761,10 @@ Core guidelines:
             if patient_context:
                 checkin_data = {
                     "mood": intent.replace("mood_", "") if intent.startswith("mood_") else None,
-                    "craving_intensity": persisted_risk_score,
+                    # craving_intensity is 0-10; patient_context.checkin.craving_intensity
+                    # holds the value extracted during intake (defaults to 3 if unknown).
+                    # Do NOT substitute persisted_risk_score (0-100 scale) here.
+                    "craving_intensity": patient_context.checkin.craving_intensity,
                     "trigger_exposure_flag": "trigger_stress" in intent or "trigger_" in intent,
                     "relapse_disclosed": intent == "relapse_disclosure",
                 }
@@ -986,56 +1844,28 @@ Core guidelines:
     })
     
     # ── BUILD RESPONSE OBJECT ────────────────────────────────────────────
-    
-    # Build active intent list: primary first, then secondary, for multi-intent
-    # video selection.  Skip safety intents from secondary (they have resource blocks).
-    _safety_video_skip = {
-        "crisis_suicidal", "crisis_abuse", "behaviour_self_harm",
-        "severe_distress", "psychosis_indicator", "medication_request",
-    }
-    _active_intents = [intent] + [
-        s for s in _secondary_intents if s not in _safety_video_skip
-    ]
-
-    # Inject the patient's registered addiction type as a scoring hint so that,
-    # e.g., an alcohol patient saying "need a beer" (intent=addiction_drugs)
-    # naturally pulls the addiction_alcohol video (which tags both).
-    # This works for ALL addiction types — no explicit per-type branching needed.
-    _ADDICTION_TYPE_TO_INTENT: Dict[str, str] = {
-        "alcohol":      "addiction_alcohol",
-        "drugs":        "addiction_drugs",
-        "gaming":       "addiction_gaming",
-        "social_media": "addiction_social_media",
-        "nicotine":     "addiction_nicotine",
-        "smoking":      "addiction_nicotine",
-        "gambling":     "addiction_gambling",
-        "work":         "addiction_work",
-        "food":         "addiction_eating",
-        "sex":          "addiction_sex",
-        "shopping":     "addiction_shopping",
-    }
-    if addiction_type:
-        _registered_intent = _ADDICTION_TYPE_TO_INTENT.get(
-            addiction_type.lower().strip().replace(" ", "_").replace("-", "_")
-        )
-        if _registered_intent and _registered_intent not in _active_intents:
-            _active_intents.append(_registered_intent)
-
-    # Retrieve video history for this patient
-    watched_video_ids = set()
-    try:
-        if patient_id:
-            watched_video_ids = get_watched_video_ids(patient_id)
-    except Exception as _ve:
-        logger.warning(f"Could not fetch video watch history: {_ve}")
-
-    # Primary video: multi-intent aware — picks the video with the highest
-    # tag overlap across all active intents (primary + secondary).
-    video = get_video_for_intents(_active_intents, watched_video_ids)
-
-    # Stamp the active intents onto the video so the UI can show all covered tags.
     if video:
-        video = {**video, "active_intents": _active_intents}
+        # Persist watch history so this video is never repeated.
+        record_video_shown(session, {
+            "title": video.get("title"),
+            "intent": intent,
+            "url": video.get("url"),
+            "completion_pct": 0,
+        })
+        try:
+            # Write only the content_engagement row — all other tables were already
+            # written in the persistence block above. A second full update would
+            # create duplicate message/session/risk_assessment records.
+            from db_comprehensive_update import ComprehensiveDatabaseUpdater as _Updater, _supabase_client as _supa_cli
+            if patient_id and _supa_cli:
+                _Updater(_supa_cli)._update_content_engagement_table(
+                    patient_id=patient_id,
+                    session_id=session_id,
+                    video_shown=video,
+                    intent=intent,
+                )
+        except Exception as _ve:
+            logger.warning(f"[{session_id}] content_engagement write failed (non-critical): {_ve}")
 
     # Tag session with the last intervention intent so downstream tooling can
     # correlate a Clinical Handshake 👍/👎 response back to the tool that was served.
@@ -1050,6 +1880,7 @@ Core guidelines:
         "show_resources": response_meta.get("show_resources", False),
         "resource_links": safety_checker.get_resource_links(intent) if response_meta.get("show_resources") else {},
         "show_feedback": response_meta.get("show_feedback", False),
+        "resolution": response_meta.get("resolution"),
         "video": video,
         "session_id": session_id,
         "patient_code": patient_code,
@@ -1144,7 +1975,7 @@ try:
     from contextlib import asynccontextmanager
     from fastapi import FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
-    from pydantic import BaseModel
+    from pydantic import BaseModel, Field
 
     # ── Daily data refresh scheduler ─────────────────────────────────────────
     try:
@@ -1176,15 +2007,22 @@ try:
             yield
 
     app = FastAPI(title="Trust AI Chatbot API", version="2.0.0", lifespan=lifespan)
+    _allowed_origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+    _frontend_url = os.getenv("FRONTEND_URL", "").strip()
+    if _frontend_url and _frontend_url not in _allowed_origins:
+        _allowed_origins.append(_frontend_url)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=_allowed_origins,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
     )
 
     class ChatRequest(BaseModel):
-        message: str
+        message: str = Field(..., max_length=2000)
         session_id: str
         patient_id: Optional[str] = None
         patient_code: Optional[str] = None
@@ -1199,9 +2037,13 @@ try:
         patient_code = req.patient_code or "UNKNOWN"
         
         # ── CRITICAL: Initialize patient and session in database ──────────────
-        # These MUST be called before handle_message() to ensure FK constraints pass
+        # ensure_patient() returns the real UUID — capture it so every subsequent
+        # DB call (messages, sessions, content_engagement, ...) uses a valid UUID
+        # and not the fallback "user_{session_id}" placeholder string.
         try:
-            ensure_patient(patient_code=patient_code)
+            real_uuid = ensure_patient(patient_code=patient_code)
+            if real_uuid:
+                patient_id = real_uuid
             ensure_session(session_id=req.session_id, 
                           patient_id=patient_id, 
                           patient_code=patient_code)

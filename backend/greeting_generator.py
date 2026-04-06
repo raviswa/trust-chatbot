@@ -293,7 +293,7 @@ class GreetingGenerator:
         # Offer multiple pathways based on context
         if context.tone_directive == ToneDirective.CALM_GROUNDING:
             return (
-                f"I'm here. You can tell me what's on your mind, or if you'd rather, "
+                f"You can tell me what's on your mind, or if you'd rather, "
                 f"I can walk you through a quick grounding practice right now — whatever feels right."
             )
         

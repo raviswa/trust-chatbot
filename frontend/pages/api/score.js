@@ -10,7 +10,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch(`${process.env.CHATBOT_API_URL}/session/score`, {
+    const apiUrl = process.env.CHATBOT_API_URL || 'http://127.0.0.1:8000';
+    const response = await fetch(`${apiUrl}/session/score`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({

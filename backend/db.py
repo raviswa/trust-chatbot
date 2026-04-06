@@ -1,21 +1,40 @@
 """
-db.py — Compatibility shim: re-exports all functions from db_supabase.py
+db.py — Compatibility shim: re-exports all functions from db_postgres.py
 """
-from db_supabase import (
+from db_postgres import (
     ensure_patient,
     get_patient,
     get_patient_sessions,
     get_patient_full_history,
     ensure_session,
     update_session_meta,
+    update_session,
     save_message,
     log_policy_violation,
     log_crisis_event,
     get_pending_crisis_events,
     get_policy_violation_summary,
     get_session_history,
+    get_session,
+    get_session_summary,
     get_all_sessions,
     get_crisis_sessions,
     get_conversation_stats,
     get_top_intents,
+    get_checkin_status,
+    get_latest_daily_checkin,
+    get_latest_wearable_reading,
+    get_historical_context,
+    save_context_vector,
+    get_patient_context_vectors,
+    get_context_vector_trends,
+    get_contradiction_patterns,
+    get_watched_video_ids,
+    get_patient_onboarding,
+    save_intake_progress,
+    get_patient_addictions,
+    get_response_routing_table,
+    build_checkin_greeting,
+    save_patient_score,
+    clear_session,
 )

@@ -41,6 +41,7 @@ ADDICTION_TYPES = {
 
 MOOD_SIGNALS = {
     "anger":     ["angry", "anger", "rage", "furious", "irritated", "frustrated"],
+    "anxiety":   ["anxious", "anxiety", "worried", "nervous", "panicking", "panic", "on edge", "overwhelmed"],
     "hunger":    ["hunger", "cravings", "craving", "urge", "wanting"],
     "loneliness":["lonely", "alone", "isolated", "no one", "nobody"],
     "tiredness": ["tired", "exhausted", "fatigue", "no energy", "drained"],

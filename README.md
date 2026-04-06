@@ -263,6 +263,22 @@ export default function Chat({ patientCode }) {
       showResources: data.show_resources
     }])
     if (data.patient_name)    setPatientName(data.patient_name)
+
+    ---
+
+    ## Smoke Checks
+
+    Run the addiction-resolution API sweep against a live backend:
+
+    ```bash
+    /workspaces/trust-chatbot/.venv/bin/python backend/smoke_addiction_resolution.py --pretty
+    ```
+
+    Optional flags:
+
+    ```bash
+    /workspaces/trust-chatbot/.venv/bin/python backend/smoke_addiction_resolution.py --base-url http://127.0.0.1:8000 --patient-code PAT-002 --pretty
+    ```
     if (data.intake_complete) setIntakeComplete(true)
     if (data.intake_phase !== undefined) setIntakePhase(data.intake_phase)
   }

@@ -71,6 +71,9 @@ class IntentClassifier:
                 "medicine", "medication", "prescribe", "prescription", "dose", "dosage",
                 "tablet", "capsule", "what should i take", "can i take",
                 "which pill", "what medication", "milligram", "mg",
+                # Abbreviated forms that bypass the LLM tier when offline
+                "what meds", "which meds", "what med ", "what med?",
+                "should i take", "what to take",
             ],
             # Priority 1: Immediate safety
             "crisis_suicidal": [
@@ -85,16 +88,36 @@ class IntentClassifier:
                 "afraid to go home", "someone is controlling me", "trapped at home",
                 "he hits me", "she hits me", "they hit me", "hits me regularly",
                 "abusive", "abuse me", "hitting me",
+                # Indirect / understated disclosures
+                "my partner scares me", "scared of my partner", "partner frightens me",
+                "scared of my husband", "scared of my wife", "scared of my boyfriend",
+                "scared of my girlfriend", "he scares me", "she scares me",
+                "afraid of my partner", "afraid of my husband", "afraid of my wife",
+                "scared to go home", "frightened to go home", "don't feel safe at home",
             ],
             "behaviour_self_harm": [
                 "hurt myself", "cut myself", "self harm", "harm my body", "burn myself",
                 "hit myself", "injure myself", "punish myself", "physical pain helps",
+                # Indirect / understated self-harm disclosures
+                "scratch myself", "scratching myself", "i scratch myself",
+                "pick at my skin", "picking at my skin",
+                "bite myself", "bite my skin", "pull my hair out",
+                "bang my head", "bang my head against", "hit the wall",
+                "dig my nails in", "digging nails into",
             ],
             # Priority 2: High-severity clinical signals
             "severe_distress": [
                 "hopeless", "hopelessness", "nothing matters", "i feel empty",
                 "i feel worthless", "no reason to live", "life has no meaning",
                 "i feel trapped", "can't escape",
+                # Variations that fall through to rag_query without Ollama
+                "feel so empty", "feeling so empty", "completely empty inside",
+                "feel completely empty", "feel completely worthless",
+                "life feels meaningless", "life is meaningless", "feels pointless",
+                "everything feels pointless", "everything is pointless",
+                "feel worthless", "feeling worthless", "i am worthless",
+                "what's the point", "what is the point", "no point anymore",
+                "no point in anything",
             ],
             "psychosis_indicator": [
                 "voices talking to me", "hearing voices", "people watching me",
@@ -114,6 +137,37 @@ class IntentClassifier:
                 "i drank last night", "i drank again", "i used again", "i used last night",
                 "i smoked again", "i vaped again", "i gambled again", "i binged again",
                 "i fell off the wagon", "i messed up and used", "i messed up and drank",
+                # Past-tense consumption disclosures (e.g. "had a beer last night")
+                "had a beer", "had a drink", "had a few drinks", "had some drinks",
+                "had a glass of wine", "had a glass of", "had a shot",
+                "drank last night", "drank yesterday", "drank today",
+                "used last night", "used again last", "used yesterday",
+                "smoked last night", "vaped last night",
+                "gambled last night", "gambled again", "gambled yesterday",
+                "slipped last night", "slipped yesterday",
+                # Broken promise / failed-attempt disclosures
+                "said i'd stop", "said id stop", "told myself i'd stop",
+                "promised i'd stop", "promised myself i'd stop",
+                "said i'd quit", "said id quit",
+                # Cycle of relapse / failed promises
+                "keep promising myself i'll stop", "keep promising to stop",
+                "promised to stop and didn't", "keep breaking my promise",
+                "never manage to stop", "tried to stop but",
+                "tried to quit but", "keep relapsing", "keep falling back",
+                "keep falling off the wagon", "can't stay stopped", "cant stay stopped",
+                # Relationship harm caused by drinking (drinking revealed as cause)
+                "fight because of drinking", "fight because of my drinking",
+                "argument because of drinking", "argument because of my drinking",
+                "fight with my partner about", "fight with my wife about",
+                "fight with my girlfriend about", "fight with my boyfriend about",
+                "fight with my gf", "fight with my bf", "because of drinking again",
+                # Consequences and damage caused by drinking
+                "ruined everything", "ruined it again", "messed everything up",
+                "family won't talk to me", "family won't speak to me",
+                "lost my job because", "lost everything because",
+                # Past-tense consumption with clear past context
+                "drank a whole", "drank the whole", "drank an entire",
+                "bottle by myself", "drank alone",
             ],
             "addiction_drugs": [
                 "can't stop drinking", "withdrawal", "detox",
@@ -144,6 +198,89 @@ class IntentClassifier:
                 "fentanyl", "opioid", "opioids", "ecstasy", "mdma", "ketamine",
                 "amphetamine", "amphetamines", "crystal meth", "smack",
                 "oxycodone", "morphine", "percocet",
+                # Dependence / dependency disclosure
+                "dependent on alcohol", "dependent on drugs", "i think i'm dependent",
+                "think i'm addicted", "am i an alcoholic", "think i have a drinking problem",
+                # Alcohol quantity / minimisation questions
+                "how many drinks", "drinks a day", "drinks per day",
+                "can stop whenever i want", "stop whenever i want",
+                "only drink at night", "i only drink", "just beer", "it's just beer",
+                "other people drink", "people drink more", "others drink more",
+                "worried about my drinking", "family is worried about my drinking",
+                # Withdrawal symptoms (apostrophe and informal variants)
+                "sick when i don't drink", "sick when i dont drink",
+                "when i don't drink", "when i dont drink", "when i stop drinking",
+                "sick without alcohol", "feel sick without",
+                # Loss of control
+                "losing control of my drinking", "feel like i'm losing control of my drinking",
+                # Denial / rationalisation (person doesn't identify as having a problem)
+                "everyone drinks", "everyone else drinks", "normal to drink",
+                "drink to relax", "i drink to relax", "drinking to relax", "alcohol helps me relax",
+                "not an alcoholic", "i'm not an alcoholic", "im not an alcoholic",
+                "i'm not addicted", "im not addicted", "not addicted to alcohol",
+                "just like to drink", "i just like drinking", "i enjoy drinking",
+                "think i might have a drinking problem", "might have a drinking problem",
+                "maybe have a drinking problem", "drinking problem",
+                "drink a bit more than i should", "more than i should be drinking",
+                "wife thinks i have a problem", "husband thinks i have a problem",
+                "partner thinks i have a problem", "family thinks i have a problem",
+                "friends think i have a problem",
+                # Family / social concern (patient sharing others' worry)
+                "family is worried about my drinking", "family worried about my drinking",
+                "family concerned about my drinking", "partner worried about my drinking",
+                "wife is worried about my drinking", "husband is worried about my drinking",
+                "my family is worried", "worried about my drinking",
+                "family won't stop telling me", "family keeps saying i drink too much",
+                # Drinking-as-coping patterns
+                "had a couple of drinks to unwind", "couple of drinks to unwind",
+                "drink to unwind", "drink to wind down", "drank to take the edge off",
+                "needed something to take the edge off", "take the edge off",
+                "drink after work", "drink when stressed", "drink when anxious",
+                "drank after a long day", "had a drink after a long day",
+                "few drinks to unwind", "drink to cope", "drinking to cope",
+                "use alcohol to cope", "alcohol to cope", "drink when things get hard",
+                # Harm reduction / cutting back
+                "want to cut back", "trying to cut back", "cut back on drinking",
+                "cut down on drinking", "cut back my drinking", "reduce my drinking",
+                "drink less", "drink a bit less", "cutting back on alcohol",
+                "moderate my drinking", "manage my drinking", "control my drinking",
+                "not necessarily quit", "don't want to quit completely", "just want to cut back",
+                "tips to manage my drinking", "tips for my drinking", "tips to manage weekend drinking",
+                "tips for weekend drinking", "manage weekend drinking", "manage my weekend drinking",
+                "weekend drinking", "manage how much i drink",
+                # Seeking help to quit
+                "help me quit drinking", "help me stop drinking", "help me quit alcohol",
+                "help me with my drinking", "help me cut back", "can you help me quit",
+                "can you actually help me quit", "can you help me stop drinking",
+                "want to quit drinking", "trying to quit drinking", "trying to stop drinking",
+                "want to stop drinking", "want to give up drinking", "give up alcohol",
+                # Getting through cravings / tonight
+                "get through tonight without a drink", "get through tonight without drinking",
+                "get through today without a drink", "get through this without drinking",
+                "get through the night without drinking", "how to resist drinking tonight",
+                "not drink tonight", "avoid drinking tonight", "sober tonight",
+                # Quantity / risk awareness questions
+                "how many drinks is too many", "how much is too much to drink",
+                "how many drinks is considered", "what is a safe amount to drink",
+                "how many units is too much", "how many drinks before it's a problem",
+                "drinking every day bad", "is it bad to drink every day",
+                "bad to drink alone", "bad to drink by yourself",
+                # Clinical / technical disclosures
+                "units a night", "units per night", "units a day", "units per day",
+                "liver enzymes", "liver function", "alt was", "ast was", "ggt was", "liver test",
+                "taper off", "taper down", "tapering", "want to taper",
+                "drinking daily for", "drinking every day for",
+                "naltrexone", "acamprosate", "disulfiram", "antabuse", "campral",
+                "sinclair method", "audit-c", "alcohol use disorder", "aud",
+                "ml of spirits", "ml of alcohol", "litres of spirits", "litres of alcohol",
+                "bottle of spirits", "bottle of wine a day", "bottle a day", "bottle a night",
+                # Active / real-time loss of control (intoxicated or craving now)
+                "drinking right now", "drinking rn", "im drinking rn", "drinking as i",
+                "one more drink", "1 more drink", "just one more drink", "just 1 more drink",
+                "then i'll stop", "then ill stop", "and then i'll stop",
+                "can't stop right now", "cant stop right now",
+                # Quantity / consumption admission (present)
+                "drink too much", "drunk too much", "drinking too much",
             ],
             # Behavioural gaming cravings — for cross-addiction detection
             # (e.g. alcohol addict reaching for gaming as a substitute)
@@ -201,14 +338,57 @@ class IntentClassifier:
                 "insomnia", "nightmares", "waking up", "wake up at", "wake up in",
                 "sleepless", "sleeplessness", "no sleep", "not sleeping",
                 "slept", "not slept", "haven't slept", "didn't sleep", "couldn't sleep",
-                "sleep", "sleeping",
+                # Normalised variants ("can not" with a space is not matched by "cannot")
+                "can not sleep", "cannot seem to sleep", "unable to sleep",
+                "been awake", "stayed awake", "lying awake", "lie awake",
+                "staring at the ceiling", "tossing and turning",
+                # Morning-after / post-drinking fatigue patterns
+                "tired of feeling like this every morning", "feeling like this every morning",
+                "feel like this every morning", "like this every morning",
+                "tired every morning", "exhausted every morning", "awful every morning",
+                "feel terrible every morning", "feel rough every morning",
+                "wake up feeling terrible", "wake up feeling awful", "wake up feeling sick",
+                "wake up every day feeling", "morning feeling sick", "sick every morning",
             ],
             "behaviour_fatigue": [
-                "tired", "so tired", "very tired", "too tired", "much tired",
-                "exhausted", "exhaustion", "fatigue", "fatigued",
-                "drained", "physically drained", "worn out", "burnt out", "burnout",
-                "no energy", "low energy", "lacking energy", "zero energy",
-                "run down", "rundown", "feeling run down",
+                # ── Core fatigue words ──────────────────────────────────────
+                "tired", "so tired", "very tired", "too tired", "exhausted", "exhaustion",
+                "fatigue", "fatigued", "drained", "physically drained",
+                "worn out", "worn down", "worn through", "burnt out", "burned out", "burnout",
+                # ── Energy / motivation deficit ─────────────────────────────
+                "no energy", "low energy", "lacking energy", "zero energy", "no get-up-and-go",
+                "no motivation", "lack of motivation", "no drive", "can't get going",
+                "can't get started", "energy crash", "hit a wall", "hitting a wall",
+                "running on fumes", "running on empty", "barely functioning",
+                # ── Run-down / depleted ────────────────────────────────────
+                "run down", "rundown", "feeling run down", "ground down", "spent",
+                "depleted", "feel depleted", "feel empty", "feeling empty",
+                # ── Sleepy / drowsy ────────────────────────────────────────
+                "sleepy", "feeling sleepy", "drowsy", "drowsiness", "somnolent", "somnolence",
+                "groggy", "grogginess", "feel groggy", "heavy eyelids", "eyelids are heavy",
+                "can't keep my eyes open", "can barely keep my eyes open",
+                "nodding off", "dropping off", "falling asleep at", "fighting sleep",
+                "struggling to stay awake", "can't stay awake", "need a nap",
+                "just want to sleep", "just want to rest", "could sleep for days",
+                "could sleep forever", "yawning", "can't stop yawning",
+                # ── British / colloquial slang ─────────────────────────────
+                "knackered", "shattered", "wiped out", "wiped", "zonked", "zonked out",
+                "bushed", "pooped", "pooped out", "beat", "dead tired", "dog tired",
+                "done in", "done for", "bone tired", "bone weary", "flagging",
+                "wrecked", "fried", "cream crackered", "dead on my feet",
+                # ── Heavy / sluggish body ──────────────────────────────────
+                "feel heavy", "feeling heavy", "body feels heavy", "legs feel heavy",
+                "feel sluggish", "sluggish", "feeling sluggish", "slow moving",
+                "hard to get up", "can't get up", "can't get out of bed in the morning",
+                # ── Cognitive / mental fatigue ─────────────────────────────
+                "brain fog", "brain fogged", "foggy brain", "foggy headed", "mental fog",
+                "mentally drained", "mentally exhausted", "mentally fatigued",
+                "can't focus", "can't concentrate", "feel flat", "feeling flat",
+                # ── Clinical / medical terminology ─────────────────────────
+                "lethargy", "lethargic", "malaise", "listless", "listlessness",
+                "torpor", "torpid", "enervated", "enervation", "asthenia", "debilitated",
+                "chronic fatigue", "cfs", "post-viral fatigue", "adrenal fatigue",
+                # ── Physically unwell (non-crisis) ─────────────────────────
                 "sick", "feeling sick", "unwell", "not well", "ill",
                 "nausea", "nauseated", "body aches", "aching",
             ],
@@ -226,15 +406,44 @@ class IntentClassifier:
                 "i'm so tired of this", "tired of all this", "i'm worn out",
                 "i'm falling apart", "i can't keep going like this",
                 "i don't know how much more i can take",
+                # Confusion / helplessness
+                "why do i keep", "don't know why i keep", "keep doing this to myself",
+                "keep doin this",
+                # Rough patch / lost / overwhelmed
+                "having a rough time", "been having a rough time", "rough time lately",
+                "rough few weeks", "rough few months", "rough patch",
+                "don't know why i'm here", "not sure why i'm here", "i don't know why i'm here",
+                "really struggling", "struggling a lot", "been struggling lately",
             ],
             # Priority 4b: Mood
-            "mood_sad":     ["sad", "depressed", "depression", "feeling down", "unhappy", "worthless", "feel like", "down in the dumps", "blue", "gloomy"],
+            # NOTE: "feel like a burden" must appear in mood_guilty BEFORE mood_sad,
+            # because mood_sad contains "feel like" as a substring that would match first.
+            "mood_sad":     ["sad", "depressed", "depression", "feeling down", "unhappy", "worthless", "down in the dumps", "blue", "gloomy"],
             "mood_anxious": ["anxious", "anxiety", "worried", "nervous", "panicking", "panic attack", "stressed", "stress", "tense", "worried about"],
             "mood_angry":   ["angry", "rage", "furious", "frustrated", "irritated", "annoyed", "mad", "getting angry"],
             "mood_lonely":  ["alone", "lonely", "isolated", "no one", "nobody", "by myself"],
-            "mood_guilty":  ["guilty", "guilt", "ashamed", "shame", "regret", "regretful"],
+            "mood_guilty":  [
+                "guilty", "guilt", "ashamed", "shame", "regret", "regretful",
+                # Burden ideation — must be listed here so it is reached before
+                # mood_sad's "feel like" pattern fires
+                "feel like a burden", "feeling like a burden", "i am a burden",
+                "i'm a burden", "feel like i'm dragging everyone",
+                "feel like i drag everyone", "burden to everyone", "burden to my family",
+                # Shame tied to alcohol-related behaviour
+                "not proud of what i've become", "ashamed of what i've become",
+                "not proud of who i've become", "ashamed of who i've become",
+                "not the person i used to be", "not who i used to be",
+                "my kids saw me drunk", "kids saw me drunk", "children saw me drunk",
+                "my kid saw me drunk", "my son saw me drunk", "my daughter saw me drunk",
+                "saw me drunk", "caught me drinking", "caught me drunk",
+                "ashamed of my drinking", "embarrassed about my drinking",
+                "i'm a failure", "im a failure", "i am a failure",
+                "feel like a failure", "feeling like a failure",
+                "failure because of drinking", "failing because of drinking",
+                "i can't even stop", "can't even stop drinking",
+            ],
             # Priority 5: Small talk
-            "greeting":  ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "good night", "howdy", "greetings", "what's up", "how are you"],
+            "greeting":  ["hi ", "hello", "hey", "good morning", "good afternoon", "good evening", "good night", "howdy", "greetings", "what's up", "how are you"],
             "farewell":  ["bye", "goodbye", "see you", "see you later", "take care", "i have to go", "gotta go", "talk later", "i'm leaving", "that's all for now", "thanks bye"],
             "gratitude": ["thank you", "thanks", "thank you so much", "that was helpful", "you helped me", "i appreciate it", "really appreciate", "cheers"],
         }
@@ -617,95 +826,57 @@ RESPONSE_TEMPLATES = {
     "trigger_trauma": {
         "type": "clinical", "severity": "high", "show_resources": True,
         "base": (
-            "Thank you for trusting me with something so personal and painful. "
-            "What you have been through sounds very difficult, "
-            "and it takes real courage to speak about it.\n\n"
-            "Trauma affects people in many ways, and your feelings are completely valid. "
-            "A trauma-informed therapist can offer support specifically designed for what you're experiencing.\n\n"
-            "I am here to listen if you would like to share more."
+            "Thank you for trusting me with something so personal — what you've been through sounds incredibly difficult."
+            " If memories feel overwhelming right now, try grounding yourself: name 5 things you can see in the room around you."
+            " Would you like to share more about what's coming up for you?"
         ),
     },
     "addiction_drugs": {
         "type": "clinical", "severity": "high", "show_resources": True,
         "base": (
-            "Thank you for having the courage to share this with me. What you're going through is real "
-            "and serious.\n\n"
-            "Cravings and urges to use are powerful, and the fact that you're aware of them and trying "
-            "to resist is a sign of real strength.\n\n"
-            "Many people have successfully managed substance use with proper support:\n"
-            "• Addiction counselor or therapist specialising in substance abuse\n"
-            "• Support groups like AA, NA, or SMART Recovery\n"
-            "• Medical treatment options (medication-assisted therapy)\n\n"
-            "You don't have to do this alone."
+            "Cravings are powerful and real, and I hear you for sharing this honestly."
+            " Try urge surfing right now: observe the craving like a wave — notice it without acting on it, and it will peak and pass within about 15 minutes."
+            " What's driving the craving right now?"
         ),
     },
     "relapse_disclosure": {
         "type": "clinical", "severity": "medium", "show_resources": False,
         "base": (
-            "Thank you for telling me this honestly. A slip can feel heavy, but it does not erase your effort "
-            "or define your recovery.\n\n"
-            "Relapse is often part of the recovery process, not proof that recovery is impossible. "
-            "What matters most right now is understanding what happened with care, not judgment.\n\n"
-            "If you're open to it, we can look at what was happening just before this and what support would "
-            "help you most in the next 24 hours."
+            "Thank you for telling me — a slip doesn't erase your effort or define your recovery."
+            " Try to hold off any harsh self-judgment for today and instead ask yourself what was happening in the hours before the slip."
+            " What do you think led up to it?"
         ),
     },
     "addiction_gaming": {
         "type": "clinical", "severity": "high", "show_resources": True,
         "base": (
-            "Thank you for being honest about this urge.\n\n"
-            "Gaming can become a powerful escape — especially when other stressors feel unmanageable. "
-            "The urge you're feeling is real, and it deserves attention rather than judgment.\n\n"
-            "Some steps that can help:\n"
-            "\u2022 Speak with a therapist who specialises in behavioural addictions\n"
-            "\u2022 Set a clear time boundary before you start (e.g. 30 minutes with a timer)\n"
-            "\u2022 Identify what emotion or need is driving the urge right now\n\n"
-            "You're showing real self-awareness by recognising this pattern."
+            "The pull to game when things feel hard is real, and it takes strength to name it."
+            " Set a 15-minute timer before deciding to open a game — most urges lose their intensity in that window."
+            " What's driving the urge today?"
         ),
     },
     "addiction_nicotine": {
         "type": "clinical", "severity": "high", "show_resources": True,
         "base": (
-            "Thank you for sharing this.\n\n"
-            "Nicotine cravings are intensely physical — your brain is genuinely asking for something "
-            "it's been conditioned to expect. The craving usually peaks within 3–5 minutes, then passes, "
-            "even when it feels unbearable.\n\n"
-            "What can help right now:\n"
-            "• Delay 5 minutes and do something with your hands\n"
-            "• Nicotine replacement (patches, gum, lozenges) can take the edge off acutely\n"
-            "• Your GP can discuss Champix/Chantix or Zyban if appropriate\n"
-            "• Apps like Smoke Free or QuitNow track your progress and support streaks\n\n"
-            "You've resisted before. You can resist this one too."
+            "Nicotine cravings are intensely physical and they pass — usually within 3–5 minutes."
+            " Try the 4D technique right now: Delay 5 minutes, take Deep breaths, Drink water, and Do something with your hands."
+            " What triggered the craving?"
         ),
     },
     "addiction_social_media": {
         "type": "clinical", "severity": "medium", "show_resources": True,
         "base": (
-            "Thank you for recognising this pattern — that awareness is real progress.\n\n"
-            "Social media is deliberately engineered to be compulsive: infinite scroll, variable reward, "
-            "dopamine hits from likes and notifications. The urge you're feeling is partly by design, "
-            "not a personal weakness.\n\n"
-            "Some things that can help:\n"
-            "• Set a screen time limit using your phone's built-in tools (iOS Screen Time / Android Digital Wellbeing)\n"
-            "• Delete the apps and use the browser version instead — friction reduces impulse use\n"
-            "• Replace the first 30 minutes of each day with something offline\n"
-            "• A therapist specialising in digital wellness can address the underlying need\n\n"
-            "What are you hoping to feel or find when you open the app right now?"
+            "The pull to scroll can feel almost automatic, and I hear you."
+            " Put your phone in another room for the next 20 minutes — the urge usually fades once the habit loop is broken."
+            " What are you hoping to find when you open the app?"
         ),
     },
     "addiction_gambling": {
         "type": "clinical", "severity": "high", "show_resources": True,
         "base": (
-            "Thank you for being open about this. Problem gambling is widely misunderstood "
-            "but it is a recognised condition with effective treatment.\n\n"
-            "The urge to gamble often spikes during stress, boredom, or after a loss "
-            "(the 'chasing' impulse). Recognising where you are in that cycle matters.\n\n"
-            "Support that genuinely helps:\n"
-            "• Gamblers Anonymous: www.gamblersanonymous.org\n"
-            "• National Gambling Helpline (UK): 0808 8020 133\n"
-            "• National Council on Problem Gambling (US): 1-800-522-4700\n"
-            "• Cognitive Behavioural Therapy is highly effective — speak to your GP\n\n"
-            "You don't have to act on this urge. What is driving it today?"
+            "The urge to gamble is powerful and treatable, and you've done the right thing by naming it."
+            " Call the National Gambling Helpline right now — UK: 0808 8020 133 / US: 1-800-522-4700 — a brief conversation can interrupt the urge."
+            " What's driving the urge today?"
         ),
     },
     "severe_distress": {
@@ -736,84 +907,108 @@ RESPONSE_TEMPLATES = {
     "mood_sad": {
         "type": "supportive", "severity": "medium", "show_resources": False,
         "base": (
-            "I hear you. Sadness can feel really heavy and all-consuming sometimes.\n\n"
-            "It's okay to feel down, and what you're experiencing is valid. "
-            "Many people go through periods like this. "
-            "The good news is that with support and time, things can improve.\n\n"
-            "Tell me a bit more about what's been going on."
+            "I hear you — feeling low is really hard to carry."
+            " Try telling one person you trust how you're feeling today, even just in a text."
+            " What's behind the sadness?"
         ),
     },
     "mood_anxious": {
         "type": "supportive", "severity": "medium", "show_resources": False,
         "base": (
-            "Anxiety can feel really overwhelming. I understand.\n\n"
-            "What you're experiencing is your mind trying to protect you, "
-            "but sometimes it goes into overdrive. You're not alone in this.\n\n"
-            "Try one small thing that's worked for you before — even just taking a few deep breaths."
+            "Anxiety can feel completely overwhelming, and I hear you."
+            " Try this right now: breathe in for 4 counts, hold for 4, breathe out for 6."
+            " What's driving the anxiety today?"
         ),
     },
     "mood_angry": {
         "type": "supportive", "severity": "medium", "show_resources": False,
         "base": (
-            "Anger is a powerful emotion, and it sounds like you're dealing with some real frustrations.\n\n"
-            "Anger often points to something that matters to you. "
-            "When anger comes up, try naming what's underneath it — maybe hurt, frustration, or feeling unheard."
+            "Anger is telling you something important, and it makes sense you're feeling it."
+            " Before acting on this feeling, try naming what's underneath it — hurt, frustration, or feeling unheard."
+            " What happened to bring this up?"
         ),
     },
     "mood_lonely": {
         "type": "supportive", "severity": "medium", "show_resources": False,
         "base": (
-            "Loneliness can feel really isolating. Thank you for sharing that with me.\n\n"
-            "Human connection is fundamental, and what you're feeling is real and important. "
-            "Even though you feel alone right now, reaching out like this is a step in the right direction."
+            "Loneliness is one of the most painful feelings, and I'm glad you shared that."
+            " Send one message to someone you trust today — even just 'thinking of you' can start a real connection."
+            " What's making you feel this way right now?"
         ),
     },
     "mood_guilty": {
         "type": "supportive", "severity": "medium", "show_resources": False,
         "base": (
-            "Guilt can be really powerful and painful.\n\n"
-            "Sometimes guilt is telling us something important about our values. "
-            "Other times, we're being too hard on ourselves. "
-            "Self-compassion matters — try treating yourself like you would a good friend."
+            "Guilt can be really heavy, and I want you to know I hear you."
+            " Try asking yourself: would you judge a good friend this harshly for the same thing?"
+            " What are you blaming yourself for?"
         ),
     },
     # ── Behaviour ────────────────────────────────────────────────────────
+    "behaviour_fatigue": {
+        "type": "supportive", "severity": "low", "show_resources": False,
+        "base": (
+            "Feeling worn out or sleepy is completely understandable — your body may just need rest."
+            " If you can, give yourself permission to take a proper break today."
+            " Is this a one-off tiredness, or has it been building up over a while?"
+        ),
+    },
     "behaviour_sleep": {
         "type": "supportive", "severity": "medium", "show_resources": False,
         "base": (
-            "Sleep problems are really challenging and can affect everything else in your life.\n\n"
-            "You're not alone — many people struggle with this. "
-            "Start with one small change: a consistent bedtime, a phone-free hour before bed, or a calming routine."
+            "Sleep problems are genuinely exhausting, and they affect everything else."
+            " Try one change tonight: put your phone outside the bedroom and keep a consistent wake-up time."
+            " How long has sleep been a struggle for you?"
         ),
     },
     "behaviour_eating": {
         "type": "supportive", "severity": "medium", "show_resources": False,
         "base": (
-            "Eating and our relationship with food can be really connected to how we're feeling emotionally.\n\n"
-            "Be gentle with yourself. If you're struggling, a therapist or dietitian specialising in "
-            "emotional eating can help. You deserve support."
+            "Our relationship with food is often deeply tied to how we're feeling emotionally."
+            " Before your next meal, try a slow breath and check in with how you're feeling, not just what you're craving."
+            " What's been happening with eating lately?"
         ),
     },
     # ── Trigger & behaviour intents (tailored responses in _get_addiction_aware_base) ──
     "trigger_stress": {
         "type": "supportive", "severity": "medium", "show_resources": False,
-        "base": "Stress can be a powerful trigger. I'm here to talk through what's driving it.",
+        "base": (
+            "Stress can feel all-consuming, especially when it's connected to your recovery."
+            " Take 2 minutes right now to write down what's stressing you most — getting it out of your head can help."
+            " What's the main source of stress today?"
+        ),
     },
     "trigger_relationship": {
         "type": "supportive", "severity": "medium", "show_resources": False,
-        "base": "Relationship difficulties are genuinely hard. I'm here to listen — let's talk through it.",
+        "base": (
+            "Relationship difficulties are genuinely painful, and it takes courage to talk about them."
+            " Before the next difficult conversation, try giving yourself 10 minutes of quiet first to settle your emotions."
+            " What's going on in the relationship?"
+        ),
     },
     "trigger_financial": {
         "type": "supportive", "severity": "medium", "show_resources": False,
-        "base": "Financial pressure is real and stressful. You don't have to carry this alone.",
+        "base": (
+            "Financial stress is real and exhausting, and you don't have to carry it alone."
+            " Write down just one financial concern for today — tackling one thing at a time reduces the overwhelm."
+            " What's weighing on you most right now?"
+        ),
     },
     "trigger_grief": {
         "type": "supportive", "severity": "medium", "show_resources": False,
-        "base": "Grief is one of the most painful experiences. I'm truly sorry for your loss.",
+        "base": (
+            "I'm truly sorry for your loss — grief is one of the most painful things we go through."
+            " Give yourself permission today to feel whatever comes up without trying to rush or manage it."
+            " Would you like to tell me about them?"
+        ),
     },
     "behaviour_exercise": {
         "type": "supportive", "severity": "low", "show_resources": False,
-        "base": "Physical activity is a powerful tool for wellbeing. I'm glad you're thinking about it.",
+        "base": (
+            "It's great that you're thinking about physical activity — it really does support recovery."
+            " Start small: even a 10-minute walk outside today can shift your mood and energy."
+            " What kind of activity feels manageable for you right now?"
+        ),
     },
     # ── Venting / Implicit Distress ────────────────────────────────────────
     # Overwhelm, emotional exhaustion, burnout, frustration — no advice, no solutions.
@@ -821,16 +1016,24 @@ RESPONSE_TEMPLATES = {
     "venting": {
         "type": "supportive", "severity": "medium", "show_resources": False,
         "base": (
-            "That sounds really hard, and it makes complete sense that you're feeling this way.\n\n"
-            "You don't have to have the answers right now — just being here and saying it out loud takes courage.\n\n"
-            "When everything feels like too much, a short breathing or grounding exercise can help bring things "
-            "down just a little. I've shared one below if you'd like to try it."
+            "That sounds really hard, and it makes complete sense that you're feeling overwhelmed."
+            " Take one slow breath right now — you don't need to have the answers, just make a little space."
+            " What's been weighing on you most today?"
         ),
     },
     # ── Small talk ───────────────────────────────────────────────────────
     "greeting":  {"type": "social", "severity": "low", "show_resources": False, "base": "Hello! I'm here to listen and support you. What's on your mind today?"},
     "farewell":  {"type": "social", "severity": "low", "show_resources": False, "base": "Thank you for talking with me. Please take care of yourself. Remember, if you need support, I'm always here."},
     "gratitude": {"type": "social", "severity": "low", "show_resources": False, "base": "I'm glad I could help. That's what I'm here for. Feel free to reach out anytime you need someone to talk to."},
+    # ── Information / general query ───────────────────────────────────────
+    "rag_query": {
+        "type": "supportive", "severity": "low", "show_resources": False,
+        "base": (
+            "I hear you, and I want to give you a useful answer."
+            " Based on what you've shared, I'm here to support you through this — whatever that looks like for you."
+            " Can you tell me a bit more about what's going on right now so I can tailor what I share?"
+        ),
+    },
     # ── Safety block ──────────────────────────────────────────────────────
     "medication_request": {
         "type": "safety", "severity": "medium", "show_resources": False,
@@ -1283,7 +1486,7 @@ class ResponseGenerator:
         "farewell":          "Take care of yourself. I'm here whenever you need to talk.",
         "gratitude":         "I'm glad it helped. I'm here whenever you need me.",
         "unclear":           "Take your time — I'm listening.",
-        "rag_query":         "Take your time — I'm here whenever you're ready to share more.",
+        "rag_query":         "I'm here and listening. What would be most helpful to talk through right now?",
     }
 
     # Intents whose responses already carry explicit safety directives —
@@ -1324,8 +1527,14 @@ class ResponseGenerator:
             line = lines[i].strip()
             if line:
                 if line.endswith('?'):
-                    lines[i] = ''
-                    stripped_question = True
+                    # Split into sentences and remove only the LAST trailing question
+                    # sentence — not the whole paragraph.  Templates are single-paragraph
+                    # strings so naively blanking the line erases the entire body.
+                    sentences = re.split(r'(?<=[.!?])\s+', line)
+                    if sentences and sentences[-1].strip().endswith('?'):
+                        sentences.pop()
+                        stripped_question = True
+                    lines[i] = ' '.join(sentences)
                 break
 
         response_text = '\n'.join(lines).strip()
@@ -1345,7 +1554,7 @@ class ResponseGenerator:
         return response_text.strip()
 
     def _generate_from_template(self, intent: str, template: Dict, user_message: str, context_vector=None, addiction_type: Optional[str] = None, addictions: Optional[List[dict]] = None) -> str:
-        specialized = self._get_addiction_aware_base(intent, template, context_vector, addiction_type, addictions)
+        specialized = self._get_addiction_aware_base(intent, template, context_vector, addiction_type, addictions, user_message=user_message)
         # _get_addiction_aware_base returns None when no specialized handler matched;
         # fall back to the intents.json response pool, selected by risk level.
         if specialized is not None:
@@ -1383,7 +1592,7 @@ class ResponseGenerator:
 
         return random.choice(pool)
 
-    def _get_addiction_aware_base(self, intent: str, template: Dict, context_vector=None, addiction_type: Optional[str] = None, addictions: Optional[List[dict]] = None) -> str:
+    def _get_addiction_aware_base(self, intent: str, template: Dict, context_vector=None, addiction_type: Optional[str] = None, addictions: Optional[List[dict]] = None, user_message: str = "") -> str:
         """
         Return a clinically differentiated response for key intents.
 
@@ -1449,52 +1658,39 @@ class ResponseGenerator:
         if intent == "relapse_disclosure":
             _RELAPSE: Dict[str, str] = {
                 "alcohol": (
-                    "Thank you for telling me you drank. That honesty matters.\n\n"
-                    "A slip does not cancel your recovery — it is a signal that things were hard in that moment, "
-                    "not a verdict on you.\n\n"
-                    "We can slow this down together and understand what was happening before last night, "
-                    "so this becomes information you can use rather than a reason to judge yourself."
+                    "Thank you for telling me — that honesty takes real courage."
+                    " Try to hold off any harsh self-judgment for today and ask yourself what was happening in the hours before you drank."
+                    " What do you think led up to it?"
                 ),
                 "drugs": (
-                    "Thank you for sharing that you used again. Saying it out loud takes courage.\n\n"
-                    "This does not erase your progress. Relapse can happen in recovery, and talking about it "
-                    "openly is a protective step.\n\n"
-                    "If you're willing, we can map what was happening before you used so we can understand "
-                    "the pattern with compassion and clarity."
+                    "Thank you for sharing that — saying it out loud is a protective step."
+                    " Try to hold off any harsh self-judgment and ask yourself what was happening in the hours before you used."
+                    " What do you think led up to it?"
                 ),
                 "gaming": (
-                    "Thank you for being direct about this slip.\n\n"
-                    "Falling back into gaming patterns under stress is common and does not mean you've failed. "
-                    "It means something in that moment needed attention.\n\n"
-                    "We can look at what led up to it and what need gaming was meeting, without blame."
+                    "Thank you for being direct about this slip — a lapse doesn't mean you've failed."
+                    " Try asking yourself what need gaming was meeting in that moment, without blame."
+                    " What was going on when it happened?"
                 ),
                 "social_media": (
-                    "Thank you for sharing this so openly.\n\n"
-                    "A return to compulsive scrolling can happen during recovery and it does not wipe out "
-                    "the work you've already done.\n\n"
-                    "If you'd like, we can unpack what was happening right before the slip and what the "
-                    "scrolling was helping you cope with."
+                    "Thank you for sharing this so openly — a return to compulsive scrolling doesn't wipe out the work you've done."
+                    " Try to gently notice what you were feeling right before the slip."
+                    " What was the scrolling helping you cope with?"
                 ),
                 "nicotine": (
-                    "Thank you for telling me you smoked again. That honesty is important.\n\n"
-                    "Nicotine relapse is very common, especially under stress, and it doesn't mean your effort "
-                    "was wasted.\n\n"
-                    "We can look at what happened just before the cigarette so this moment becomes useful "
-                    "information rather than self-criticism."
+                    "Thank you for telling me — nicotine relapse is very common, especially under stress, and doesn't erase your effort."
+                    " Try to treat this moment as information rather than self-criticism."
+                    " What was happening just before you smoked?"
                 ),
                 "smoking": (
-                    "Thank you for telling me you smoked again. That honesty is important.\n\n"
-                    "Nicotine relapse is very common, especially under stress, and it doesn't mean your effort "
-                    "was wasted.\n\n"
-                    "We can look at what happened just before the cigarette so this moment becomes useful "
-                    "information rather than self-criticism."
+                    "Thank you for telling me — nicotine relapse is very common, especially under stress, and doesn't erase your effort."
+                    " Try to treat this moment as information rather than self-criticism."
+                    " What was happening just before you smoked?"
                 ),
                 "gambling": (
-                    "Thank you for sharing that you gambled again. Naming it takes courage.\n\n"
-                    "A slip does not define you. In gambling recovery, lapses can happen during high-pressure "
-                    "periods and are best understood, not moralised.\n\n"
-                    "If you're open to it, we can map what was going on right before the bet so this becomes "
-                    "a turning point in understanding the pattern."
+                    "Thank you for naming this — a slip doesn't define you or your recovery."
+                    " Try to understand the moment with curiosity rather than judgment — lapses during high-pressure periods are part of the pattern to learn from."
+                    " What was going on right before the bet?"
                 ),
             }
             return _RELAPSE.get(addtype) or None
@@ -1503,54 +1699,39 @@ class ResponseGenerator:
         if intent == "behaviour_sleep":
             _SLEEP: Dict[str, str] = {
                 "alcohol": (
-                    "Sleep and alcohol are deeply connected — and not in a good way.\n\n"
-                    "While alcohol can make you feel drowsy, it suppresses REM sleep and fragments your "
-                    "sleep cycle, often leaving you more exhausted than before. Over time this creates a "
-                    "cycle that's hard to break. One small step: try a single alcohol-free night and "
-                    "notice how you feel the next morning."
+                    "Sleep and alcohol are deeply linked — alcohol suppresses REM sleep and leaves you more exhausted, not less."
+                    " Try one alcohol-free night and notice how you feel the next morning."
+                    " How has sleep been affecting you lately?"
                 ),
                 "drugs": (
-                    "Many substances severely disrupt sleep architecture even after you stop using — "
-                    "this is called post-acute withdrawal syndrome (PAWS) and it can last weeks or months.\n\n"
-                    "Sleep hygiene matters more than ever in recovery: consistent wake times, "
-                    "no screens an hour before bed, and avoiding caffeine after 2 pm are strong starts. "
-                    "Your prescriber can also discuss short-term sleep support if needed."
+                    "Many substances disrupt sleep architecture even after stopping — this is called post-acute withdrawal and can last weeks."
+                    " Start with one consistent wake time each morning, even if you slept poorly — it anchors your sleep cycle."
+                    " How long has sleep been difficult?"
                 ),
                 "gaming": (
-                    "Sleep problems are really challenging, especially when gaming late into the night "
-                    "is part of the picture.\n\n"
-                    "Screen exposure raises cortisol and suppresses melatonin, making it genuinely harder "
-                    "to wind down — this is physiology, not willpower. One small step: try stopping gaming "
-                    "at least an hour before bed and replace it with something low-stimulation. "
-                    "Even a few nights of this can shift things."
+                    "Late-night gaming raises cortisol and suppresses melatonin, making it genuinely harder to wind down — this is physiology, not willpower."
+                    " Try stopping all screens at least an hour before bed tonight."
+                    " What time are you usually gaming until?"
                 ),
                 "social_media": (
-                    "Sleep and social media are in direct conflict — and your brain pays the price.\n\n"
-                    "Late-night scrolling keeps your nervous system alert through blue light and emotional "
-                    "triggers. Try a hard phone cut-off 45 minutes before bed and charge your phone "
-                    "outside the bedroom. Even switching to greyscale mode in the evening can reduce "
-                    "the pull significantly."
+                    "Late-night scrolling keeps your nervous system alert through blue light and emotional triggers."
+                    " Try charging your phone outside the bedroom tonight — even that one change can shift your sleep significantly."
+                    " What time do you usually put your phone down?"
                 ),
                 "nicotine": (
-                    "Nicotine is a stimulant — smoking, especially in the evening, makes it genuinely "
-                    "harder to fall and stay asleep, and reduces deep sleep quality.\n\n"
-                    "Cutting nicotine after 6 pm is one of the most effective sleep improvements smokers "
-                    "can make. 24-hour nicotine patches can manage overnight cravings without "
-                    "the sleep-disrupting stimulant effect."
+                    "Nicotine is a stimulant — smoking in the evening makes it genuinely harder to fall and stay asleep."
+                    " Try cutting nicotine after 6 pm tonight and see if it makes a difference."
+                    " How many hours of sleep are you typically getting?"
                 ),
-                "smoking": (  # same as nicotine
-                    "Nicotine is a stimulant — smoking, especially in the evening, makes it genuinely "
-                    "harder to fall and stay asleep, and reduces deep sleep quality.\n\n"
-                    "Cutting nicotine after 6 pm is one of the most effective sleep improvements smokers "
-                    "can make. 24-hour nicotine patches can manage overnight cravings without "
-                    "the sleep-disrupting stimulant effect."
+                "smoking": (
+                    "Nicotine is a stimulant — smoking in the evening makes it genuinely harder to fall and stay asleep."
+                    " Try cutting nicotine after 6 pm tonight and see if it makes a difference."
+                    " How many hours of sleep are you typically getting?"
                 ),
                 "gambling": (
-                    "Difficulty sleeping often goes hand in hand with problem gambling — financial stress, "
-                    "rumination about losses, and cortisol spikes from near-wins all disrupt sleep.\n\n"
-                    "Addressing the gambling is the most direct route to better sleep overall. "
-                    "In the short term, a brief journaling practice before bed can externalise the worry "
-                    "so your mind isn't still running the numbers when you close your eyes."
+                    "Financial stress and rumination from gambling often disrupt sleep — your mind keeps running the numbers."
+                    " Try a brief journaling practice before bed to get the worries out of your head and onto paper."
+                    " What's been keeping you awake?"
                 ),
             }
             return _SLEEP.get(addtype) or None
@@ -1559,90 +1740,89 @@ class ResponseGenerator:
         if is_comorbidity:
             patient_label  = _ADDICTION_LABEL.get(addtype, addtype.replace("_", " "))
             craving_label  = _CRAVING_LABEL.get(intent, intent.replace("addiction_", "").replace("_", " "))
-            # Determine severity of the secondary addiction from the addictions list
-            sec_severity = "high"
-            if addictions:
-                for a in addictions:
-                    atype = a.get("addiction_type", "").lower().replace(" ", "_").replace("-", "_")
-                    if router.primary_intent_for(atype) == intent and not a.get("is_primary"):
-                        sec_severity = a.get("severity", "high")
-                        break
-            concern_word = "addiction" if sec_severity in ("critical", "high") else "concern"
             return (
-                "I want to make sure we address this carefully — this is important.\n\n"
-                f"You are managing both {patient_label} and {craving_label} as known areas of concern. "
-                f"When both are active at the same time, the risk is significantly higher than managing "
-                f"either alone — each can trigger or accelerate the other through the same underlying "
-                f"reward and impulsivity pathways.\n\n"
-                f"This urge toward {craving_label} is not a new cross-craving — it is your {craving_label} "
-                f"{concern_word} reasserting itself. Please treat it with the same seriousness as "
-                f"your {patient_label} recovery.\n\n"
-                "Please reach out to your counsellor or support team about this specifically — "
-                "dual-addiction recovery benefits significantly from integrated treatment.\n\n"
-                "Is there something specific that has activated this urge today?"
+                f"I want to make sure we take this seriously — you're managing both {patient_label} and {craving_label}, and when both are active the risk is significantly higher."
+                f" Please reach out to your counsellor or support team specifically about this, as dual-addiction recovery benefits greatly from integrated treatment."
+                " Is there something specific that's activated this urge today?"
             )
 
         # ── PRIMARY craving responses ─────────────────────────────────────────
         if is_primary:
+            # ── Context-sensitive sub-routing for addiction_drugs (alcohol) ──
+            # Messages that are NOT active cravings but relate to awareness,
+            # concern, information-seeking, or harm-reduction intent.
+            if addtype in ("alcohol", "drugs") and intent == "addiction_drugs":
+                msg_lc = (user_message or "").lower()
+                # Family / social concern messages
+                _family_words = ("worried", "concerned", "think i have", "my family", "my wife",
+                                 "my husband", "my partner", "my friends", "people say",
+                                 "others say", "everyone says", "told me i", "said i drink")
+                # Information-seeking / factual questions
+                _info_words = ("how many", "how much", "what is", "is it bad", "is that a lot",
+                               "what counts", "what are the", "what does", "how do i",
+                               "how can i", "can you help", "can you actually", "help me",
+                               "can i", "tips", "advice", "what should i", "what can i",
+                               "get through tonight", "get through today", "manage my",
+                               "cut back", "cut down", "reduce", "moderate")
+                # Drinking-to-cope context
+                _cope_words  = ("to unwind", "to relax", "to take the edge off",
+                                "after work", "after a long day", "after a hard day",
+                                "when stressed", "when things get hard", "to cope", "to numb")
+
+                if any(w in msg_lc for w in _family_words):
+                    return (
+                        "It takes real honesty to share that — when the people closest to us notice a pattern, it's worth sitting with."
+                        " Recovery support works best when family concern is met with curiosity rather than defence."
+                        " What has your own gut been telling you about your drinking?"
+                    )
+                if any(w in msg_lc for w in _info_words):
+                    return (
+                        "That's an important question, and asking it shows real self-awareness."
+                        " The recommended low-risk guideline is no more than 14 units a week (about 6 pints of beer or 10 small glasses of wine), spread over several days with alcohol-free days in between."
+                        " Where does your current drinking sit compared to that?"
+                    )
+                if any(w in msg_lc for w in _cope_words):
+                    return (
+                        "Using alcohol to decompress after stress is very common — and very understandable."
+                        " The difficulty is that alcohol disrupts the nervous system's real recovery, so the relief is short-lived and often deepens the stress cycle."
+                        " What else helps you decompress when things feel overwhelming?"
+                    )
+
             _PRIMARY: Dict[str, str] = {
                 "alcohol": (
-                    "Thank you for having the courage to share this. What you're going through is real.\n\n"
-                    "Cravings for alcohol are powerful, and recognising them is already a sign of strength. "
-                    "Reaching for a drink when you're tired or struggling is a very common pattern — "
-                    "but there are strategies that genuinely help:\n"
-                    "• An addiction counsellor specialising in alcohol use\n"
-                    "• AA or SMART Recovery support groups\n"
-                    "• Medical options like medication-assisted treatment\n\n"
-                    "You don't have to do this alone."
+                    "Cravings for alcohol are powerful and recognising them is already a sign of strength."
+                    " Try delaying for 15 minutes by doing something physical — a walk, a glass of water, or stepping outside."
+                    " What's driving the urge right now?"
                 ),
                 "drugs": (
-                    "Thank you for sharing this. Cravings during recovery are expected — not a sign of failure.\n\n"
-                    "Acting on a craving tends to intensify the next one; riding it out weakens it over time. "
-                    "If the urge feels overwhelming right now, reach out to your sponsor, "
-                    "support group, or a counsellor before acting on it:\n"
-                    "• NA: https://www.na.org / AA: https://www.aa.org\n"
-                    "• SMART Recovery: https://www.smartrecovery.org/\n\n"
-                    "What is driving the urge right now?"
+                    "Cravings during recovery are expected — not a sign of failure."
+                    " Try riding this out for 15 minutes: the urge will peak and then weaken if you don't act on it."
+                    " What's driving the urge right now?"
                 ),
                 "gaming": (
-                    "I hear you — the pull to game right now is real.\n\n"
-                    "Recognising the urge before acting on it is genuinely the hardest part, "
-                    "and you're already doing that by naming it here.\n\n"
-                    "A few things that can help in this moment:\n"
-                    "• Delay the urge by 15 minutes — set a timer and do something physical or social\n"
-                    "• Ask yourself what you are trying to escape or feel right now\n"
-                    "• If gaming does happen, set a hard stop time before you start\n\n"
-                    "What is going on today that is making the urge feel stronger?"
+                    "The pull to game right now is real, and recognising it before acting is the hardest part."
+                    " Set a 15-minute timer and do something physical or social before deciding whether to open a game."
+                    " What's going on today that's making the urge feel stronger?"
                 ),
                 "social_media": (
-                    "I hear you. The pull to scroll can feel automatic — almost like muscle memory.\n\n"
-                    "The urge usually passes within a few minutes if you can interrupt the pattern. "
-                    "Try putting your phone in another room for 20 minutes before deciding whether to open it.\n\n"
-                    "What are you hoping to feel or find when you open the app right now?"
+                    "The pull to scroll can feel automatic — almost like muscle memory."
+                    " Put your phone in another room for 20 minutes before deciding whether to open the app."
+                    " What are you hoping to feel or find when you open it?"
                 ),
                 "nicotine": (
-                    "Nicotine cravings are intensely physical and they peak around 3–5 minutes — then they pass.\n\n"
-                    "You've noticed this urge, which is already the hardest step. "
-                    "Try the 4D technique: Delay, Deep breathing, Drink water, Do something else.\n\n"
-                    "If cravings remain frequent and intense, nicotine replacement therapy or prescription "
-                    "options (Champix / Zyban) are highly effective — worth discussing with your GP."
+                    "Nicotine cravings peak around 3–5 minutes and then pass — you just need to get through the window."
+                    " Try the 4D technique right now: Delay, Deep breaths, Drink water, Do something with your hands."
+                    " What triggered this craving?"
                 ),
                 "smoking": (
-                    "Nicotine cravings are intensely physical and they peak around 3–5 minutes — then they pass.\n\n"
-                    "You've noticed this urge, which is already the hardest step. "
-                    "Try the 4D technique: Delay, Deep breathing, Drink water, Do something else.\n\n"
-                    "If cravings remain frequent and intense, nicotine replacement therapy or prescription "
-                    "options (Champix / Zyban) are highly effective — worth discussing with your GP."
+                    "Nicotine cravings peak around 3–5 minutes and then pass — you just need to get through the window."
+                    " Try the 4D technique right now: Delay, Deep breaths, Drink water, Do something with your hands."
+                    " What triggered this craving?"
                 ),
                 "gambling": (
-                    "Thank you for being honest about this. The urge to gamble is real and treatable.\n\n"
-                    "The craving often spikes during stress, boredom, or after a previous loss "
-                    "(the 'chasing' impulse). Recognising where you are in that cycle is important.\n\n"
-                    "Right now:\n"
-                    "• National Gambling Helpline (UK): 0808 8020 133\n"
-                    "• National Council on Problem Gambling (US): 1-800-522-4700\n"
-                    "• Gamblers Anonymous: www.gamblersanonymous.org\n\n"
-                    "What is driving the urge today?"
+                    "The urge to gamble is real and treatable, and you've done the right thing by naming it."
+                    " Call the National Gambling Helpline right now — UK: 0808 8020 133 / US: 1-800-522-4700 — a brief call can interrupt the urge."
+                    " What's driving the urge today?"
                 ),
             }
             return _PRIMARY.get(addtype) or None
@@ -1655,77 +1835,48 @@ class ResponseGenerator:
             # ── High-risk substance cross: behavioural addict craving alcohol/drugs ──
             if addtype in ("gaming", "social_media", "gambling") and intent == "addiction_drugs":
                 return (
-                    f"Thank you for sharing this — I want to make sure we take it seriously.\n\n"
-                    f"When someone managing a {patient_label} addiction starts craving {craving_label}, "
-                    f"it is often a sign of cross-addiction: the brain's reward system seeking a different "
-                    f"dopamine source when the primary behaviour is being restricted. "
-                    f"This is a clinically recognised pattern — not simply a stress reaction.\n\n"
-                    f"Acting on this urge could open a second front that becomes harder to manage "
-                    f"alongside your {patient_label} recovery. Please raise this with your counsellor "
-                    f"or support network before acting on it.\n\n"
-                    "Is there something specific that triggered this craving today?"
+                    f"When someone managing a {patient_label} addiction starts craving {craving_label}, it's often a sign of cross-addiction — the brain seeking a different dopamine source."
+                    f" Please raise this with your counsellor or support network before acting on it."
+                    " Is there something specific that triggered this craving today?"
                 )
 
             # ── Alcohol/drugs patient craving gambling ──
             if addtype in ("alcohol", "drugs") and intent == "addiction_gambling":
                 return (
-                    "I want to gently flag something important.\n\n"
-                    f"For someone managing {patient_label} recovery, gambling urges carry extra risk. "
-                    f"The same impulsivity and reward-seeking pathways involved in {patient_label} use "
-                    f"are heavily activated by gambling. Problem gambling and substance use disorders "
-                    f"co-occur very frequently, and each makes the other harder to manage.\n\n"
-                    "If this urge feels strong, please speak with your counsellor or sponsor before acting on it:\n"
-                    "• National Gambling Helpline (UK): 0808 8020 133\n"
-                    "• National Council on Problem Gambling (US): 1-800-522-4700"
+                    f"For someone managing {patient_label} recovery, gambling urges carry extra risk — the same impulsivity pathways are heavily activated by both."
+                    " Please speak with your counsellor or sponsor before acting on this urge."
+                    " What's driving the urge toward gambling right now?"
                 )
 
             # ── Substance patient craving a behavioural outlet (gaming/social_media) ──
             if addtype in ("alcohol", "drugs") and intent in ("addiction_gaming", "addiction_social_media"):
                 return (
-                    f"I hear you. The urge toward {craving_label} when things feel difficult is understandable.\n\n"
-                    f"In {patient_label} recovery, reaching for a behavioural outlet is very common — "
-                    f"the same underlying need (to escape, to feel relief) is seeking a different route. "
-                    f"An occasional {craving_label} outlet isn't necessarily harmful.\n\n"
-                    f"It's worth sitting with this question: is this urge occasional, or is it becoming "
-                    f"compulsive and hard to resist on its own? "
-                    f"If it's becoming compulsive, raising it with your counsellor is the smart move — "
-                    f"it means you're paying attention, not that you've failed."
+                    f"The urge toward {craving_label} when things feel difficult is very common in {patient_label} recovery — the same underlying need is seeking a different route."
+                    " It's worth asking yourself: is this urge occasional, or is it becoming compulsive and hard to resist?"
+                    f" If it's becoming compulsive, when did you notice the {craving_label} pull getting stronger?"
                 )
 
             # ── Nicotine patient craving anything else ──
             if addtype in ("nicotine", "smoking") and intent != "addiction_nicotine":
                 return (
-                    f"I hear you. Reaching toward {craving_label} is often a sign "
-                    f"that something feels unmanageable right now.\n\n"
-                    f"For someone working on nicotine cessation, cross-cravings are common — "
-                    f"the brain is looking for any available reward pathway. "
-                    f"Recognising the urge for what it is (a craving, not a necessity) "
-                    f"gives you a moment of choice.\n\n"
-                    f"What is the underlying feeling that's driving the urge toward {craving_label} right now?"
+                    f"Reaching toward {craving_label} is often a sign that something feels unmanageable, and cross-cravings are common during nicotine cessation."
+                    f" Recognise the urge for what it is — a craving, not a necessity — and give it 15 minutes before deciding."
+                    f" What's the underlying feeling driving the urge toward {craving_label}?"
                 )
 
             # ── Gambling patient craving anything else ──
             if addtype == "gambling" and intent != "addiction_gambling":
                 return (
-                    f"I hear you — the urge toward {craving_label} makes sense when you're working "
-                    f"hard to stay away from gambling.\n\n"
-                    f"Cross-craving is common in gambling recovery: the brain seeks stimulation or "
-                    f"escape through a different outlet. An occasional {craving_label} outlet can be "
-                    f"harmless — but if it starts to feel compulsive or you're using it to chase the "
-                    f"same rush, it is worth raising with your counsellor.\n\n"
-                    "What is the feeling that is driving this urge right now?"
+                    f"Cross-craving is common in gambling recovery — the brain seeks stimulation or escape through a different outlet."
+                    f" Ask yourself honestly: is this urge toward {craving_label} occasional, or is it starting to feel compulsive?"
+                    " What's the feeling driving this urge right now?"
                 )
 
             # ── Generic cross-addiction fallback (any remaining combination) ──
             return (
-                f"Thank you for sharing this.\n\n"
-                f"Reaching toward {craving_label} while managing your {patient_label} recovery "
-                f"is something worth paying attention to. "
-                f"Cross-addiction — where a craving for one behaviour or substance transfers to another — "
-                f"is very common in recovery and doesn't mean you're doing anything wrong.\n\n"
-                f"The key question is whether this urge is occasional or becoming compulsive. "
-                f"Talking it through with your counsellor or support group is always a good step.\n\n"
-                "What is driving the urge toward this right now?"
+                f"Reaching toward {craving_label} while managing your {patient_label} recovery is worth paying attention to — cross-addiction is very common and doesn't mean you're doing anything wrong."
+                f" The key question is whether this urge is occasional or becoming compulsive."
+                " What's driving the urge toward this right now?"
             )
 
         # ── Normalize "smoking" → "nicotine" for shared-response lookups ──────
@@ -1735,261 +1886,162 @@ class ResponseGenerator:
         _MOOD: Dict[str, Dict[str, str]] = {
             "mood_sad": {
                 "alcohol": (
-                    "I hear that you're feeling really low right now, and I want to acknowledge that.\n\n"
-                    "Sadness and alcohol use are closely connected — alcohol is a CNS depressant which means "
-                    "that, while a drink may feel numbing in the moment, it tends to deepen and prolong low "
-                    "mood over time, creating a cycle that becomes harder to break.\n\n"
-                    "Please try to avoid reaching for alcohol to manage how you're feeling tonight. "
-                    "Is there someone you can be with or talk to right now?\n\n"
-                    "What's behind the sadness today?"
+                    "I hear that you're feeling really low, and that matters."
+                    " Try texting one person you trust right now — even just 'I'm struggling today' — rather than turning to a drink."
+                    " What's behind the sadness?"
                 ),
                 "drugs": (
-                    "I hear you — feeling low in recovery can be really hard, especially when substances "
-                    "used to feel like they took the edge off.\n\n"
-                    "Sadness and substance use often co-occur, and recovery itself can initially feel "
-                    "joyless as your brain's reward system heals — a phenomenon called anhedonia. "
-                    "It is temporary, though it doesn't feel that way when you're in it.\n\n"
-                    "Please don't use this feeling as evidence that things won't get better. "
-                    "Raising this with your prescriber or counsellor is worth doing — there are effective treatments. "
-                    "What's going on today?"
+                    "Feeling low in recovery is hard, and I hear you."
+                    " Try reaching out to your sponsor or counsellor today — this kind of low mood is worth talking through with someone who gets it."
+                    " What's going on?"
                 ),
                 "gaming": (
-                    "I hear you. Sadness is worth sitting with rather than escaping — though I understand "
-                    "the pull to lose yourself in a game right now.\n\n"
-                    "Gaming can provide temporary relief but often deepens isolation and low mood over time, "
-                    "especially if it is replacing activities that would genuinely restore you.\n\n"
-                    "Tell me more about what's making you feel this way. Is there something specific going on?"
+                    "I hear you — feeling sad and wanting to lose yourself in a game makes complete sense."
+                    " Try sitting with the feeling for just 5 minutes before opening a game; even that small pause can help."
+                    " Is there something specific going on?"
                 ),
                 "social_media": (
-                    "I'm sorry you're feeling this way. Sadness and social media make a difficult combination — "
-                    "algorithms tend to surface more emotionally charged content when you're already low, "
-                    "and comparison with curated highlight reels can intensify the feeling.\n\n"
-                    "If you're feeling down, please consider stepping away from social media for at least "
-                    "an hour. The pull to scroll can masquerade as self-care but often isn't.\n\n"
-                    "What's going on for you today?"
+                    "I'm sorry you're feeling this way — sadness and scrolling make a tough combination."
+                    " Step away from social media for at least an hour right now; it often deepens low mood rather than lifting it."
+                    " What's going on for you today?"
                 ),
                 "nicotine": (
-                    "I hear that you're feeling down, and I want to acknowledge that.\n\n"
-                    "Nicotine has a complex relationship with mood — it artificially activates dopamine "
-                    "pathways and then leaves you lower when levels drop. If you're trying to cut down "
-                    "or quit, some of this low feeling is your brain recalibrating, and it does improve.\n\n"
-                    "Please be gentle with yourself. What's driving the sadness today?"
+                    "I hear that you're feeling down, and I want to acknowledge that."
+                    " Be gentle with yourself today — if you're in a quit attempt, some of this low mood is your brain adjusting and it does improve."
+                    " What's driving the sadness?"
                 ),
                 "gambling": (
-                    "I hear you — and I want you to know that sadness is very common in gambling recovery. "
-                    "Losses, the weight of secrets carried, and the impact on relationships all accumulate. "
-                    "This isn't weakness; it's a human response to something genuinely painful.\n\n"
-                    "Please be careful not to let this sadness drive you back toward gambling as a way to "
-                    "chase a feeling of winning or control — that cycle tends to deepen rather than relieve.\n\n"
-                    "Is the sadness connected to your gambling situation, or to something else? I'm here to listen."
+                    "Sadness in gambling recovery is very real and very common, and I hear you."
+                    " Be careful not to let this feeling push you toward gambling to chase a mood boost — that cycle deepens rather than relieves."
+                    " Is the sadness connected to your gambling situation, or something else?"
                 ),
             },
             "mood_anxious": {
                 "alcohol": (
-                    "Anxiety and alcohol have a tricky relationship — alcohol can feel like it calms things "
-                    "down, but it actually causes rebound anxiety as it wears off (sometimes called 'hangxiety'). "
-                    "Over time, alcohol worsens anxiety rather than managing it, even though the short-term "
-                    "relief feels real.\n\n"
-                    "If there's an urge to drink right now, please try a grounding exercise first: "
-                    "5 things you can see, 4 you can touch, 3 you can hear. Anxiety peaks and passes.\n\n"
-                    "What's generating the anxiety today?"
+                    "Anxiety is really hard to sit with, and I hear you."
+                    " Before reaching for a drink, try the 5-4-3-2-1 grounding technique: name 5 things you can see, 4 you can touch, 3 you can hear."
+                    " What's generating the anxiety today?"
                 ),
                 "drugs": (
-                    "Anxiety in recovery is very common — many substances create withdrawal anxiety, and "
-                    "adjusting to life without them can feel overwhelming at first.\n\n"
-                    "If the anxiety feels physical or very intense, please let your treatment team know — "
-                    "it may warrant a medication review. In the moment, slow diaphragmatic breathing "
-                    "(inhale 4 counts, hold 4, exhale 6) can activate your parasympathetic nervous system.\n\n"
-                    "What's specifically making you feel anxious?"
+                    "Anxiety in recovery is very common and I hear you."
+                    " Try slow diaphragmatic breathing right now: inhale for 4 counts, hold for 4, exhale for 6."
+                    " What's specifically making you feel anxious?"
                 ),
                 "gaming": (
-                    "I hear you. Anxiety is really uncomfortable to sit with, and the pull toward gaming "
-                    "as something controllable makes sense.\n\n"
-                    "It's worth noting that highly competitive or fast-paced gaming can actually increase "
-                    "cortisol over the session, even when it provides a brief escape from external worries. "
-                    "What are you anxious about — is there something specific?"
+                    "Anxiety is really uncomfortable to sit with, and the pull to game to feel in control makes sense."
+                    " Try a 10-minute walk outside before going online — it reduces cortisol more effectively than gaming does."
+                    " What are you anxious about?"
                 ),
                 "social_media": (
-                    "Social media and anxiety are often tightly linked — constant comparison, FOMO, "
-                    "notification pressure, and volatile comment sections all keep stress hormones elevated.\n\n"
-                    "Even a 24-hour social media break has been shown to measurably lower cortisol. "
-                    "It feels counterintuitive, but putting the phone down is one of the fastest ways "
-                    "to reduce baseline anxiety.\n\n"
-                    "What's making you feel anxious today?"
+                    "Social media and anxiety often push each other higher, and I hear you."
+                    " Put your phone down for the next hour — even that brief break measurably lowers stress hormones."
+                    " What's making you feel anxious today?"
                 ),
                 "nicotine": (
-                    "Here's something important to understand: nicotine feels like it relieves anxiety, "
-                    "but that feeling is actually just ending the withdrawal anxiety from your previous "
-                    "cigarette. The cigarette caused the anxiety it appears to fix.\n\n"
-                    "This is one of the most significant things to know about smoking — your baseline "
-                    "anxiety would be lower if you weren't smoking. That doesn't make quitting easy, "
-                    "but it changes how to think about it.\n\n"
-                    "What's making you feel anxious right now?"
+                    "Anxiety and nicotine have a complicated relationship — the cigarette often causes the anxiety it seems to fix."
+                    " Try slow breathing for 2 minutes before you decide whether to smoke: inhale for 4, hold for 4, exhale for 6."
+                    " What's making you feel anxious right now?"
                 ),
                 "gambling": (
-                    "Anxiety and gambling often go together — the anticipation before a bet, financial "
-                    "stress, anxiety about debts, the secrecy, the fear of being found out.\n\n"
-                    "Please be careful that the anxiety doesn't push you toward gambling as a way to "
-                    "feel in control or experience an adrenaline release — for many people, that cycle "
-                    "drives anxiety and gambling to reinforce each other.\n\n"
-                    "If the anxiety feels overwhelming:\n"
-                    "• National Gambling Helpline (UK): 0808 8020 133\n\n"
-                    "What's at the root of the anxiety right now?"
+                    "Anxiety and gambling often push each other, and I hear you."
+                    " Before acting on any urge to gamble, try the 5-4-3-2-1 grounding technique: name 5 things you can see, 4 you can touch, 3 you can hear."
+                    " What's at the root of the anxiety right now?"
                 ),
             },
             "mood_angry": {
                 "alcohol": (
-                    "I hear that you're feeling angry, and that's valid. Anger is important information.\n\n"
-                    "I want to flag something gently: if there's alcohol around or a temptation to drink "
-                    "because you're angry, please try to put distance between the feeling and the decision. "
-                    "Alcohol lowers impulse control and makes anger harder to manage — decisions made "
-                    "while drinking in this state often make things significantly worse.\n\n"
-                    "What's made you angry today?"
+                    "Anger is valid information, and I hear you."
+                    " Put distance between the feeling and any decision to drink right now — alcohol lowers impulse control and makes anger harder to manage."
+                    " What's made you angry today?"
                 ),
                 "drugs": (
-                    "I hear you. Anger is a really natural part of recovery — anger at the years lost, at "
-                    "circumstances, at people. All of that is valid.\n\n"
-                    "What's worth watching is whether anger becomes a relapse trigger. Using as a way "
-                    "to 'not care' about the anger is one of the most common patterns. Try to name "
-                    "the anger, channel some of it physically, and then sit with what's underneath it.\n\n"
-                    "What are you angry about?"
+                    "Anger is a natural part of recovery, and I hear you."
+                    " Try channelling it physically first — a brisk walk or even punching a pillow — then sit with what's underneath it."
+                    " What are you angry about?"
                 ),
                 "gaming": (
-                    "I hear you. Anger can feel really intense — and gaming communities can be toxic, "
-                    "with frustrations from losing, poor connections, or being treated badly online.\n\n"
-                    "If anger from gaming is spilling into the rest of your day, that's worth paying "
-                    "attention to. Research suggests rage-quitting cycles follow dopamine frustration "
-                    "patterns similar to other compulsive behaviours.\n\n"
-                    "Is this gaming-related anger, or is something else going on?"
+                    "Anger can feel really intense, and I hear you."
+                    " Step away from the game for 20 minutes before going back — anger during gaming often spirals when you keep playing."
+                    " Is this gaming-related anger, or is something else going on?"
                 ),
                 "social_media": (
-                    "I hear you. Social media is specifically designed to amplify outrage — anger-inducing "
-                    "content gets more engagement, so algorithms surface more of it.\n\n"
-                    "If you find yourself furious after scrolling, that's often the platform working as "
-                    "designed rather than something you genuinely need to engage with. The simplest "
-                    "move: close the app entirely for a few hours before reacting.\n\n"
-                    "What's made you angry today?"
+                    "Social media is designed to amplify outrage, and I hear you."
+                    " Close the app entirely for the next few hours before reacting to anything — the anger will feel different after some distance."
+                    " What's made you angry today?"
                 ),
                 "nicotine": (
-                    "I hear you. Irritability and anger are among the most common symptoms during nicotine "
-                    "withdrawal — they're largely physical, not just psychological.\n\n"
-                    "If you're going through a quit attempt, please know that this irritability peaks "
-                    "around 2–3 days after stopping and then decreases significantly. It is not permanent, "
-                    "even though it feels overwhelming right now.\n\n"
-                    "Is this withdrawal-related, or is something else driving the anger?"
+                    "Irritability and anger are among the most common nicotine withdrawal symptoms, and I hear you."
+                    " This peaks around 2–3 days after stopping and then decreases — try a 10-minute walk to get through the peak."
+                    " Is this withdrawal-related, or is something else driving the anger?"
                 ),
                 "gambling": (
-                    "I hear you. Anger is very common in gambling recovery — anger at yourself for losses, "
-                    "anger at the situation, anger that feels like it has nowhere to go.\n\n"
-                    "Please be careful not to let anger push you toward gambling as a way to 'take control' "
-                    "or 'win back'. The chasing impulse often starts with an angry, defiant feeling. "
-                    "If that's happening, please reach out to your support before acting on it.\n\n"
-                    "What's made you angry today?"
+                    "Anger is very common in gambling recovery, and I hear you."
+                    " Be careful not to let the angry, defiant feeling push you toward gambling to 'take control' — reach out to your support before acting."
+                    " What's made you angry today?"
                 ),
             },
             "mood_lonely": {
                 "alcohol": (
-                    "Loneliness is one of the most painful human experiences, and one of the most common "
-                    "triggers for drinking. I want to take this seriously.\n\n"
-                    "Drinking alone, or drinking to take the edge off loneliness, tends to deepen rather "
-                    "than fix it — isolation and alcohol often reinforce each other.\n\n"
-                    "Are there people in your recovery network — a sponsor, a group, anyone — you could "
-                    "reach out to today? Even a brief phone call can shift things meaningfully.\n\n"
-                    "What's driving the loneliness?"
+                    "Loneliness is one of the most common triggers for drinking, and I hear you."
+                    " Try calling one person from your recovery network right now — even a 5-minute call can shift things meaningfully."
+                    " What's driving the loneliness?"
                 ),
                 "drugs": (
-                    "Loneliness and substance use are deeply connected. Many people find that their social "
-                    "circle was bound up in using, and recovery can initially feel very isolating as "
-                    "those connections fade.\n\n"
-                    "Building a new support network is one of the most important and underrated parts of "
-                    "recovery. NA, AA, SMART Recovery, or a community group all help with this. "
-                    "You don't have to feel alone in this.\n\n"
-                    "What does your support network look like right now?"
+                    "Loneliness and substance use are deeply connected, and recovery can feel isolating — I hear you."
+                    " Try reaching out to your NA, AA, or SMART Recovery group today — connection is one of the most protective things in recovery."
+                    " What does your support network look like right now?"
                 ),
                 "gaming": (
-                    "I hear you. Loneliness is real, and online gaming communities can feel like genuine "
-                    "connection — and sometimes they are. But there's also a risk of substituting that "
-                    "for real-life relationships in a way that deepens isolation long-term.\n\n"
-                    "Are there people you've been less in contact with since gaming became more central? "
-                    "Even one real-world connection this week can help.\n\n"
-                    "What's making you feel lonely?"
+                    "Loneliness is real, and I hear you."
+                    " Try making one real-world connection this week — a text, a call, a coffee — even if gaming communities feel safer right now."
+                    " What's making you feel lonely?"
                 ),
                 "social_media": (
-                    "I hear you — and this is one of social media's great paradoxes: constant connection "
-                    "that leaves people feeling more alone. Curated highlight reels make others' lives "
-                    "look full, and passive scrolling gives none of the reciprocal feelings of real connection.\n\n"
-                    "If loneliness is strong, please try to make one direct, human contact today — even "
-                    "a single text to someone, not a post. What's going on?"
+                    "Feeling lonely despite being constantly connected is one of social media's painful paradoxes, and I hear you."
+                    " Try sending one direct, personal message to someone today instead of posting — real reciprocal contact feels different."
+                    " What's going on?"
                 ),
                 "nicotine": (
-                    "I hear you. Loneliness can be a strong trigger for smoking — social smoking especially, "
-                    "where a cigarette gives you a reason to step outside and be around others.\n\n"
-                    "If that's part of what's going on, it's worth thinking about other ways to create "
-                    "those social moments that don't involve smoking.\n\n"
-                    "What's making you feel lonely right now?"
+                    "Loneliness can be a strong trigger for smoking, and I hear you."
+                    " Think of one other way to create a social moment today that doesn't involve a cigarette — a walk with someone, a phone call."
+                    " What's making you feel lonely right now?"
                 ),
                 "gambling": (
-                    "I hear you. Loneliness and gambling often go together — gambling can feel like social "
-                    "engagement (especially at a casino or in a betting group), but it typically deepens "
-                    "isolation over time, particularly when secrecy sets in.\n\n"
-                    "Reconnecting with people is one of the most protective things against gambling relapse. "
-                    "Is there someone — a trusted friend, family member, or support group — you could "
-                    "reach out to today?"
+                    "Loneliness and gambling often go hand in hand, and I hear you."
+                    " Reach out to one trusted person today — a friend, family member, or your support group — connection is one of the strongest guards against relapse."
+                    " Is there someone you could reach out to right now?"
                 ),
             },
             "mood_guilty": {
                 "alcohol": (
-                    "Guilt is a really painful emotion, and people in alcohol recovery often carry a lot "
-                    "of it — things said or done while drinking, missed moments, relationships affected.\n\n"
-                    "Please be careful not to let guilt become a driver back toward drinking. "
-                    "The cycle of drinking to escape guilt, then feeling guilty about drinking, "
-                    "is one of the most common traps. Self-compassion isn't making excuses — "
-                    "it's what makes change sustainable.\n\n"
-                    "Is this guilt connected to your drinking, or to something else?"
+                    "Guilt in alcohol recovery is really painful to carry, and I hear you."
+                    " Try treating yourself with the compassion you'd offer a good friend — the cycle of drinking to escape guilt tends to deepen it, not resolve it."
+                    " Is this guilt connected to your drinking, or something else?"
                 ),
                 "drugs": (
-                    "I hear how much you're carrying. People in recovery often carry enormous guilt — "
-                    "for the impact on family, for things done to fund use, for relapses.\n\n"
-                    "Please hear this: guilt is information, but it isn't the whole story of who you are. "
-                    "The fact that you feel it means your values are intact. Recovery itself is a form "
-                    "of making amends. Raising this with a therapist or counsellor specialising in "
-                    "substance use can be really valuable.\n\n"
-                    "What's the guilt about, if you'd like to share?"
+                    "People in recovery often carry enormous guilt, and I hear you."
+                    " Try reminding yourself: the fact that you feel this means your values are intact — guilt is information, not the whole story of who you are."
+                    " What's the guilt about, if you'd like to share?"
                 ),
                 "gaming": (
-                    "Guilt and gaming often go together — guilt about time not spent with family or friends, "
-                    "neglected responsibilities, promises broken. I hear you.\n\n"
-                    "Recognising what matters to you is the first step. The guilt is pointing to your "
-                    "values, not defining you. Making one small act of follow-through today — one call, "
-                    "one task completed — can start to shift the cycle.\n\n"
-                    "What does the guilt feel like it's about?"
+                    "Guilt and gaming often go together, and I hear you."
+                    " Try making one small act of follow-through today — one call, one task completed — to start shifting the cycle."
+                    " What does the guilt feel like it's about?"
                 ),
                 "social_media": (
-                    "I hear you. Guilt about time spent on social media, things posted, or comparing "
-                    "yourself unfavourably to others is really common.\n\n"
-                    "It's worth asking: is this guilt about something you've actually done, or guilt "
-                    "that the platform is engineered to make you feel less-than? Social media profits "
-                    "from insecurity. Not all guilt is earned.\n\n"
-                    "What's the guilt about?"
+                    "Guilt about time on social media is really common, and I hear you."
+                    " Ask yourself: is this guilt about something you've actually done, or is the platform engineering you to feel less-than?"
+                    " What's the guilt about?"
                 ),
                 "nicotine": (
-                    "I hear you. Guilt about smoking — the health impact, the cost, the effect on those "
-                    "around you — is very common, and it's often what motivates the decision to quit.\n\n"
-                    "Please be gentle with yourself. Nicotine is genuinely addictive — this is not a "
-                    "willpower failure. The answer isn't to shame yourself into stopping; it's finding "
-                    "the right combination of support and strategy.\n\n"
-                    "What's the guilt about today?"
+                    "Guilt about smoking is very common, and I hear you."
+                    " Be gentle with yourself — nicotine is genuinely addictive, and shame rarely creates lasting change; compassion does."
+                    " What's the guilt about today?"
                 ),
                 "gambling": (
-                    "Guilt is often one of the heaviest parts of gambling recovery — the money lost, "
-                    "the lies told to cover it, the impact on family. This is real, and you don't "
-                    "have to carry it alone.\n\n"
-                    "Please know that guilt and shame often drive people back to gambling as an escape — "
-                    "which makes the situation worse, not better. Gamblers Anonymous and specialist "
-                    "counselling specifically address this guilt in a structured way:\n"
-                    "• National Gambling Helpline (UK): 0808 8020 133\n"
-                    "• GamCare: www.gamcare.org.uk\n\n"
-                    "What would it feel like to share some of this burden with the right support?"
+                    "Guilt is often the heaviest part of gambling recovery, and I hear you."
+                    " Try sharing just one piece of this burden with your counsellor or support group today — you don't have to carry it alone."
+                    " What would feel like a manageable first step?"
                 ),
             },
         }
@@ -2001,273 +2053,162 @@ class ResponseGenerator:
         _TRIGGER: Dict[str, Dict[str, str]] = {
             "trigger_stress": {
                 "alcohol": (
-                    "Stress is one of the most common triggers for alcohol use — the urge to 'take the "
-                    "edge off' at the end of a difficult day is deeply conditioned for many people in "
-                    "alcohol recovery.\n\n"
-                    "The HALT check is worth doing right now: are you Hungry, Angry, Lonely, or Tired "
-                    "alongside the stress? Addressing those first matters. Deep breathing and a brief "
-                    "walk reduce cortisol faster than alcohol does, without the rebound.\n\n"
-                    "What's the specific stressor?"
+                    "Stress is one of the most common triggers for alcohol use, and I hear you."
+                    " Try the HALT check right now: are you Hungry, Angry, Lonely, or Tired — addressing those first can take the edge off before reaching for a drink."
+                    " What's the specific stressor?"
                 ),
                 "drugs": (
-                    "Stress is the number one trigger for substance use relapse — this is extremely "
-                    "well-documented clinically. Your brain has a well-worn pathway from 'stressed' "
-                    "to 'use', and stress reactivates it.\n\n"
-                    "This is the moment to lean on your support system rather than white-knuckle it alone. "
-                    "Tell your sponsor, call a friend in recovery, or attend a meeting tonight if possible. "
-                    "The urge will pass faster with support than alone.\n\n"
-                    "What's stressing you right now?"
+                    "Stress is the number one trigger for relapse, and I hear you."
+                    " Lean on your support system right now rather than white-knuckling it alone — call your sponsor or a friend in recovery."
+                    " What's stressing you right now?"
                 ),
                 "gaming": (
-                    "I hear you. Stress and gaming are often tightly connected — gaming as a way to "
-                    "feel in control when other things feel out of control, or to escape pressure.\n\n"
-                    "It's worth asking: is gaming actually lowering your stress, or is it delaying it "
-                    "while adding new stressors — time lost, tasks undone, sleep disrupted? "
-                    "Sometimes a 20-minute walk manages cortisol more effectively.\n\n"
-                    "What's stressing you?"
+                    "Stress and the pull to game often go hand in hand, and I hear you."
+                    " Try a 20-minute walk before going online — it reduces cortisol more effectively than gaming does."
+                    " What's stressing you?"
                 ),
                 "social_media": (
-                    "Stress and social media tend to make each other worse — scrolling when stressed "
-                    "gives the brain low-effort stimulation but doesn't resolve the underlying problem, "
-                    "and comparison and outrage content often adds to the stress load.\n\n"
-                    "Something physically grounding — a walk, making tea, calling someone — is more "
-                    "effective at actually reducing cortisol than scrolling.\n\n"
-                    "What's the stressor?"
+                    "Stress and scrolling tend to make each other worse, and I hear you."
+                    " Try something physically grounding instead — a short walk, making tea, or calling someone."
+                    " What's the stressor?"
                 ),
                 "nicotine": (
-                    "Stress is one of the most powerful smoking triggers — and the belief that smoking "
-                    "relieves stress is one of nicotine addiction's most effective lies.\n\n"
-                    "Nicotine does not reduce stress. It relieves the withdrawal stress that builds "
-                    "between cigarettes, while nicotine itself is a stimulant that elevates heart rate "
-                    "and blood pressure. The relief is real, but so is the cycle driving it.\n\n"
-                    "The 4D technique (Delay, Deep breathing, Drink water, Do something else) can "
-                    "genuinely interrupt the urge. What's stressing you?"
+                    "Stress is one of the most powerful smoking triggers, and I hear you."
+                    " Try the 4D technique right now: Delay 5 minutes, Deep breathe, Drink water, Do something else."
+                    " What's stressing you?"
                 ),
                 "gambling": (
-                    "Stress is a major gambling trigger — the fantasy of a win that would 'fix everything' "
-                    "can feel very compelling under pressure. The problem is that gambling under stress "
-                    "almost always deepens it rather than resolving anything.\n\n"
-                    "If financial stress is part of what's driving this, please reach out to a debt "
-                    "counsellor in addition to gambling support:\n"
-                    "• National Gambling Helpline (UK): 0808 8020 133\n"
-                    "• StepChange (debt advice, UK): 0800 138 1111\n\n"
-                    "What's the stressor today?"
+                    "Stress is a major gambling trigger, and I hear you."
+                    " Before acting on any urge to gamble, try writing down the stressor to get it out of your head."
+                    " What's the stressor today?"
                 ),
             },
             "trigger_relationship": {
                 "alcohol": (
-                    "Relationship stress and alcohol are closely linked — conflict can feel easier to "
-                    "avoid with a drink, or alcohol can fuel conflict that damages the relationship further.\n\n"
-                    "If alcohol is affecting a key relationship, an honest conversation with a counsellor "
-                    "about the dynamic can be really clarifying. Partners and families can also access "
-                    "support through Al-Anon (UK: 020 7403 0888).\n\n"
-                    "What's going on in the relationship?"
+                    "Relationship stress and the urge to drink often go together, and I hear you."
+                    " Try giving yourself 30 minutes before making any decisions — alcohol lowers impulse control and tends to make relationship conflicts worse."
+                    " What's going on in the relationship?"
                 ),
                 "drugs": (
-                    "I hear you. Relationships can be one of the most painful parts of recovery — the "
-                    "damage done, the trust that needs rebuilding, the fear of losing people who matter.\n\n"
-                    "Relationship stress is also a high-risk relapse trigger. Please reach out to your "
-                    "sponsor or counsellor if it feels overwhelming — rather than trying to manage it alone.\n\n"
-                    "What's happening?"
+                    "Relationships can be one of the most painful parts of recovery, and I hear you."
+                    " Reach out to your sponsor or counsellor today rather than managing this alone — relationship stress is a high-risk trigger."
+                    " What's happening?"
                 ),
                 "gaming": (
-                    "I hear you. Relationships and gaming can come into real conflict — time spent gaming "
-                    "at the expense of a partner, family, or friends is one of the most common reasons "
-                    "people seek help for gaming concerns.\n\n"
-                    "If someone important to you has raised concerns, please take that seriously. "
-                    "It's often a signal worth listening to rather than defending against.\n\n"
-                    "What's going on in the relationship?"
+                    "Relationships and gaming can come into real conflict, and I hear you."
+                    " If someone important to you has raised concerns, try listening openly before responding — it's often a signal worth taking seriously."
+                    " What's going on in the relationship?"
                 ),
                 "social_media": (
-                    "Relationship stress and social media often amplify each other — social media can be "
-                    "a source of relationship conflict (jealousy, comparison, public arguments), and "
-                    "when relationships feel difficult, scrolling can become a way to avoid addressing it.\n\n"
-                    "What's the relationship situation you're dealing with?"
+                    "Relationship stress and social media tend to amplify each other, and I hear you."
+                    " Step away from social media while you're dealing with this — scrolling usually makes it harder to resolve, not easier."
+                    " What's the relationship situation?"
                 ),
                 "nicotine": (
-                    "Relationship stress and smoking often go together — smoking as a coping mechanism, "
-                    "or relationship conflict about smoking itself (a partner wanting you to quit, "
-                    "disagreements about cost or health).\n\n"
-                    "If a relationship is part of why you want to quit, that's valid motivation — "
-                    "though the most durable motivation tends to come from within as well.\n\n"
-                    "What's going on?"
+                    "Relationship stress and the urge to smoke often go together, and I hear you."
+                    " Try taking 10 minutes to yourself before deciding whether to smoke — a brief pause between the feeling and the action matters."
+                    " What's going on?"
                 ),
                 "gambling": (
-                    "Relationship stress and gambling have a devastatingly close connection. Problem "
-                    "gambling often destroys trust through money hidden, lies told, financial damage, "
-                    "and time away. If a relationship is under strain because of gambling, please know "
-                    "this is very common and recoverable with the right support.\n\n"
-                    "GamAnon supports family members affected by gambling:\n"
-                    "• GamCare (UK): 0808 8020 133\n"
-                    "• Gamblers Anonymous: www.gamblersanonymous.org\n\n"
-                    "What's the relationship situation?"
+                    "Relationship stress and gambling are deeply linked, and I hear you."
+                    " Reach out to your counsellor or GamCare (UK: 0808 8020 133) today — relationship strain often escalates gambling risk."
+                    " What's the relationship situation?"
                 ),
             },
             "trigger_financial": {
                 "alcohol": (
-                    "Financial pressure is real, and it can be a significant trigger for drinking — "
-                    "the urge to escape the worry is understandable, even if it doesn't resolve anything.\n\n"
-                    "If alcohol spending is contributing to the financial strain, addressing the drinking "
-                    "is one of the most direct financial interventions available. Citizens Advice (UK) "
-                    "can help with debt and benefits.\n\n"
-                    "What's the financial situation?"
+                    "Financial pressure is real and exhausting, and I hear you."
+                    " Before reaching for a drink, try writing down the one financial concern weighing on you most right now — externalising it can reduce its grip."
+                    " What's the financial situation?"
                 ),
                 "drugs": (
-                    "Financial pressure in recovery is common and serious. Substance use is expensive, "
-                    "and maintaining recovery while managing debt or financial instability is genuinely hard.\n\n"
-                    "Please explore what financial support is available alongside your recovery support. "
-                    "Citizens Advice (UK) or local social services can help with debt, benefits, "
-                    "and emergency support.\n\n"
-                    "What's going on?"
+                    "Financial pressure in recovery is genuinely hard, and I hear you."
+                    " Contact Citizens Advice or your local support services today — financial stress is a relapse trigger worth addressing directly."
+                    " What's going on?"
                 ),
                 "gaming": (
-                    "Gaming can be expensive — subscriptions, hardware, microtransactions. If gaming "
-                    "spending is creating financial stress, it's worth being honest about the actual "
-                    "monthly cost.\n\n"
-                    "Microtransaction structures are deliberately designed to encourage spending. "
-                    "If in-game spending feels hard to control, that's worth raising with a counsellor — "
-                    "it can be a sign of deeper compulsive patterns.\n\n"
-                    "What's the financial situation?"
+                    "Gaming costs can add up quickly, and I hear you."
+                    " Try calculating the actual monthly spend honestly — that number can be clarifying and motivating."
+                    " What's the financial situation?"
                 ),
                 "social_media": (
-                    "Financial stress and social media can intensify each other — influencer content "
-                    "promoting aspirational lifestyles, targeted advertising, or MLM schemes that "
-                    "target people in financial difficulty.\n\n"
-                    "If you're finding yourself spending on things promoted through social media, "
-                    "please look carefully at that pattern. What's the financial situation?"
+                    "Financial stress and social media can intensify each other, and I hear you."
+                    " Consider unfollowing aspirational or spending-trigger accounts while you're under financial pressure."
+                    " What's the financial situation?"
                 ),
                 "nicotine": (
-                    "The financial cost of smoking is significant — often hundreds or thousands of pounds "
-                    "a year. For many people, calculating the actual annual cost is one of the strongest "
-                    "motivators to quit.\n\n"
-                    "NHS Stop Smoking services are free and include NRT at low cost — worth accessing "
-                    "if you haven't already. What's going on with the financial pressure?"
+                    "The financial cost of smoking is significant, and it's worth taking seriously."
+                    " Try calculating your annual smoking spend — for many people that number becomes a powerful motivator to quit."
+                    " What's going on with the financial pressure?"
                 ),
                 "gambling": (
-                    "Financial stress and gambling are deeply linked — financial crisis is often the "
-                    "moment when the true scale of a gambling problem becomes undeniable.\n\n"
-                    "Please reach out for specialist support urgently if you are in financial difficulty "
-                    "due to gambling:\n"
-                    "• National Gambling Helpline (UK): 0808 8020 133\n"
-                    "• GamCare: www.gamcare.org.uk\n"
-                    "• StepChange (debt support, UK): 0800 138 1111\n"
-                    "• Gamblers Anonymous: www.gamblersanonymous.org\n\n"
-                    "You don't have to manage this alone. What's the financial situation right now?"
+                    "Financial stress and gambling are deeply linked, and I hear you."
+                    " Please reach out to GamCare (UK: 0808 8020 133) and StepChange (debt support, 0800 138 1111) today — specialist help for both is available."
+                    " What's the financial situation right now?"
                 ),
             },
             "trigger_grief": {
                 "alcohol": (
-                    "I'm deeply sorry for your loss. What you're feeling right now is real and it's heavy — "
-                    "and I'm not going to minimise that.\n\n"
-                    "Here's something important to understand about what's happening in your body right now: "
-                    "grief creates an acute neurological stress spike. Your brain — already rewired by alcohol "
-                    "use — is actively seeking a chemical shortcut to numb that spike. That urge, if it comes, "
-                    "is not weakness. It is a predictable biological response. But acting on it will not "
-                    "process the grief. It will pause it, extend it, and make the next wave harder to survive.\n\n"
-                    "If a craving is present right now, I want you to try something called urge surfing. "
-                    "A craving is not a command — it is a wave. It will peak and subside on its own, "
-                    "usually within 15 to 30 minutes. You do not need to fight it. You only need to "
-                    "ride it without acting. Notice it. Name it. Let it move.\n\n"
-                    "Right now, in this moment: where in your body do you feel the tightness of this grief "
-                    "or urge? Your chest? Your throat? Your stomach? Can you place your hand there?\n\n"
-                    "The next 15 minutes matter more than the next 15 months. Stay with me."
+                    "I'm truly sorry for your loss — grief is one of the heaviest things to carry."
+                    " If a craving is present, try urge surfing: notice the craving like a wave, don't fight it, and let it peak and pass — it usually does within 15 minutes."
+                    " Would you like to tell me what's happened?"
                 ),
                 "drugs": (
-                    "Grief is one of the most painful experiences, and using to numb it is completely "
-                    "understandable — even if it's not the answer in the long run.\n\n"
-                    "Grief needs to be felt to be processed, even though that's agonising. A grief "
-                    "counsellor or therapist who understands substance use can hold both at once. "
-                    "You don't have to carry this alone.\n\n"
-                    "What's happened?"
+                    "I'm so sorry — grief is one of the most painful experiences, and I hear you."
+                    " Try reaching out to a grief counsellor or therapist today who also understands substance use, so both can be held together."
+                    " What's happened?"
                 ),
                 "gaming": (
-                    "I'm sorry for what you're going through. Gaming can feel like a safe place to "
-                    "disappear when grief is overwhelming — and temporary relief is understandable.\n\n"
-                    "But grief does ask to be felt. If gaming is becoming a way to completely avoid "
-                    "it rather than take short breaks from it, that can complicate the grieving process. "
-                    "One gentle step: allow yourself a brief intentional moment today to sit with the grief.\n\n"
-                    "What's happened?"
+                    "I'm sorry for what you're going through — grief is overwhelming, and I hear you."
+                    " Allow yourself one brief, intentional moment today to sit with the feeling rather than escaping it."
+                    " What's happened?"
                 ),
                 "social_media": (
-                    "I'm really sorry. Social media after a loss can be particularly painful — memories "
-                    "surfacing, memorial pages, other people's comments, or simply carrying grief while "
-                    "seeing others' normal lives.\n\n"
-                    "If social media is making your grief feel harder or more complicated, it's okay "
-                    "to step back from it during this time.\n\n"
-                    "What's happened?"
+                    "I'm really sorry — grief and social media make a painful combination."
+                    " Consider stepping back from social media during this time — it often makes grief harder, not easier."
+                    " What's happened?"
                 ),
                 "nicotine": (
-                    "I'm sorry for what you're going through. Grief is overwhelming, and reaching for "
-                    "something familiar and constant like a cigarette makes complete sense.\n\n"
-                    "Please be gentle with yourself during this time. If a quit attempt is underway and "
-                    "grief has made it feel impossible, let your GP or stop smoking service know — "
-                    "so they can support you appropriately rather than add pressure.\n\n"
-                    "What's happened?"
+                    "I'm sorry for what you're going through — grief is overwhelming, and reaching for something familiar makes sense."
+                    " Be gentle with yourself, and let your GP or stop smoking service know what's happening so they can adjust their support."
+                    " What's happened?"
                 ),
                 "gambling": (
-                    "I'm sorry for what you're going through. Grief can be a powerful trigger for gambling "
-                    "— the desire to feel something, take a risk, or chase a brief high when everything "
-                    "feels dark and numb.\n\n"
-                    "Please be particularly careful right now. Grief-driven gambling can escalate quickly. "
-                    "If the urge comes on, please call your helpline before acting:\n"
-                    "• National Gambling Helpline (UK): 0808 8020 133\n\n"
-                    "What's happened?"
+                    "I'm sorry for what you're going through — grief can be a powerful gambling trigger."
+                    " If the urge comes on, call the National Gambling Helpline before acting: UK 0808 8020 133."
+                    " What's happened?"
                 ),
             },
             "trigger_trauma": {
                 "alcohol": (
-                    "I hear you. Trauma and alcohol use disorder have one of the highest co-occurrence "
-                    "rates of any mental health and addiction pairing — this is not coincidence. "
-                    "Alcohol is often used to manage the nervous system dysregulation that trauma creates.\n\n"
-                    "The most effective treatment for this combination is trauma-informed care — "
-                    "modalities like EMDR, Trauma-Focused CBT, or Seeking Safety work with both at once. "
-                    "General counselling without trauma focus is often insufficient.\n\n"
-                    "Are you currently working with anyone on both the trauma and the alcohol?"
+                    "Trauma and alcohol use are very closely linked, and I hear you."
+                    " Try grounding yourself right now: name 5 things you can see, 4 you can touch, 3 you can hear."
+                    " Are you currently working with anyone on both the trauma and the alcohol?"
                 ),
                 "drugs": (
-                    "Trauma and substance use are very closely linked — for many people, substances "
-                    "were the most effective way available to manage overwhelming trauma symptoms.\n\n"
-                    "Recovery works best when the trauma is also addressed. Trauma-informed therapy "
-                    "(EMDR, Seeking Safety, TF-CBT) is available and effective. Your recovery team "
-                    "should know about the trauma so treatment can be adapted.\n\n"
-                    "Are you currently getting support for the trauma as well as the substance use?"
+                    "Trauma and substance use are deeply connected, and I hear you."
+                    " Try one grounding breath right now — inhale for 4, hold for 4, exhale for 6 — before we talk more."
+                    " Are you getting support for the trauma as well as the substance use?"
                 ),
                 "gaming": (
-                    "I hear you. Trauma and gaming can connect in complex ways — gaming can provide "
-                    "a dissociative space that regulates an overwhelmed nervous system, and in that "
-                    "sense it makes complete sense as a response to trauma.\n\n"
-                    "But it can also prevent processing. A therapist trained in trauma — particularly "
-                    "one who works with behavioural addictions — can help find a path through that "
-                    "doesn't require either being overwhelmed or fully escaping.\n\n"
-                    "Are you getting any support for the trauma?"
+                    "Trauma and gaming can connect in complex ways, and I hear you."
+                    " Try grounding yourself right now: name 5 things you can see in the room around you."
+                    " Are you getting any support for the trauma?"
                 ),
                 "social_media": (
-                    "Trauma and social media interact in difficult ways — exposure to traumatic content "
-                    "online, having your own trauma echoed back through news or social content, or "
-                    "being re-traumatised through digital connections to the source of trauma.\n\n"
-                    "If social media is surfacing or worsening trauma symptoms, please consider a "
-                    "significant break from it. A trauma-informed therapist can also help you manage "
-                    "triggers in a structured way.\n\n"
-                    "Are you getting support for what you've been through?"
+                    "Trauma and social media can interact in really difficult ways, and I hear you."
+                    " Consider a significant break from social media while you're working through this — it often re-triggers rather than helps."
+                    " Are you getting support for what you've been through?"
                 ),
                 "nicotine": (
-                    "I hear you. Trauma and smoking are often connected — smoking as a way to regulate "
-                    "a nervous system that feels chronically dysregulated, or as ritualistic comfort "
-                    "during overwhelming periods.\n\n"
-                    "If you're carrying trauma, please make sure any quit attempt includes mental health "
-                    "support alongside the nicotine support. A trauma-informed GP or therapist can "
-                    "help coordinate this.\n\n"
-                    "Are you getting support for the trauma?"
+                    "Trauma and smoking are often connected, and I hear you."
+                    " Make sure any quit attempt includes mental health support alongside nicotine support — please raise this with your GP."
+                    " Are you getting support for the trauma?"
                 ),
                 "gambling": (
-                    "Trauma and gambling can connect through the adrenaline and dissociation that "
-                    "gambling provides — for some people, it becomes a way to feel alive or present "
-                    "when trauma has left them numb, or to escape intrusive thoughts.\n\n"
-                    "Please make sure any gambling support you receive is trauma-aware. The helpline "
-                    "can direct you to appropriate services:\n"
-                    "• GamCare (UK): 0808 8020 133\n"
-                    "• Gamblers Anonymous: www.gamblersanonymous.org\n\n"
-                    "Are you getting support for the underlying trauma?"
+                    "Trauma and gambling can be closely connected, and I hear you."
+                    " Please make sure your gambling support is trauma-aware — GamCare (UK: 0808 8020 133) can direct you to appropriate services."
+                    " Are you getting support for the underlying trauma?"
                 ),
             },
         }
@@ -2279,100 +2220,66 @@ class ResponseGenerator:
         _BEHAVIOUR_OTHER: Dict[str, Dict[str, str]] = {
             "behaviour_eating": {
                 "alcohol": (
-                    "Nutrition and alcohol have a significant relationship. Heavy drinking often "
-                    "displaces proper eating, disrupts blood sugar regulation, and depletes key "
-                    "nutrients — especially thiamine (vitamin B1).\n\n"
-                    "In recovery, stabilising eating — regular meals, blood sugar balance — can "
-                    "also help reduce cravings. What's going on with your eating right now?"
+                    "Nutrition and alcohol are deeply connected, and eating well in recovery really matters."
+                    " Try stabilising your meals today with regular times and protein-rich food — it can also help reduce cravings."
+                    " What's going on with your eating right now?"
                 ),
                 "drugs": (
-                    "Appetite changes are very normal in recovery — many substances suppress appetite, "
-                    "and getting back to regular eating can take time. Some people find they gain weight "
-                    "in early recovery as appetite returns, which brings its own challenges.\n\n"
-                    "Please be gentle with yourself around food. Regular meals with protein and complex "
-                    "carbohydrates can support the neurological recovery process.\n\n"
-                    "What's going on with your eating?"
+                    "Appetite changes in recovery are very normal, and I hear you."
+                    " Try making regular meals a priority today — even small, consistent ones — as food stability supports the neurological recovery process."
+                    " What's going on with your eating?"
                 ),
                 "gaming": (
-                    "Eating and gaming often interact — skipping meals to keep playing, eating while "
-                    "gaming without awareness, or forgetting to eat entirely during long sessions. "
-                    "Over time, irregular eating affects energy, mood, and concentration.\n\n"
-                    "Setting deliberate meal breaks away from the screen is a small but effective step. "
-                    "What's going on?"
+                    "Skipping or forgetting meals during gaming sessions is really common, and it affects mood and energy."
+                    " Try setting a deliberate meal break away from the screen today."
+                    " What's going on?"
                 ),
                 "social_media": (
-                    "Social media and eating have a complicated relationship — exposure to idealised "
-                    "bodies, diet culture content, fitness influencers, or food-shaming communities "
-                    "can all impact how you feel about eating.\n\n"
-                    "If you're struggling with eating, please seek support from a healthcare professional "
-                    "rather than diet content online, which is not a substitute for proper nutritional support.\n\n"
-                    "What's going on with your eating?"
+                    "Social media and eating have a complicated relationship, and I hear you."
+                    " If food-related content is affecting how you feel about eating, try unfollowing those accounts today."
+                    " What's going on with your eating?"
                 ),
                 "nicotine": (
-                    "Eating and smoking are closely linked. Some people smoke to manage appetite or "
-                    "weight; others worry about gaining weight if they quit — this is one of the most "
-                    "common barriers to stopping, and it's worth addressing directly.\n\n"
-                    "nicotine replacement therapy and regular exercise both help manage appetite "
-                    "during a quit attempt. Please don't let weight concerns stop you from trying — "
-                    "your GP can help plan for this specifically.\n\n"
-                    "What's going on with eating?"
+                    "Eating and smoking are closely linked, and weight concerns are one of the most common barriers to quitting."
+                    " Talk to your GP specifically about this — they can help you plan for it so it doesn't stop you from trying."
+                    " What's going on with eating?"
                 ),
                 "gambling": (
-                    "Gambling and eating can be directly affected by financial stress — not being able "
-                    "to afford food, stress eating, or simply forgetting to eat during a gambling session.\n\n"
-                    "If financial strain is affecting your ability to eat properly, please reach out "
-                    "to your local food bank or financial support services in addition to gambling support.\n\n"
-                    "What's going on?"
+                    "Financial stress from gambling can directly affect eating, and I hear you."
+                    " If food is a concern, please reach out to local support services or a food bank today alongside your gambling support."
+                    " What's going on?"
                 ),
             },
             "behaviour_exercise": {
                 "alcohol": (
-                    "Exercise is one of the most clinically supported tools in alcohol recovery — "
-                    "it rebuilds natural dopamine systems, reduces cravings, improves sleep, "
-                    "and lowers anxiety. If you're already doing some physical activity, that's excellent.\n\n"
-                    "Even a 20-minute brisk walk has measurable effects on craving intensity. "
-                    "Starting small is absolutely enough.\n\n"
-                    "What's your relationship with exercise at the moment?"
+                    "Physical activity is one of the most powerful tools in alcohol recovery, and it's great you're thinking about it."
+                    " Start today with a 20-minute brisk walk — even that has measurable effects on craving intensity."
+                    " What's your relationship with exercise at the moment?"
                 ),
                 "drugs": (
-                    "Physical exercise in recovery is powerful — it helps rebuild the dopamine and "
-                    "endorphin systems that substance use disrupts, reduces post-acute withdrawal "
-                    "symptoms, and provides healthy structure to the day.\n\n"
-                    "Running groups specifically for people in recovery exist in many areas and "
-                    "combine physical activity with peer support. Even a brief daily walk is a meaningful start.\n\n"
-                    "What's your relationship with physical activity?"
+                    "Exercise in recovery is genuinely powerful — it helps rebuild the systems substances disrupt."
+                    " Try a short daily walk as a starting point — even 15 minutes creates structure and shifts mood."
+                    " What's your relationship with physical activity?"
                 ),
                 "gaming": (
-                    "Physical activity and gaming can seem like opposites, but they work well "
-                    "together in a balanced approach.\n\n"
-                    "For some people, gamifying exercise helps — apps like Zombies Run, Pokémon GO, "
-                    "or Zwift for cycling can bridge both worlds. The key is getting the body moving, "
-                    "which changes cortisol and dopamine levels in a way that gaming alone can't replicate.\n\n"
-                    "What's your relationship with physical activity right now?"
+                    "Physical activity and gaming work well together in a balanced approach."
+                    " Try one active session today — even a 20-minute walk — to see how it shifts your energy and mood."
+                    " What's your relationship with physical activity right now?"
                 ),
                 "social_media": (
-                    "Exercise and stepping away from screens are two of the most evidence-based "
-                    "things you can do for mental health — and they work well together.\n\n"
-                    "If you can make a daily offline physical activity a consistent anchor — even "
-                    "a 20-minute walk without your phone — that alone can significantly shift mood "
-                    "and reduce the pull to scroll.\n\n"
-                    "What does your physical activity look like at the moment?"
+                    "Exercise and stepping away from screens are two of the best things you can do for mental health."
+                    " Try making a daily offline activity a consistent anchor — even a 20-minute walk without your phone."
+                    " What does your physical activity look like at the moment?"
                 ),
                 "nicotine": (
-                    "Exercise and quitting smoking are strongly linked — regular physical activity "
-                    "reduces nicotine cravings, improves lung function over time, and helps manage "
-                    "the weight concerns that stop many people from making a quit attempt.\n\n"
-                    "Consider scheduling exercise to coincide with your most common smoking urges. "
-                    "What's your current activity level?"
+                    "Exercise and quitting smoking are strongly linked — physical activity reduces cravings and helps manage weight concerns."
+                    " Try scheduling a short walk to coincide with your most common smoking urges today."
+                    " What's your current activity level?"
                 ),
                 "gambling": (
-                    "Exercise during high-urge periods is one of the most effective alternatives "
-                    "to gambling — it gives the brain a natural dopamine and endorphin response "
-                    "without the financial or psychological risk.\n\n"
-                    "Planning a physical activity specifically for the times you're most tempted "
-                    "(often evenings or weekends) is a harm reduction strategy worth discussing "
-                    "with your counsellor.\n\n"
-                    "What does your physical activity look like?"
+                    "Exercise during high-urge periods is one of the most effective alternatives to gambling."
+                    " Plan a physical activity specifically for the times you're most tempted — often evenings or weekends."
+                    " What does your physical activity look like?"
                 ),
             },
         }
@@ -2442,6 +2349,17 @@ class ResponseGenerator:
                 ),
             }
             return _SEVERE_DISTRESS.get(_norm) or None
+
+        # ── Generic addiction_drugs fallback when addiction_type is unknown ──
+        # Fires when onboarding profile is missing from the DB (no registered
+        # addiction type).  Provides an empathetic, alcohol-appropriate response
+        # rather than falling through to the generic intents.json pool.
+        if intent == "addiction_drugs":
+            return (
+                "Recognising that alcohol is playing a bigger role than you'd like takes real courage."
+                " Try delaying for 15 minutes — do something physical or drink a glass of water before deciding anything."
+                " The urge will peak and pass, usually within 15 to 30 minutes."
+            )
 
         return None
 

@@ -27,7 +27,7 @@ const RISK_COLORS = {
   low:     { dot:'#22c55e' },
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 // ── Score card component ─────────────────────────────────────────
 function ScoreCard({ scoreData, sessionId, patientCode, intent, onSubmit }) {
@@ -114,13 +114,8 @@ function VideoCard({ video }) {
               padding:'18px 16px', background:'#0f172a',
               display:'flex', flexDirection:'column', alignItems:'center', gap:8
             }}>
-              <span style={{ fontSize:11, color:'#475569', letterSpacing:'0.4px', textTransform:'uppercase' }}>Video intent</span>
-              <code style={{ fontSize:13, color:'#93c5fd', background:'rgba(45,106,159,0.18)', padding:'4px 12px', borderRadius:6 }}>
-                {video.active_intents && video.active_intents.length > 0
-                  ? `{{${video.active_intents.join(', ')}}}`
-                  : video.url}
-              </code>
-              <span style={{ fontSize:11, color:'#334155' }}>Video will be available once media integration is complete.</span>
+              <span style={{ fontSize:28 }}>🎬</span>
+              <span style={{ fontSize:12, color:'#64748b' }}>Video content coming soon</span>
             </div>
           ) : (
             <iframe
@@ -151,11 +146,9 @@ function VideoCard({ video }) {
               <div style={{
                 width:100, height:56, borderRadius:8, background:'#0f172a',
                 display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:10, color:'#475569', border:'1px solid #1e293b', textAlign:'center', padding:'0 4px'
+                fontSize:22, color:'#475569', border:'1px solid #1e293b',
               }}>
-                {video.active_intents && video.active_intents.length > 0
-                  ? `{{${video.active_intents.join(', ')}}}`
-                  : video.url}
+                🎬
               </div>
             ) : (
               <>
@@ -514,16 +507,13 @@ export default function ChatPage() {
                   <div style={{ maxWidth:'72%' }}>
                     <div className={`bub ${msg.role === 'user' ? 'user' : `bot ${msg.intent || msg.severity || 'low'}`}`}>
                       {msg.content}
-                      {msg.citations?.length > 0 && (
-                        <div className="cits">📄 {msg.citations.map((c,j) => <span key={j}>{c}</span>)}</div>
-                      )}
                     </div>
 
                     {/* Intent tags — shown immediately below the bubble */}
                     {msg.intent && msg.role === 'assistant' && (
                       <div className="itags">
                         <span className="itag primary">{msg.intent}</span>
-                        {(msg.secondaryIntents || []).map((s, si) => (
+                        {(msg.secondaryIntents || []).filter(s => s !== 'rag_query').map((s, si) => (
                           <span key={si} className="itag secondary">{s}</span>
                         ))}
                       </div>

@@ -28,6 +28,7 @@
  *  15. wearable_readings     [ADDED] Daily wearable device readings (Slide 9)
  *  16. patient_addictions    [ADDED] Junction table — one row per addiction type per patient
  *  17. response_routing      [ADDED] Clinician-editable matrix: (addiction × intent) → routing strategy
+ *  18. patient_context_vectors [ADDED] Greeting synthesis audit trail — snapshot of context at greeting time
  */
 
 
@@ -1142,5 +1143,64 @@ INSERT INTO response_routing (patient_addiction, detected_intent, relationship, 
   ('social_media', 'relapse_disclosure', 'relapse', 'medium', NULL, false, 'Social media relapse disclosure: normalise slip, avoid judgment/advice'),
   ('nicotine',     'relapse_disclosure', 'relapse', 'medium', NULL, false, 'Nicotine relapse disclosure: normalise slip, avoid judgment/advice'),
   ('smoking',      'relapse_disclosure', 'relapse', 'medium', NULL, false, 'Smoking relapse disclosure: normalise slip, avoid judgment/advice'),
-  ('gambling',     'relapse_disclosure', 'relapse', 'medium', NULL, false, 'Gambling relapse disclosure: normalise slip, avoid judgment/advice'),
+  ('gambling',     'relapse_disclosure', 'relapse', 'medium', NULL, false, 'Gambling relapse disclosure: normalise slip, avoid judgment/advice');
+
+
+-- ============================================================================
+-- 18. PATIENT_CONTEXT_VECTORS
+-- Audit trail of synthesized context vectors for every greeting shown.
+-- Not a source of truth — clinical data lives in daily_checkins,
+-- wearable_readings, and sessions. This is a SNAPSHOT of synthesis
+-- at greeting time for clinical review, debugging, and analytics.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS patient_context_vectors (
+  vector_id                    UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  patient_id                   UUID        NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
+  patient_code                 VARCHAR(20),
+  session_id                   TEXT,
+
+  -- Data source availability at time of synthesis
+  has_subjective_data          BOOLEAN     DEFAULT false,
+  has_physiological_data       BOOLEAN     DEFAULT false,
+  has_historical_data          BOOLEAN     DEFAULT false,
+
+  -- Synthesis results
+  dominant_theme               VARCHAR(100),  -- e.g. "emotional_distress:stressed", "high_craving:8"
+  emotional_anchor             VARCHAR(100),  -- e.g. "feeling stressed and overwhelmed"
+  tone_directive               VARCHAR(50),   -- calm_grounding, validating, celebratory, curious, crisis_safe
+
+  -- Risk scores (1–100)
+  subjective_risk_score        INTEGER     CHECK (subjective_risk_score BETWEEN 1 AND 100),
+  objective_risk_score         INTEGER     CHECK (objective_risk_score BETWEEN 1 AND 100),
+  clinical_risk_score          INTEGER     CHECK (clinical_risk_score BETWEEN 1 AND 100),  -- 70% subj + 30% obj
+
+  -- Contradiction detection
+  contradiction_detected       BOOLEAN     DEFAULT false,
+  contradiction_type           VARCHAR(100),  -- e.g. "patient_felt_rested_but_objectively_poor"
+
+  -- Data freshness
+  subjective_hours_ago         DECIMAL(5,1),
+  physiological_hours_ago      DECIMAL(5,1),
+  subjective_timestamp         TIMESTAMP,
+  physiological_timestamp      TIMESTAMP,
+
+  -- Greeting output
+  greeting_text                TEXT,
+  contextual_opening           TEXT,   -- Layer 1: Never generic "how are you?"
+  validation_note              TEXT,   -- Layer 2: Normalize the struggle
+  agency_note                  TEXT,   -- Layer 3: Invite, don't interrogate
+
+  created_at                   TIMESTAMP   DEFAULT now(),
+
+  CONSTRAINT context_vector_unique UNIQUE (patient_id, created_at)
+);
+
+CREATE INDEX idx_context_patient_time    ON patient_context_vectors(patient_id, created_at DESC);
+CREATE INDEX idx_context_high_risk       ON patient_context_vectors(patient_code, clinical_risk_score DESC) WHERE clinical_risk_score > 60;
+CREATE INDEX idx_context_contradictions  ON patient_context_vectors(patient_code, created_at DESC) WHERE contradiction_detected = true;
+CREATE INDEX idx_context_tone            ON patient_context_vectors(patient_code, tone_directive, created_at DESC);
+CREATE INDEX idx_context_theme           ON patient_context_vectors(patient_code, dominant_theme, created_at DESC);
+CREATE INDEX idx_context_time_range      ON patient_context_vectors(patient_code, created_at DESC);
   ('work',         'relapse_disclosure', 'relapse', 'medium', NULL, false, 'Work-addiction relapse disclosure: normalise slip, avoid judgment/advice');

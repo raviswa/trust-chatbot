@@ -983,9 +983,16 @@ class PatientContextSynthesizer:
         if not subjective.is_recent():
             return 30
         score = {
-            "happy": 5, "neutral": 15, "hopeful": 10, "anxious": 40,
-            "stressed": 50, "overwhelmed": 60, "angry": 45, "sad": 35,
-            "lonely": 30, "guilty": 40,
+            # Crisis-level states — must reach Critical threshold (81+) before modifiers
+            "suicidal":    95, "hopeless":   90, "worthless":   85,
+            "empty":       80, "trapped":    80, "desperate":   80,
+            # High-distress states
+            "depressed":   70, "despairing": 70, "miserable":   65,
+            "overwhelmed": 60, "anxious":    40, "stressed":    50,
+            "angry":       45, "sad":        35, "lonely":      30,
+            "guilty":      40,
+            # Neutral / positive
+            "happy": 5, "neutral": 15, "hopeful": 10,
         }.get(subjective.emotional_state, 30)
         if subjective.craving_intensity > 7:
             score += 20
@@ -1470,17 +1477,19 @@ def build_clinical_context_block(
 
 def get_response_length_instruction(profile_flags: Optional[Dict] = None) -> str:
     """Return a response-length instruction tailored to patient profile flags."""
+    base = (
+        "Structure every response in exactly three parts: "
+        "(1) one sentence of empathy or validation, "
+        "(2) one sentence with a single specific micro-intervention — no bullet lists, no multiple options, "
+        "(3) one open question. "
+        "Do not exceed three sentences total."
+    )
     if not profile_flags:
-        return "Keep responses to 2-3 sentences."
+        return base
     if profile_flags.get("bipolar_or_psychosis_history"):
-        return (
-            "Keep responses to 1-2 short sentences per idea. "
-            "Use only literal, concrete words. "
-            "No metaphors, no comparisons, no figurative language. "
-            "End with one specific action the patient can do right now."
-        )
+        return base + " Use only literal, concrete words. No metaphors or figurative language."
     if profile_flags.get("cognitive_impairment"):
-        return "Keep responses to 1-2 short sentences maximum. Use simple words. One idea only."
+        return base + " Use very simple words. Keep each sentence short."
     if profile_flags.get("high_impulsivity"):
-        return "Keep responses to 2 sentences. Be direct. Give one concrete action immediately."
-    return "Keep responses to 2-3 sentences."
+        return base + " Make the micro-intervention extremely concrete and immediately actionable."
+    return base

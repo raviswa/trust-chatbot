@@ -36,27 +36,89 @@ Usage:
     )
 """
 
-import logging
-from typing import Dict, List, Optional, Any
-from datetime import datetime, date
 import json
+import logging
+from contextlib import contextmanager
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional
+
+# Try the native PostgreSQL driver first (db_postgres.py).
+# Fall back to the Supabase SDK shim if that's what's configured.
+# Only the _get_db_conn() function branch that succeeds will be used.
+try:
+    from db_postgres import _conn as _pg_conn
+    _PG_AVAILABLE = True
+except Exception:
+    _PG_AVAILABLE = False
 
 try:
-    from db_supabase import supabase
+    from db_supabase import supabase as _supabase_client
+    _SUPABASE_AVAILABLE = True
 except Exception:
-    supabase = None  # Mock/offline mode — Supabase not configured
+    _supabase_client = None
+    _SUPABASE_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Internal helpers — uniform DB access regardless of backend
+# ─────────────────────────────────────────────────────────────────────────────
+
+@contextmanager
+def _get_pg():
+    """Yield a psycopg2 connection from the pool."""
+    with _pg_conn() as conn:
+        yield conn
+
+
+def _pg_execute(sql: str, params: tuple = ()) -> None:
+    """Execute a write statement via psycopg2."""
+    with _get_pg() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+
+
+def _pg_fetchone(sql: str, params: tuple = ()) -> Optional[dict]:
+    """Fetch a single row via psycopg2, returned as a plain dict."""
+    import psycopg2.extras
+    with _get_pg() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(sql, params)
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+
+def _pg_fetchall(sql: str, params: tuple = ()) -> List[dict]:
+    """Fetch all rows via psycopg2, returned as plain dicts."""
+    import psycopg2.extras
+    with _get_pg() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(sql, params)
+            return [dict(r) for r in cur.fetchall()]
 
 
 class ComprehensiveDatabaseUpdater:
     """
     Orchestrates updates across all tables for a single chatbot interaction.
+
+    Backend selection (in priority order):
+      1. db_postgres.py   — psycopg2 + connection pool (preferred)
+      2. db_supabase.py   — Supabase SDK (stopgap / fallback)
     """
-    
-    def __init__(self, supabase_client):
-        """Initialize with Supabase client."""
-        self.db = supabase_client or supabase
+
+    def __init__(self, supabase_client=None):
+        """
+        supabase_client is accepted for backward compatibility but ignored
+        when the psycopg2 backend is available.
+        """
+        self._use_pg = _PG_AVAILABLE
+        # Keep the Supabase client as a last-resort fallback
+        self._supabase = supabase_client or _supabase_client
+        # self.db is the Supabase client reference used by all table methods.
+        # When the psycopg2 backend is active the _pg_* helpers are used instead,
+        # but self.db must still be set so attribute lookups never raise.
+        self.db = self._supabase
     
     def update_all_tables(
         self,
@@ -620,7 +682,7 @@ def update_all_tables_from_chatbot_interaction(
         )
         logger.info(f"Database updates: {result}")
     """
-    updater = ComprehensiveDatabaseUpdater(supabase)
+    updater = ComprehensiveDatabaseUpdater(_supabase_client)
     return updater.update_all_tables(
         patient_id=patient_id,
         patient_code=patient_code,

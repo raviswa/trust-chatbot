@@ -139,6 +139,14 @@ VIDEO_MAP = {
         "description": "Understanding problem gambling and recovery pathways",
         "tags":        ["addiction_gambling", "trigger_financial", "trigger_stress"],
     },
+    "addiction_food": {
+        "url":         "{{addiction_food}}",
+        "video_id":    "{{addiction_food}}",
+        "title":       "Emotional Eating — Understanding the Cycle",
+        "thumbnail":   "{{addiction_food}}",
+        "description": "How emotions, urges, and food become linked and how to interrupt the pattern",
+        "tags":        ["addiction_food", "behaviour_eating", "mood_guilty"],
+    },
     "addiction_work": {
         "url":         "{{addiction_work}}",
         "video_id":    "{{addiction_work}}",
@@ -146,6 +154,22 @@ VIDEO_MAP = {
         "thumbnail":   "{{addiction_work}}",
         "description": "Strategies to restore balance and prevent burnout",
         "tags":        ["addiction_work", "trigger_stress", "behaviour_sleep"],
+    },
+    "addiction_shopping": {
+        "url":         "{{addiction_shopping}}",
+        "video_id":    "{{addiction_shopping}}",
+        "title":       "Compulsive Shopping — Regaining Control",
+        "thumbnail":   "{{addiction_shopping}}",
+        "description": "Understanding spending urges and creating space before acting on them",
+        "tags":        ["addiction_shopping", "trigger_stress", "mood_guilty"],
+    },
+    "addiction_pornography": {
+        "url":         "{{addiction_pornography}}",
+        "video_id":    "{{addiction_pornography}}",
+        "title":       "Compulsive Pornography Use — Breaking the Shame Cycle",
+        "thumbnail":   "{{addiction_pornography}}",
+        "description": "A recovery-focused look at shame, urges, and building healthier patterns",
+        "tags":        ["addiction_pornography", "mood_guilty", "trigger_relationship"],
     },
 
     # ── Triggers ─────────────────────────────────────────────────
@@ -421,6 +445,15 @@ VIDEO_ALTERNATIVES = {
             "description": "Understanding gambling disorder triggers and recovery steps",
         },
     ],
+    "addiction_food": [
+        {
+            "url":         "{{addiction_food_alt_1}}",
+            "video_id":    "{{addiction_food_alt_1}}",
+            "title":       "Emotional Eating and Self-Regulation",
+            "thumbnail":   "{{addiction_food_alt_1}}",
+            "description": "Tools for noticing urges earlier and responding with more choice",
+        },
+    ],
     "addiction_nicotine": [
         {
             "url":         "{{addiction_nicotine_alt_1}}",
@@ -428,6 +461,33 @@ VIDEO_ALTERNATIVES = {
             "title":       "Managing Nicotine Withdrawal",
             "thumbnail":   "{{addiction_nicotine_alt_1}}",
             "description": "What to expect and how to cope with withdrawal symptoms",
+        },
+    ],
+    "addiction_work": [
+        {
+            "url":         "{{addiction_work_alt_1}}",
+            "video_id":    "{{addiction_work_alt_1}}",
+            "title":       "Burnout Recovery — Learning to Slow Down",
+            "thumbnail":   "{{addiction_work_alt_1}}",
+            "description": "How to recognize overwork patterns and rebuild sustainable pace",
+        },
+    ],
+    "addiction_shopping": [
+        {
+            "url":         "{{addiction_shopping_alt_1}}",
+            "video_id":    "{{addiction_shopping_alt_1}}",
+            "title":       "Why We Stress Spend — And How to Stop",
+            "thumbnail":   "{{addiction_shopping_alt_1}}",
+            "description": "A practical breakdown of emotional spending triggers and pauses",
+        },
+    ],
+    "addiction_pornography": [
+        {
+            "url":         "{{addiction_pornography_alt_1}}",
+            "video_id":    "{{addiction_pornography_alt_1}}",
+            "title":       "Compulsive Sexual Content Use — Recovery Skills",
+            "thumbnail":   "{{addiction_pornography_alt_1}}",
+            "description": "Recovery-oriented skills for shame reduction and urge interruption",
         },
     ],
     "trigger_stress": [
