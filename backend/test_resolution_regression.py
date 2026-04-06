@@ -237,3 +237,42 @@ def test_specific_addiction_removes_generic_substance_secondary_tag():
 
     assert result.get("intent") == "addiction_alcohol"
     assert "addiction_drugs" not in (result.get("secondary_intents") or [])
+
+
+def test_disclosure_question_with_relationship_is_not_routed_as_greeting():
+    from chatbot_engine import handle_message
+
+    result = handle_message(
+        "why should io tell this to my father?",
+        session_id=f"resolution-disclosure-question-{uuid.uuid4().hex[:8]}",
+        patient_id=f"test-user-{uuid.uuid4().hex[:8]}",
+        patient_code="PAT-002",
+    )
+
+    assert result.get("intent") != "greeting"
+    assert result.get("resolution"), "Expected therapeutic resolution payload for disclosure question"
+    assert "father" in result.get("response", "").lower()
+
+
+def test_disclosure_question_response_varies_by_patient_profile():
+    from chatbot_engine import handle_message
+
+    message = "hy should io tell this to my father?"
+
+    result_a = handle_message(
+        message,
+        session_id=f"resolution-disclosure-profile-a-{uuid.uuid4().hex[:8]}",
+        patient_id=f"test-user-a-{uuid.uuid4().hex[:8]}",
+        patient_code="PAT-001",
+    )
+    result_b = handle_message(
+        message,
+        session_id=f"resolution-disclosure-profile-b-{uuid.uuid4().hex[:8]}",
+        patient_id=f"test-user-b-{uuid.uuid4().hex[:8]}",
+        patient_code="PAT-003",
+    )
+
+    assert result_a.get("resolution") and result_b.get("resolution")
+    assert result_a.get("intent") == "trigger_relationship"
+    assert result_b.get("intent") == "trigger_relationship"
+    assert result_a.get("response") != result_b.get("response")

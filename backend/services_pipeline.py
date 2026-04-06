@@ -1562,7 +1562,7 @@ class ResponseGenerator:
         else:
             base_response = self._select_from_pool(intent, template, context_vector)
         if context_vector:
-            personalization = self._build_personalization(intent, context_vector)
+            personalization = self._build_personalization(intent, context_vector, addiction_type=addiction_type)
             if personalization:
                 base_response = personalization + "\n\n" + base_response
         return base_response
@@ -2363,16 +2363,81 @@ class ResponseGenerator:
 
         return None
 
-    def _build_personalization(self, intent: str, context_vector) -> Optional[str]:
-        if context_vector and hasattr(context_vector, 'risk'):
-            if context_vector.risk.risk_level == "Critical":
-                return "I can hear that you're going through something really difficult right now."
-            if hasattr(context_vector, 'onboarding') and context_vector.onboarding:
-                if context_vector.onboarding.addiction_type:
-                    return f"I understand you're working on recovery from {context_vector.onboarding.addiction_type}."
-            if context_vector.session_message_count > 1:
-                return "Thank you for continuing to open up with me."
+    def _build_personalization(self, intent: str, context_vector, addiction_type: Optional[str] = None) -> Optional[str]:
+        if not context_vector:
+            return None
+
+        risk = getattr(getattr(context_vector, "risk", None), "risk_level", "") or ""
+        risk_lc = str(risk).lower()
+        onboarding = getattr(context_vector, "onboarding", None)
+        checkin = getattr(context_vector, "checkin", None)
+
+        addiction_value = addiction_type or getattr(onboarding, "addiction_type", None)
+        addiction_label = self._humanize_addiction_type(addiction_value)
+
+        if risk_lc == "critical":
+            return "I can hear that you're going through something really difficult right now."
+
+        signals = self._summarize_patient_state(checkin)
+
+        if addiction_label and signals:
+            return f"I understand you're working on recovery from {addiction_label}, and {signals}."
+        if addiction_label:
+            return f"I understand you're working on recovery from {addiction_label}."
+        if signals:
+            return f"Given what your system is carrying, {signals}."
+        if getattr(context_vector, "session_message_count", 0) > 1:
+            return "Thank you for continuing to open up with me."
         return None
+
+    def _humanize_addiction_type(self, addiction_type: Optional[str]) -> Optional[str]:
+        if not addiction_type:
+            return None
+        labels = {
+            "alcohol": "alcohol",
+            "drugs": "substance use",
+            "gaming": "gaming",
+            "social_media": "social media",
+            "nicotine": "nicotine",
+            "smoking": "smoking",
+            "gambling": "gambling",
+            "food": "compulsive eating",
+            "work": "overworking",
+            "shopping": "compulsive shopping",
+            "pornography": "compulsive sexual content use",
+        }
+        norm = str(addiction_type).lower().strip().replace(" ", "_").replace("-", "_")
+        return labels.get(norm, norm.replace("_", " "))
+
+    def _summarize_patient_state(self, checkin) -> Optional[str]:
+        if not checkin:
+            return None
+
+        parts: List[str] = []
+        craving = getattr(checkin, "craving_intensity", None)
+        sleep = getattr(checkin, "sleep_quality", None)
+        mood = (getattr(checkin, "todays_mood", "") or "").lower()
+
+        if isinstance(craving, (int, float)) and craving >= 7:
+            parts.append("strong cravings may be making everything feel louder")
+        elif isinstance(craving, (int, float)) and craving >= 5:
+            parts.append("some cravings are already in the background")
+
+        if isinstance(sleep, (int, float)) and sleep <= 4:
+            parts.append("low sleep can make recovery moments feel heavier")
+        elif isinstance(sleep, (int, float)) and sleep <= 6:
+            parts.append("average sleep can still leave the nervous system a bit exposed")
+
+        if mood in {"anxious", "stress", "stressed", "panic", "nervous"}:
+            parts.append("anxiety may be tightening the nervous system")
+        elif mood in {"sad", "low", "depressed", "lonely", "angry", "guilty"}:
+            parts.append(f"a {mood} mood state may be adding extra pressure")
+
+        if not parts:
+            return None
+        if len(parts) == 1:
+            return parts[0]
+        return parts[0] + " and " + parts[1]
 
     def _generate_fallback(self, intent: str, user_message: str, context_vector=None) -> str:
         if self.rag_handler:
@@ -2382,12 +2447,19 @@ class ResponseGenerator:
                     return rag_response
             except Exception as e:
                 logger.error(f"RAG handler failed: {e}")
-        return random.choice([
-            "Thank you for sharing that. Can you tell me a bit more about what you mean?",
-            "I hear you. That sounds important. What would you like support with?",
-            "I'm listening. Help me understand what's going on for you.",
-            "That's worth exploring. Can you share more details?",
-        ])
+
+        personalization = self._build_personalization(intent, context_vector)
+        fallback_pool = [
+            "Thank you for sharing that. We can take this one step at a time.",
+            "What you are naming matters, and it makes sense to slow this down rather than rush past it.",
+            "There is enough here to work with carefully, without forcing an answer all at once.",
+            "We do not have to solve everything right now; the next honest step is enough for this moment.",
+        ]
+        base = random.choice(fallback_pool)
+
+        if personalization:
+            return personalization + "\n\n" + base
+        return base
 
     def get_next_minimal_question(self, context_vector) -> Optional[Dict]:
         if context_vector and hasattr(context_vector, 'determine_questions_to_ask_next'):

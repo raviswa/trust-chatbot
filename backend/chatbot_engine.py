@@ -538,6 +538,51 @@ def _override_addiction_intent_from_message(message: str, classified_intent: str
     return None
 
 
+def _override_disclosure_question_intent_from_message(message: str, classified_intent: str) -> Optional[str]:
+    """Reroute relational disclosure questions away from greeting to therapeutic flow."""
+    if classified_intent != "greeting":
+        return None
+
+    msg_lc = (message or "").lower().strip()
+    if not msg_lc:
+        return None
+
+    relationship_analysis = analyze_relationship_clause(message)
+    if not relationship_analysis.has_relationship:
+        return None
+
+    if _is_relationship_disclosure_question(message):
+        return "trigger_relationship"
+
+    # Backup trigger when the sentence is a direct question about disclosure.
+    if "?" in msg_lc and any(t in msg_lc for t in ["tell", "share", "say", "open up"]):
+        return "trigger_relationship"
+
+    return None
+
+
+def _is_relationship_disclosure_question(message: str) -> bool:
+    """Detect relational disclosure questions such as 'why should I tell my father?' (including common typos)."""
+    msg_lc = (message or "").lower().strip()
+    if not msg_lc:
+        return False
+
+    disclosure_question_patterns = (
+        r"\bwhy\s+should\s+i[o]?\s+(tell|say|share|open\s+up)\b",
+        r"\bshould\s+i[o]?\s+(tell|say|share|open\s+up)\b",
+        r"\bhow\s+do\s+i[o]?\s+(tell|say|share|open\s+up)\b",
+        r"\b(do\s+i[o]?\s+have\s+to\s+(tell|say|share))\b",
+        r"\bhy\s+should\s+i[o]?\s+(tell|say|share|open\s+up)\b",
+    )
+    if any(re.search(p, msg_lc) for p in disclosure_question_patterns):
+        return True
+
+    # Backup trigger when the sentence is a direct disclosure question with relationship mention.
+    if "?" in msg_lc and any(t in msg_lc for t in ["tell", "share", "say", "open up"]):
+        return True
+    return False
+
+
 def _normalize_secondary_intents(primary_intent: str, secondary_intents: List[str]) -> List[str]:
     """Keep patient-visible secondary intents unique and drop generic substance tags when a specific addiction is present."""
     cleaned: List[str] = []
@@ -614,6 +659,27 @@ def _detect_resolution_focus(
     Returns a small descriptor used by both text generation and video hinting.
     """
     recovery_analysis = analyze_recovery_clause(user_message)
+    relationship_analysis = analyze_relationship_clause(user_message)
+    disclosure_question = _is_relationship_disclosure_question(user_message)
+
+    def _primary_hint_from_profile(default: str = intent) -> str:
+        return _ADDICTION_TYPE_TO_INTENT.get(
+            (addiction_type or "").lower().replace("-", "_").replace(" ", "_"),
+            default,
+        )
+
+    if intent == "trigger_relationship" and disclosure_question:
+        if relationship_analysis.tone == "secrecy":
+            return {
+                "key": "disclosure_readiness",
+                "phrase": "deciding what to share, why it may help, and how to do it safely at your pace",
+                "video_hint_intent": _primary_hint_from_profile("trigger_relationship"),
+            }
+        return {
+            "key": "connection_accountability",
+            "phrase": "weighing why disclosure can help recovery while protecting your boundaries and timing",
+            "video_hint_intent": _primary_hint_from_profile("trigger_relationship"),
+        }
 
     def _theme_video_hint() -> str:
         if intent in _ADDICTION_INTENTS and intent != "addiction_drugs":
@@ -902,6 +968,11 @@ def _compose_dynamic_resolution(
     relationship_do_verb = _relationship_do_verb(relationships)
     relationship_tone = relationship_analysis.tone
     recovery_analysis = analyze_recovery_clause(user_message)
+    disclosure_question = _is_relationship_disclosure_question(user_message)
+    onboarding_addiction = (
+        (getattr(getattr(patient_context, "onboarding", None), "addiction_type", "") or "")
+        if patient_context else ""
+    ).lower()
 
     frame = "general"
     if recovery_analysis.theme == "lapse" or intent == "relapse_disclosure":
@@ -911,6 +982,8 @@ def _compose_dynamic_resolution(
     elif recovery_analysis.theme == "pressure":
         frame = "pressure"
     elif recovery_analysis.theme == "change_readiness":
+        frame = "change"
+    elif intent == "trigger_relationship" and disclosure_question:
         frame = "change"
     elif craving >= 7:
         frame = "urge"
@@ -981,7 +1054,17 @@ def _compose_dynamic_resolution(
     if risk_level in {"high", "critical"}:
         state_markers.append(f"{risk_level} risk window")
 
-    if relationship_phrase and relationship_tone == "secrecy":
+    if relationship_phrase and disclosure_question and relationship_tone == "secrecy":
+        line2 = (
+            f"Asking this about {relationship_phrase} shows thoughtful judgment; you do not have to share everything at once, "
+            f"and careful, paced disclosure can still reduce isolation and build safer support."
+        )
+    elif relationship_phrase and disclosure_question:
+        line2 = (
+            f"Asking why to tell {relationship_phrase} is a meaningful recovery question; selective honesty can lower secrecy stress, "
+            f"improve support, and help urges feel less private and overwhelming."
+        )
+    elif relationship_phrase and relationship_tone == "secrecy":
         line2 = (
             f"Carrying this while {relationship_phrase} {relationship_do_verb} not yet know about it can add a quiet weight of its own; "
             f"holding it alone has its own kind of pressure, and you do not have to figure out what to say to them today."
@@ -1043,7 +1126,10 @@ def _compose_dynamic_resolution(
         f"I am matching you with {video_title} so the next few minutes focus on {focus.get('phrase', 'a practical regulation skill')} while you stay grounded."
     )
 
-    seed = f"{intent}|{user_message}|{session_message_count}|{focus.get('key','') }"
+    seed = (
+        f"{intent}|{user_message}|{session_message_count}|{focus.get('key','')}|"
+        f"{mood}|{sleep_quality}|{craving}|{risk_level}|{onboarding_addiction}"
+    )
     line1 = _stable_pick(line1_options.get(frame, line1_options["general"]), seed)
 
     lines = [line1, line2, line3]
@@ -1386,12 +1472,20 @@ def handle_message(
         _secondary_intents: List[str] = []
 
     _addiction_override_intent = None
+    _disclosure_question_override_intent = None
     if not _semantic_crisis_override:
         _addiction_override_intent = _override_addiction_intent_from_message(message, intent)
         if _addiction_override_intent:
             if intent and intent != _addiction_override_intent and intent not in _secondary_intents:
                 _secondary_intents = [intent] + _secondary_intents
             intent = _addiction_override_intent
+
+        _disclosure_question_override_intent = _override_disclosure_question_intent_from_message(message, intent)
+        if _disclosure_question_override_intent:
+            if intent and intent != _disclosure_question_override_intent and intent not in _secondary_intents:
+                _secondary_intents = [intent] + _secondary_intents
+            intent = _disclosure_question_override_intent
+
         _secondary_intents = _normalize_secondary_intents(intent, _secondary_intents)
 
     intent_metadata = intent_classifier.get_intent_metadata(intent)
