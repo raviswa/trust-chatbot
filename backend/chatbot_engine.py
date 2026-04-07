@@ -253,6 +253,7 @@ _FEEDBACK_PIVOT_TOKENS: Dict[str, str] = {
     "feedback_pivot_overwhelmed": "overwhelmed",
     "feedback_pivot_urge":        "urge",
     "feedback_pivot_stealth":     "stealth",
+    "feedback_pivot_other":       "other",
 }
 _FEEDBACK_OPTOUT_TOKENS: frozenset = frozenset({"quiet", "sos"})
 _MAX_FEEDBACK_PIVOT_RETRIES = 1
@@ -310,6 +311,11 @@ _HANDSHAKE_PIVOT: Dict[str, str] = {
         "four you can physically touch, three you can hear. Eyes open. Breathe.\n\n"
         "You can tap 👍 if this helps, or 👎 for one more pivot. "
         "You can also type 'Quiet' for a five-minute silent frame, or 'SOS' for your primary contact."
+    ),
+    "other": (
+        "Thank you for telling me this missed the mark. "
+        "Say in your own words what felt off, and I will adapt directly to that.\n\n"
+        "A short line is enough, for example: too long, too generic, wrong focus, or not practical now."
     ),
 }
 
@@ -405,7 +411,8 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
 
         pivot_type = _FEEDBACK_PIVOT_TOKENS[msg_lower]
         session["feedback_pivot_retries"] = retries + 1
-        session["awaiting_feedback_after_pivot"] = True
+        session["awaiting_feedback_after_pivot"] = pivot_type != "other"
+        session["awaiting_feedback_free_text"] = pivot_type == "other"
         return {
             "response":       _HANDSHAKE_PIVOT[pivot_type],
             "intent":         f"feedback_pivot_{pivot_type}",
@@ -414,8 +421,9 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
             "citations":      [],
             "show_score":     False,
             "video":          None,
-            # Allow one additional thumbs-up/down check after first pivot.
-            "show_feedback":  True,
+            # Allow one additional thumbs-up/down check after first pivot,
+            # except the explicit free-text branch.
+            "show_feedback":  pivot_type != "other",
         }
 
     # — Rule 4: Opt-out / final closure —
@@ -423,6 +431,7 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
         session["pending_feedback_intent"] = None
         session["feedback_pivot_retries"] = 0
         session["awaiting_feedback_after_pivot"] = False
+        session["awaiting_feedback_free_text"] = False
         session["feedback_prompt_suppressed"] = True
         return {
             "response":       _SOS_RESPONSE,
@@ -439,6 +448,7 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
         session["pending_feedback_intent"] = None
         session["feedback_pivot_retries"] = 0
         session["awaiting_feedback_after_pivot"] = False
+        session["awaiting_feedback_free_text"] = False
         session["feedback_prompt_suppressed"] = True
         return {
             "response":       _HANDSHAKE_OPTOUT,
@@ -468,6 +478,7 @@ def get_session(session_id: str) -> Dict:
             "pending_feedback_intent": None,  # Clinical Handshake: last delivered intervention intent
             "feedback_pivot_retries": 0,      # Max retries for thumbs-down pivot loop
             "awaiting_feedback_after_pivot": False,
+            "awaiting_feedback_free_text": False,
             "feedback_prompt_suppressed": False,
             "ineffective_interventions": set(),
         }
@@ -710,10 +721,16 @@ def _override_disclosure_question_intent_from_message(message: str, classified_i
 
     # Relationship-impact questions can be misclassified as fatigue/stress.
     relationship_impact_patterns = (
-        r"\bhow\s+will\s+my\s+(mother|father|mom|mum|dad|partner|wife|husband|spouse)\s+(see|react|respond|feel|take)\b",
-        r"\bwhat\s+will\s+my\s+(mother|father|mom|mum|dad|partner|wife|husband|spouse)\s+(think|say|do|feel)\b",
+        r"\bhow\s+will\s+my\b",
+        r"\bwhat\s+will\s+my\b",
     )
-    if "?" in msg_lc and any(re.search(p, msg_lc) for p in relationship_impact_patterns):
+    relationship_impact_verbs = ("see", "react", "respond", "feel", "take", "think", "say", "do")
+    if (
+        "?" in msg_lc
+        and relationship_analysis.has_relationship
+        and any(re.search(p, msg_lc) for p in relationship_impact_patterns)
+        and any(v in msg_lc for v in relationship_impact_verbs)
+    ):
         return "trigger_relationship"
 
     # Backup trigger when the sentence is a direct question about disclosure.
@@ -728,13 +745,15 @@ def _override_relationship_continuity_intent_from_message(
     classified_intent: str,
     last_intent: Optional[str],
     last_secondary_intents: Optional[List[str]],
+    pending_feedback_intent: Optional[str],
+    awaiting_feedback_free_text: bool,
 ) -> Optional[str]:
     """Keep relationship disclosure follow-ups in therapeutic flow instead of greeting fallback.
 
     Handles short pronoun/secrecy follow-ups such as "he is not aware of this"
     when the prior turn was already relationship-focused.
     """
-    if classified_intent != "greeting":
+    if classified_intent not in {"greeting", "behaviour_fatigue", "rag_query", "mood_anxious", "trigger_stress"}:
         return None
 
     msg_lc = (message or "").lower().strip()
@@ -742,7 +761,11 @@ def _override_relationship_continuity_intent_from_message(
         return None
 
     previous_intents = {last_intent} | set(last_secondary_intents or [])
-    if "trigger_relationship" not in previous_intents:
+    relationship_context_active = (
+        "trigger_relationship" in previous_intents
+        or pending_feedback_intent == "trigger_relationship"
+    )
+    if not relationship_context_active and not awaiting_feedback_free_text:
         return None
 
     relationship_analysis = analyze_relationship_clause(message)
@@ -751,7 +774,7 @@ def _override_relationship_continuity_intent_from_message(
         "not aware", "unaware", "doesn't know", "does not know", "dont know", "don't know",
         "haven't told", "have not told", "never told", "not told", "hide it", "hiding it",
         "keeping it from", "keeping this from", "secret", "disclose", "disclosed",
-        "yet to disclose", "didn't disclose", "did not disclose",
+        "yet to disclose", "didn't disclose", "did not disclose", "not informed", "uninformed",
     )
     has_secrecy_signal = any(marker in msg_lc for marker in secrecy_markers)
 
@@ -1519,6 +1542,8 @@ def handle_message(
     
     message = message.strip()
 
+    _awaiting_feedback_free_text = bool(session.get("awaiting_feedback_free_text"))
+
     # Time-out path: if the patient does not answer feedback after a pivot and
     # sends a normal chat message, stop re-prompting feedback in this session.
     if (
@@ -1529,6 +1554,11 @@ def handle_message(
         session["pending_feedback_intent"] = None
         session["feedback_prompt_suppressed"] = True
         session["feedback_pivot_retries"] = 0
+
+    # Free-text feedback clarification branch (feedback_pivot_other): consume
+    # the very next non-token message as problem-specific clarification.
+    if _awaiting_feedback_free_text and message.lower() not in _FEEDBACK_ALL_TOKENS:
+        session["awaiting_feedback_free_text"] = False
     
     # Ensure patient context exists
     context = get_or_create_context(session_id, patient_id, patient_code)
@@ -1749,6 +1779,8 @@ def handle_message(
             intent,
             _previous_intent,
             _previous_secondary,
+            session.get("pending_feedback_intent"),
+            _awaiting_feedback_free_text,
         )
         if _relationship_continuity_override_intent:
             if intent and intent != _relationship_continuity_override_intent and intent not in _secondary_intents:

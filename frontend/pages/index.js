@@ -214,6 +214,7 @@ function FeedbackCard({ onFeedback }) {
           <button className="fb-btn fb-pivot-btn" onClick={() => handlePivot('feedback_pivot_overwhelmed')}>Too overwhelmed</button>
           <button className="fb-btn fb-pivot-btn" onClick={() => handlePivot('feedback_pivot_urge')}>Not hitting the urge</button>
           <button className="fb-btn fb-pivot-btn" onClick={() => handlePivot('feedback_pivot_stealth')}>Can’t do this here</button>
+          <button className="fb-btn fb-pivot-btn" onClick={() => handlePivot('feedback_pivot_other')}>Something else (I will type it)</button>
         </div>
       )}
     </div>
