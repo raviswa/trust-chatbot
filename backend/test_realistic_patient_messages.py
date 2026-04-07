@@ -688,3 +688,34 @@ def test_relationship_disclosure_continuity_pronoun_followup():
         f"Expected trigger_relationship for pronoun secrecy follow-up; got {r3.get('intent')}"
     )
     assert r3.get("resolution"), "Expected resolution payload on relationship continuity follow-up"
+
+
+def test_relationship_impact_question_and_disclosure_continuity():
+    """Relationship-impact question and disclosure follow-up should stay in trigger_relationship flow."""
+    sid = f"realistic-impact-{uuid.uuid4().hex[:12]}"
+    pid = f"user-{uuid.uuid4().hex[:8]}"
+
+    r1 = _post({"message": "hello", "session_id": sid, "patient_code": "PAT-001", "patient_id": pid})
+    assert r1.get("intent") == "greeting"
+
+    r2 = _post({
+        "message": "how will my mother see this action?",
+        "session_id": sid,
+        "patient_code": "PAT-001",
+        "patient_id": pid,
+    })
+    assert r2.get("intent") == "trigger_relationship", (
+        f"Expected trigger_relationship for relationship-impact question; got {r2.get('intent')}"
+    )
+    assert r2.get("resolution"), "Expected resolution payload for relationship-impact question"
+
+    r3 = _post({
+        "message": "i'm yet to disclose her about this app",
+        "session_id": sid,
+        "patient_code": "PAT-001",
+        "patient_id": pid,
+    })
+    assert r3.get("intent") == "trigger_relationship", (
+        f"Expected trigger_relationship for disclosure continuity follow-up; got {r3.get('intent')}"
+    )
+    assert r3.get("resolution"), "Expected resolution payload on disclosure continuity follow-up"
