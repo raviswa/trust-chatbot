@@ -660,3 +660,31 @@ def test_realistic_patient_message(case: Case):
             f"[{case.label}] Resolution has {len(lines)} lines, expected 2-3.\n"
             f"  response: {result.get('response','')[:300]}"
         )
+
+
+def test_relationship_disclosure_continuity_pronoun_followup():
+    """A pronoun-only secrecy follow-up should keep trigger_relationship, not fall back to greeting."""
+    sid = f"realistic-continuity-{uuid.uuid4().hex[:12]}"
+    pid = f"user-{uuid.uuid4().hex[:8]}"
+
+    r1 = _post({"message": "hello", "session_id": sid, "patient_code": "PAT-001", "patient_id": pid})
+    assert r1.get("intent") == "greeting"
+
+    r2 = _post({
+        "message": "should i discuss this with my father?",
+        "session_id": sid,
+        "patient_code": "PAT-001",
+        "patient_id": pid,
+    })
+    assert r2.get("intent") == "trigger_relationship"
+
+    r3 = _post({
+        "message": "he is not aware of this",
+        "session_id": sid,
+        "patient_code": "PAT-001",
+        "patient_id": pid,
+    })
+    assert r3.get("intent") == "trigger_relationship", (
+        f"Expected trigger_relationship for pronoun secrecy follow-up; got {r3.get('intent')}"
+    )
+    assert r3.get("resolution"), "Expected resolution payload on relationship continuity follow-up"

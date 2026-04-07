@@ -627,6 +627,48 @@ def _override_disclosure_question_intent_from_message(message: str, classified_i
     return None
 
 
+def _override_relationship_continuity_intent_from_message(
+    message: str,
+    classified_intent: str,
+    last_intent: Optional[str],
+    last_secondary_intents: Optional[List[str]],
+) -> Optional[str]:
+    """Keep relationship disclosure follow-ups in therapeutic flow instead of greeting fallback.
+
+    Handles short pronoun/secrecy follow-ups such as "he is not aware of this"
+    when the prior turn was already relationship-focused.
+    """
+    if classified_intent != "greeting":
+        return None
+
+    msg_lc = (message or "").lower().strip()
+    if not msg_lc:
+        return None
+
+    previous_intents = {last_intent} | set(last_secondary_intents or [])
+    if "trigger_relationship" not in previous_intents:
+        return None
+
+    relationship_analysis = analyze_relationship_clause(message)
+    has_pronoun_reference = bool(re.search(r"\b(he|she|they|him|her|them)\b", msg_lc))
+    secrecy_markers = (
+        "not aware", "unaware", "doesn't know", "does not know", "dont know", "don't know",
+        "haven't told", "have not told", "never told", "not told", "hide it", "hiding it",
+        "keeping it from", "keeping this from", "secret",
+    )
+    has_secrecy_signal = any(marker in msg_lc for marker in secrecy_markers)
+
+    # Continuity with explicit relationship mention.
+    if relationship_analysis.has_relationship and (has_secrecy_signal or "?" in msg_lc):
+        return "trigger_relationship"
+
+    # Continuity with pronoun-only follow-up after relationship turn.
+    if has_pronoun_reference and has_secrecy_signal:
+        return "trigger_relationship"
+
+    return None
+
+
 def _is_relationship_disclosure_question(message: str) -> bool:
     """Detect relational disclosure questions such as 'why should I tell my father?' (including common typos)."""
     msg_lc = (message or "").lower().strip()
@@ -1582,13 +1624,28 @@ def handle_message(
         _secondary_intents: List[str] = []
 
     _addiction_override_intent = None
+    _relationship_continuity_override_intent = None
     _disclosure_question_override_intent = None
     if not _semantic_crisis_override:
+        _previous_intent = session.get("last_intent")
+        _previous_secondary = session.get("last_secondary_intents") or []
+
         _addiction_override_intent = _override_addiction_intent_from_message(message, intent)
         if _addiction_override_intent:
             if intent and intent != _addiction_override_intent and intent not in _secondary_intents:
                 _secondary_intents = [intent] + _secondary_intents
             intent = _addiction_override_intent
+
+        _relationship_continuity_override_intent = _override_relationship_continuity_intent_from_message(
+            message,
+            intent,
+            _previous_intent,
+            _previous_secondary,
+        )
+        if _relationship_continuity_override_intent:
+            if intent and intent != _relationship_continuity_override_intent and intent not in _secondary_intents:
+                _secondary_intents = [intent] + _secondary_intents
+            intent = _relationship_continuity_override_intent
 
         _disclosure_question_override_intent = _override_disclosure_question_intent_from_message(message, intent)
         if _disclosure_question_override_intent:
