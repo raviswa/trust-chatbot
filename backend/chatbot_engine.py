@@ -256,6 +256,9 @@ _FEEDBACK_PIVOT_TOKENS: Dict[str, str] = {
 }
 _FEEDBACK_OPTOUT_TOKENS: frozenset = frozenset({"quiet", "sos"})
 _MAX_FEEDBACK_PIVOT_RETRIES = 1
+_FEEDBACK_ALL_TOKENS: frozenset = frozenset(
+    set(_FEEDBACK_THUMBSUP_TOKENS) | set(_FEEDBACK_PIVOT_TOKENS.keys()) | set(_FEEDBACK_OPTOUT_TOKENS)
+)
 
 _HANDSHAKE_STABILIZE = (
     "Noted. That tool is now marked as a high-value resource for you.\n\n"
@@ -286,29 +289,35 @@ _SOS_RESPONSE = (
 
 _HANDSHAKE_PIVOT: Dict[str, str] = {
     "overwhelmed": (
-        "Understood. Recovery is about finding the right key for the lock. "
+        "Understood. Let's switch approach. "
         "Let's try Co-Presence instead.\n\n"
         "I'm right here with you. No need to do anything at all. Just breathe.\n\n"
-        "If this doesn't feel right either, type 'Quiet' for a five-minute silent frame, "
-        "or 'SOS' for your primary contact."
+        "You can tap 👍 if this helps, or 👎 for one more pivot. "
+        "You can also type 'Quiet' for a five-minute silent frame, or 'SOS' for your primary contact."
     ),
     "urge": (
-        "Understood. Recovery is about finding the right key for the lock. "
+        "Understood. Let's switch approach. "
         "Let's try a somatic reset instead.\n\n"
         "Splash cold water on your face right now. Hold there for ten seconds. "
         "This activates your dive reflex and slows your heart rate.\n\n"
-        "If this doesn't feel right either, type 'Quiet' for a five-minute silent frame, "
-        "or 'SOS' for your primary contact."
+        "You can tap 👍 if this helps, or 👎 for one more pivot. "
+        "You can also type 'Quiet' for a five-minute silent frame, or 'SOS' for your primary contact."
     ),
     "stealth": (
-        "Understood. Recovery is about finding the right key for the lock. "
+        "Understood. Let's switch approach. "
         "Let's try a stealth grounding exercise instead.\n\n"
         "Close your eyes for three seconds. Name five things you can see, "
         "four you can physically touch, three you can hear. Eyes open. Breathe.\n\n"
-        "If this doesn't feel right either, type 'Quiet' for a five-minute silent frame, "
-        "or 'SOS' for your primary contact."
+        "You can tap 👍 if this helps, or 👎 for one more pivot. "
+        "You can also type 'Quiet' for a five-minute silent frame, or 'SOS' for your primary contact."
     ),
 }
+
+_HANDSHAKE_SAFETY_OVERRIDE = (
+    "I hear that things feel intense right now. Let's pause the feedback loop and focus on safety first.\n\n"
+    "If you feel at risk, type 'SOS' now for immediate crisis support details. "
+    "If you can, place both feet on the floor and take one slow breath in, longer breath out."
+)
 
 
 def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
@@ -324,10 +333,42 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
     msg_stripped = message.strip()
     msg_lower    = msg_stripped.lower()
 
-    # — Rule 2: Thumbs-up → Stabilize exit —
-    if msg_lower in _FEEDBACK_THUMBSUP_TOKENS:
+    # Safety override: when risk has escalated, feedback loop is suspended and
+    # we route to crisis-aware stabilisation language.
+    _safety_intents = {
+        "crisis_suicidal", "crisis_abuse", "behaviour_self_harm",
+        "psychosis_indicator", "severe_distress",
+    }
+    _risk_escalated = (
+        session.get("last_intent") in _safety_intents
+        or "high" in session.get("severity_flags", [])
+        or "critical" in session.get("severity_flags", [])
+    )
+    if msg_lower in _FEEDBACK_ALL_TOKENS and _risk_escalated:
         session["pending_feedback_intent"] = None
         session["feedback_pivot_retries"] = 0
+        session["awaiting_feedback_after_pivot"] = False
+        session["feedback_prompt_suppressed"] = True
+        return {
+            "response":       _HANDSHAKE_SAFETY_OVERRIDE,
+            "intent":         "feedback_safety_override",
+            "severity":       "high",
+            "show_resources": True,
+            "citations":      [],
+            "show_score":     False,
+            "video":          None,
+            "show_feedback":  False,
+        }
+
+    # — Rule 2: Thumbs-up → Stabilize exit —
+    if msg_lower in _FEEDBACK_THUMBSUP_TOKENS:
+        _pending = session.get("pending_feedback_intent")
+        if _pending:
+            session.setdefault("ineffective_interventions", set()).discard(_pending)
+        session["pending_feedback_intent"] = None
+        session["feedback_pivot_retries"] = 0
+        session["awaiting_feedback_after_pivot"] = False
+        session["feedback_prompt_suppressed"] = False
         return {
             "response":       _HANDSHAKE_STABILIZE,
             "intent":         "feedback_thumbsup",
@@ -341,10 +382,16 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
 
     # — Rule 3: Pivot selection → Re-Route exit with Plan B tool —
     if msg_lower in _FEEDBACK_PIVOT_TOKENS:
+        _pending = session.get("pending_feedback_intent")
+        if _pending:
+            session.setdefault("ineffective_interventions", set()).add(_pending)
+
         retries = int(session.get("feedback_pivot_retries", 0))
         if retries >= _MAX_FEEDBACK_PIVOT_RETRIES:
             session["pending_feedback_intent"] = None
             session["feedback_pivot_retries"] = 0
+            session["awaiting_feedback_after_pivot"] = False
+            session["feedback_prompt_suppressed"] = True
             return {
                 "response":       _HANDSHAKE_MAX_RETRY_EXIT,
                 "intent":         "feedback_loop_exit",
@@ -358,6 +405,7 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
 
         pivot_type = _FEEDBACK_PIVOT_TOKENS[msg_lower]
         session["feedback_pivot_retries"] = retries + 1
+        session["awaiting_feedback_after_pivot"] = True
         return {
             "response":       _HANDSHAKE_PIVOT[pivot_type],
             "intent":         f"feedback_pivot_{pivot_type}",
@@ -374,6 +422,8 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
     if msg_lower == "sos":
         session["pending_feedback_intent"] = None
         session["feedback_pivot_retries"] = 0
+        session["awaiting_feedback_after_pivot"] = False
+        session["feedback_prompt_suppressed"] = True
         return {
             "response":       _SOS_RESPONSE,
             "intent":         "feedback_sos",
@@ -388,6 +438,8 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
     if msg_lower == "quiet":
         session["pending_feedback_intent"] = None
         session["feedback_pivot_retries"] = 0
+        session["awaiting_feedback_after_pivot"] = False
+        session["feedback_prompt_suppressed"] = True
         return {
             "response":       _HANDSHAKE_OPTOUT,
             "intent":         "feedback_optout",
@@ -415,6 +467,9 @@ def get_session(session_id: str) -> Dict:
             "seen_chunk_ids": set(),  # RAG deduplication: tracks chunks shown this session
             "pending_feedback_intent": None,  # Clinical Handshake: last delivered intervention intent
             "feedback_pivot_retries": 0,      # Max retries for thumbs-down pivot loop
+            "awaiting_feedback_after_pivot": False,
+            "feedback_prompt_suppressed": False,
+            "ineffective_interventions": set(),
         }
     return _sessions[session_id]
 
@@ -1463,6 +1518,17 @@ def handle_message(
         }
     
     message = message.strip()
+
+    # Time-out path: if the patient does not answer feedback after a pivot and
+    # sends a normal chat message, stop re-prompting feedback in this session.
+    if (
+        session.get("awaiting_feedback_after_pivot")
+        and message.lower() not in _FEEDBACK_ALL_TOKENS
+    ):
+        session["awaiting_feedback_after_pivot"] = False
+        session["pending_feedback_intent"] = None
+        session["feedback_prompt_suppressed"] = True
+        session["feedback_pivot_retries"] = 0
     
     # Ensure patient context exists
     context = get_or_create_context(session_id, patient_id, patient_code)
@@ -1750,6 +1816,13 @@ def handle_message(
         if _secondary_intents else ""
     )
 
+    _ineffective = session.get("ineffective_interventions") or set()
+    _intervention_hint = (
+        "\nThe patient signalled that the previous strategy for this intervention did not help. "
+        "Do not repeat the same coping instruction; provide a different concrete approach."
+        if intent in _ineffective else ""
+    )
+
     # Resolve active tone mode (Slide 7: 6 modes, driven by risk_level × todays_mood)
     _tone_mode = get_tone_mode(
         patient_context.risk.risk_level,
@@ -1765,6 +1838,7 @@ Active tone mode: {_tone_mode['label']} — apply this strictly throughout your 
 {clinical_context_block}
 {_potential_crisis_context}
 {_secondary_hint}
+{_intervention_hint}
 
 Core guidelines:
 - Respect the patient's autonomy and recovery journey
@@ -2173,8 +2247,20 @@ Core guidelines:
     # Tag session with the last intervention intent so downstream tooling can
     # correlate a Clinical Handshake 👍/👎 response back to the tool that was served.
     if response_meta.get("show_feedback"):
+        _ineffective_set = session.get("ineffective_interventions") or set()
+        # Do not re-prompt feedback for interventions already marked ineffective,
+        # or when feedback has been suppressed by timeout/safety.
+        if (
+            intent in _ineffective_set
+            or session.get("feedback_prompt_suppressed")
+            or severity in {"high", "critical"}
+        ):
+            response_meta["show_feedback"] = False
+
+    if response_meta.get("show_feedback"):
         session["pending_feedback_intent"] = intent
         session["feedback_pivot_retries"] = 0
+        session["awaiting_feedback_after_pivot"] = False
 
     return {
         "response": response_text,
