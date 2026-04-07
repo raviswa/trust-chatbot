@@ -481,6 +481,7 @@ def get_session(session_id: str) -> Dict:
             "awaiting_feedback_free_text": False,
             "feedback_prompt_suppressed": False,
             "ineffective_interventions": set(),
+            "last_relationship_mentions": [],
         }
     return _sessions[session_id]
 
@@ -1210,6 +1211,7 @@ def _compose_dynamic_resolution(
     focus: Dict[str, str],
     selected_video: Optional[Dict],
     session_message_count: int,
+    prior_relationships: Optional[List[str]] = None,
 ) -> Dict:
     """
     Build the slide-4 compliant resolution payload:
@@ -1223,6 +1225,11 @@ def _compose_dynamic_resolution(
     risk_level = (getattr(patient_context.risk, "risk_level", "") or "").lower() if patient_context else ""
     relationship_analysis = analyze_relationship_clause(user_message)
     relationships = relationship_analysis.mentions
+    if not relationships:
+        msg_lc_for_pronoun = (user_message or "").lower()
+        has_pronoun_reference = bool(re.search(r"\b(he|she|they|him|her|them)\b", msg_lc_for_pronoun))
+        if has_pronoun_reference and prior_relationships:
+            relationships = list(prior_relationships)
     relationship_phrase = _format_relationship_phrase(relationships)
     relationship_verb = _relationship_verb(relationships)
     relationship_do_verb = _relationship_do_verb(relationships)
@@ -2104,6 +2111,15 @@ Core guidelines:
         retrieved_docs=_retrieved_docs,
         user_message=message,
     )
+    if _awaiting_feedback_free_text and intent == "trigger_relationship":
+        _focus = {
+            "key": "disclosure_readiness",
+            "phrase": "deciding what to share, why it may help, and how to do it safely at your pace",
+            "video_hint_intent": _ADDICTION_TYPE_TO_INTENT.get(
+                (addiction_type or "").lower().replace("-", "_").replace(" ", "_"),
+                "trigger_relationship",
+            ),
+        }
     _active_intents = _build_resolution_active_intents(
         intent=intent,
         secondary_intents=_active_intents_base[1:],
@@ -2134,6 +2150,7 @@ Core guidelines:
             focus=_focus,
             selected_video=video,
             session_message_count=session.get("message_count", 0),
+            prior_relationships=session.get("last_relationship_mentions", []),
         )
         _resolution_text = resolution_payload.get("text", "").strip()
         if _resolution_text:
@@ -2251,6 +2268,10 @@ Core guidelines:
         "severity": severity,
         "timestamp": datetime.now().isoformat()
     })
+
+    _latest_relationships = analyze_relationship_clause(message).mentions
+    if _latest_relationships:
+        session["last_relationship_mentions"] = _latest_relationships
     
     # ── BUILD RESPONSE OBJECT ────────────────────────────────────────────
     if video:
