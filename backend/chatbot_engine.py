@@ -2256,6 +2256,9 @@ Core guidelines:
             if _res_ok:
                 response_text = _resolution_text
                 response_meta["resolution"] = resolution_payload
+                # Feedback should be shown for any response that delivers a
+                # structured therapeutic resolution, regardless of intent label.
+                response_meta["show_feedback"] = True
             else:
                 logger.warning(
                     f"[{session_id}] Resolution text rejected by safety validator: {_res_err}"
