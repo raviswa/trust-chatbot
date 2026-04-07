@@ -790,6 +790,31 @@ def _override_relationship_continuity_intent_from_message(
     return None
 
 
+def _override_feedback_clarification_intent(
+    classified_intent: str,
+    clarification_intent: Optional[str],
+) -> Optional[str]:
+    """Generalized post-feedback clarification routing.
+
+    When a patient picks "Something else" and then clarifies what was missing,
+    preserve continuity by keeping the response anchored to the intervention that
+    was just being evaluated. This avoids drifting into generic fallback intents.
+    """
+    if not clarification_intent:
+        return None
+
+    # Allow continuity override only when the classifier landed in generic/soft
+    # buckets that commonly absorb short clarification turns.
+    _clarification_soft_intents = {
+        "greeting", "unclear", "rag_query",
+        "behaviour_fatigue", "behaviour_sleep",
+        "mood_anxious", "trigger_stress",
+    }
+    if classified_intent in _clarification_soft_intents:
+        return clarification_intent
+    return None
+
+
 def _is_relationship_disclosure_question(message: str) -> bool:
     """Detect relational disclosure questions such as 'why should I tell my father?' (including common typos)."""
     msg_lc = (message or "").lower().strip()
@@ -1550,6 +1575,9 @@ def handle_message(
     message = message.strip()
 
     _awaiting_feedback_free_text = bool(session.get("awaiting_feedback_free_text"))
+    _feedback_clarification_intent = None
+    if _awaiting_feedback_free_text and message.lower() not in _FEEDBACK_ALL_TOKENS:
+        _feedback_clarification_intent = session.get("pending_feedback_intent")
 
     # Time-out path: if the patient does not answer feedback after a pivot and
     # sends a normal chat message, stop re-prompting feedback in this session.
@@ -1566,6 +1594,8 @@ def handle_message(
     # the very next non-token message as problem-specific clarification.
     if _awaiting_feedback_free_text and message.lower() not in _FEEDBACK_ALL_TOKENS:
         session["awaiting_feedback_free_text"] = False
+        # This clarification turn is consumed immediately; avoid stale carry-over.
+        session["pending_feedback_intent"] = None
     
     # Ensure patient context exists
     context = get_or_create_context(session_id, patient_id, patient_code)
@@ -1769,6 +1799,7 @@ def handle_message(
         _secondary_intents: List[str] = []
 
     _addiction_override_intent = None
+    _feedback_clarification_override_intent = None
     _relationship_continuity_override_intent = None
     _disclosure_question_override_intent = None
     if not _semantic_crisis_override:
@@ -1780,6 +1811,15 @@ def handle_message(
             if intent and intent != _addiction_override_intent and intent not in _secondary_intents:
                 _secondary_intents = [intent] + _secondary_intents
             intent = _addiction_override_intent
+
+        _feedback_clarification_override_intent = _override_feedback_clarification_intent(
+            intent,
+            _feedback_clarification_intent,
+        )
+        if _feedback_clarification_override_intent:
+            if intent and intent != _feedback_clarification_override_intent and intent not in _secondary_intents:
+                _secondary_intents = [intent] + _secondary_intents
+            intent = _feedback_clarification_override_intent
 
         _relationship_continuity_override_intent = _override_relationship_continuity_intent_from_message(
             message,
