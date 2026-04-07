@@ -719,3 +719,72 @@ def test_relationship_impact_question_and_disclosure_continuity():
         f"Expected trigger_relationship for disclosure continuity follow-up; got {r3.get('intent')}"
     )
     assert r3.get("resolution"), "Expected resolution payload on disclosure continuity follow-up"
+
+
+def test_relationship_conflict_statement_not_routed_to_greeting():
+    """A direct relationship conflict statement should not fall back to greeting."""
+    sid = f"realistic-relconf-{uuid.uuid4().hex[:12]}"
+    pid = f"user-{uuid.uuid4().hex[:8]}"
+
+    r1 = _post({"message": "hello", "session_id": sid, "patient_code": "PAT-001", "patient_id": pid})
+    assert r1.get("intent") == "greeting"
+
+    r2 = _post({
+        "message": "mom doesnt like this",
+        "session_id": sid,
+        "patient_code": "PAT-001",
+        "patient_id": pid,
+    })
+    assert r2.get("intent") == "trigger_relationship", (
+        f"Expected trigger_relationship for relationship conflict statement; got {r2.get('intent')}"
+    )
+    assert r2.get("resolution"), "Expected resolution payload for relationship conflict statement"
+    assert r2.get("show_feedback") is True, "Expected feedback controls on resolved relationship response"
+
+
+def test_relationship_pronoun_conflict_continuity_not_greeting():
+    """Pronoun-only relationship conflict follow-up should preserve trigger_relationship continuity."""
+    sid = f"realistic-relpron-{uuid.uuid4().hex[:12]}"
+    pid = f"user-{uuid.uuid4().hex[:8]}"
+
+    r1 = _post({"message": "hello", "session_id": sid, "patient_code": "PAT-001", "patient_id": pid})
+    assert r1.get("intent") == "greeting"
+
+    r2 = _post({
+        "message": "should i discuss this with my father?",
+        "session_id": sid,
+        "patient_code": "PAT-001",
+        "patient_id": pid,
+    })
+    assert r2.get("intent") == "trigger_relationship"
+
+    r3 = _post({
+        "message": "she doesnt like this",
+        "session_id": sid,
+        "patient_code": "PAT-001",
+        "patient_id": pid,
+    })
+    assert r3.get("intent") == "trigger_relationship", (
+        f"Expected trigger_relationship for pronoun conflict continuity follow-up; got {r3.get('intent')}"
+    )
+    assert r3.get("resolution"), "Expected resolution payload on pronoun conflict continuity follow-up"
+
+
+def test_relationship_disclosure_statement_without_apostrophe_not_greeting():
+    """Apostrophe-less disclosure statements should still route to trigger_relationship."""
+    sid = f"realistic-reldisc-{uuid.uuid4().hex[:12]}"
+    pid = f"user-{uuid.uuid4().hex[:8]}"
+
+    r1 = _post({"message": "hello", "session_id": sid, "patient_code": "PAT-001", "patient_id": pid})
+    assert r1.get("intent") == "greeting"
+
+    r2 = _post({
+        "message": "my mother doesnt know about this yet",
+        "session_id": sid,
+        "patient_code": "PAT-001",
+        "patient_id": pid,
+    })
+    assert r2.get("intent") == "trigger_relationship", (
+        f"Expected trigger_relationship for disclosure statement without apostrophe; got {r2.get('intent')}"
+    )
+    assert r2.get("resolution"), "Expected resolution payload for disclosure statement without apostrophe"

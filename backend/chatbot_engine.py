@@ -665,6 +665,41 @@ _SOFT_OVERRIDE_INTENTS: frozenset = frozenset({
     "trigger_trauma",   # LLM occasionally misclassifies substance questions as trauma
 })
 
+_RELATIONSHIP_SOFT_OVERRIDE_INTENTS: frozenset = frozenset({
+    "greeting", "unclear", "rag_query",
+    "behaviour_fatigue", "behaviour_sleep",
+    "mood_anxious", "mood_angry", "mood_guilty", "mood_sad",
+    "trigger_stress",
+})
+
+_DISCLOSURE_ACTION_TERMS: tuple[str, ...] = (
+    "tell", "share", "say", "open up", "discuss", "mention", "bring up", "talk to",
+)
+
+_DISCLOSURE_SIGNAL_PATTERNS: tuple[str, ...] = (
+    r"\bnot\s+aware\b",
+    r"\bunaware\b",
+    r"\b(?:doesn'?t|does\s+not|dont|don't|do\s+not)\s+know\b",
+    r"\b(?:haven'?t|have\s+not|didn'?t|did\s+not|never)\s+(?:told|disclosed|mentioned|shared|informed)\b",
+    r"\bnot\s+(?:told|informed)\b",
+    r"\b(?:hide|hiding|hidden)\b",
+    r"\bkeeping\s+(?:it|this)\s+from\b",
+    r"\bsecret\b",
+    r"\b(?:yet\s+to\s+)?disclos(?:e|ed|ing)\b",
+)
+
+_RELATIONSHIP_REACTION_PATTERNS: tuple[str, ...] = (
+    r"\bhates?\b",
+    r"\b(?:doesn'?t|does\s+not|dont|don't|do\s+not)\s+like\b",
+    r"\bangry\b",
+    r"\bupset\b",
+    r"\bmad\b",
+    r"\bjudg(?:e|ing|ed)\b",
+    r"\bdisapprov(?:e|es|ing|ed)\b",
+    r"\bcriticis(?:e|es|ing|ed)\b",
+    r"\bcriticiz(?:e|es|ing|ed)\b",
+)
+
 _RESOLUTION_SKIP_INTENTS: frozenset = frozenset({
     "crisis_suicidal", "crisis_abuse", "behaviour_self_harm",
     "medication_request", "psychosis_indicator",
@@ -703,10 +738,7 @@ def _override_addiction_intent_from_message(message: str, classified_intent: str
 
 def _override_disclosure_question_intent_from_message(message: str, classified_intent: str) -> Optional[str]:
     """Reroute relational disclosure questions away from greeting to therapeutic flow."""
-    if classified_intent not in {
-        "greeting", "behaviour_fatigue", "behaviour_sleep",
-        "mood_anxious", "trigger_stress", "rag_query",
-    }:
+    if classified_intent not in _RELATIONSHIP_SOFT_OVERRIDE_INTENTS:
         return None
 
     msg_lc = (message or "").lower().strip()
@@ -722,8 +754,9 @@ def _override_disclosure_question_intent_from_message(message: str, classified_i
 
     # Relationship-impact questions can be misclassified as fatigue/stress.
     relationship_impact_patterns = (
-        r"\bhow\s+will\s+my\b",
-        r"\bwhat\s+will\s+my\b",
+        r"\bhow\s+will\b",
+        r"\bwhat\s+will\b",
+        r"\bwill\s+(?:my\s+)?\w+\s+(?:see|react|respond|feel|take|think|say|do)\b",
     )
     relationship_impact_verbs = ("see", "react", "respond", "feel", "take", "think", "say", "do")
     if (
@@ -735,7 +768,7 @@ def _override_disclosure_question_intent_from_message(message: str, classified_i
         return "trigger_relationship"
 
     # Backup trigger when the sentence is a direct question about disclosure.
-    if "?" in msg_lc and any(t in msg_lc for t in ["tell", "share", "say", "open up", "discuss", "talk to", "bring up", "mention"]):
+    if "?" in msg_lc and any(t in msg_lc for t in _DISCLOSURE_ACTION_TERMS):
         return "trigger_relationship"
 
     return None
@@ -752,7 +785,7 @@ def _override_relationship_disclosure_statement_intent_from_message(
     - "my dad doesn't know"
     - "I haven't told my wife"
     """
-    if classified_intent not in {"greeting", "unclear", "rag_query"}:
+    if classified_intent not in _RELATIONSHIP_SOFT_OVERRIDE_INTENTS:
         return None
 
     msg_lc = (message or "").lower().strip()
@@ -763,18 +796,12 @@ def _override_relationship_disclosure_statement_intent_from_message(
     if not relationship_analysis.has_relationship:
         return None
 
-    secrecy_markers = (
-        "not aware", "unaware", "doesn't know", "does not know", "dont know", "don't know",
-        "haven't told", "have not told", "never told", "not told", "hide", "hiding",
-        "keeping it from", "keeping this from", "secret", "disclose", "disclosed",
-        "yet to disclose", "didn't disclose", "did not disclose", "not informed", "uninformed",
-    )
     # Generalized relationship reroute: secrecy/conflict/concern/support statements
     # should stay in relationship therapeutic flow even when the base classifier
     # drifts to greeting/unclear/rag_query.
     if relationship_analysis.tone in {"secrecy", "conflict", "concern", "support"}:
         return "trigger_relationship"
-    if any(marker in msg_lc for marker in secrecy_markers):
+    if any(re.search(pattern, msg_lc) for pattern in _DISCLOSURE_SIGNAL_PATTERNS):
         return "trigger_relationship"
 
     return None
@@ -793,7 +820,7 @@ def _override_relationship_continuity_intent_from_message(
     Handles short pronoun/secrecy follow-ups such as "he is not aware of this"
     when the prior turn was already relationship-focused.
     """
-    if classified_intent not in {"greeting", "behaviour_fatigue", "rag_query", "mood_anxious", "trigger_stress"}:
+    if classified_intent not in _RELATIONSHIP_SOFT_OVERRIDE_INTENTS:
         return None
 
     msg_lc = (message or "").lower().strip()
@@ -810,20 +837,20 @@ def _override_relationship_continuity_intent_from_message(
 
     relationship_analysis = analyze_relationship_clause(message)
     has_pronoun_reference = bool(re.search(r"\b(he|she|they|him|her|them)\b", msg_lc))
-    secrecy_markers = (
-        "not aware", "unaware", "doesn't know", "does not know", "dont know", "don't know",
-        "haven't told", "have not told", "never told", "not told", "hide it", "hiding it",
-        "keeping it from", "keeping this from", "secret", "disclose", "disclosed",
-        "yet to disclose", "didn't disclose", "did not disclose", "not informed", "uninformed",
-    )
-    has_secrecy_signal = any(marker in msg_lc for marker in secrecy_markers)
+    has_disclosure_signal = any(re.search(pattern, msg_lc) for pattern in _DISCLOSURE_SIGNAL_PATTERNS)
+    has_reaction_signal = any(re.search(pattern, msg_lc) for pattern in _RELATIONSHIP_REACTION_PATTERNS)
 
     # Continuity with explicit relationship mention.
-    if relationship_analysis.has_relationship and (has_secrecy_signal or "?" in msg_lc):
+    if relationship_analysis.has_relationship and (
+        has_disclosure_signal
+        or has_reaction_signal
+        or "?" in msg_lc
+        or relationship_analysis.tone in {"secrecy", "conflict", "support", "concern"}
+    ):
         return "trigger_relationship"
 
     # Continuity with pronoun-only follow-up after relationship turn.
-    if has_pronoun_reference and has_secrecy_signal:
+    if has_pronoun_reference and (has_disclosure_signal or has_reaction_signal):
         return "trigger_relationship"
 
     return None
@@ -861,19 +888,15 @@ def _is_relationship_disclosure_question(message: str) -> bool:
         return False
 
     disclosure_question_patterns = (
-        r"\bwhy\s+should\s+i[o]?\s+(tell|say|share|open\s+up|discuss|mention)\b",
-        r"\bshould\s+i[o]?\s+(tell|say|share|open\s+up|discuss|mention)\b",
-        r"\bhow\s+do\s+i[o]?\s+(tell|say|share|open\s+up|discuss|mention)\b",
-        r"\bhow\s+do\s+i[o]?\s+talk\s+to\b",
-        r"\bcan\s+i[o]?\s+(tell|say|share|discuss|mention)\b",
-        r"\bdo\s+i[o]?\s+have\s+to\s+(tell|say|share|discuss|mention)\b",
-        r"\bhy\s+should\s+i[o]?\s+(tell|say|share|open\s+up|discuss|mention)\b",
+        r"\b(?:why\s+should|should|how\s+do|can|do\s+i\s+have\s+to)\s+i\s+(?:tell|say|share|open\s+up|discuss|mention|bring\s+up)\b",
+        r"\bhow\s+do\s+i\s+talk\s+to\b",
+        r"\bshould\s+we\s+(?:tell|share|say|discuss|mention|bring\s+up)\b",
     )
     if any(re.search(p, msg_lc) for p in disclosure_question_patterns):
         return True
 
     # Backup trigger when the sentence is a direct disclosure question with relationship mention.
-    if "?" in msg_lc and any(t in msg_lc for t in ["tell", "share", "say", "open up", "discuss", "talk to", "bring up", "mention"]):
+    if "?" in msg_lc and any(t in msg_lc for t in _DISCLOSURE_ACTION_TERMS):
         return True
     return False
 
