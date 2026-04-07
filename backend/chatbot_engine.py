@@ -943,7 +943,8 @@ def _has_urge_language(message: str) -> bool:
 
 def _extract_relationship_mentions(message: str) -> List[str]:
     """Extract explicit social-circle references so responses can mirror them back precisely."""
-    return analyze_relationship_clause(message).mentions
+    analysis = analyze_relationship_clause(message)
+    return analysis.canonical_mentions or analysis.mentions
 
 
 def _format_relationship_phrase(relationships: List[str]) -> str:
@@ -1342,7 +1343,7 @@ def _compose_dynamic_resolution(
     sleep_quality = int(getattr(patient_context.checkin, "sleep_quality", 5) or 5) if patient_context else 5
     risk_level = (getattr(patient_context.risk, "risk_level", "") or "").lower() if patient_context else ""
     relationship_analysis = analyze_relationship_clause(user_message)
-    relationships = relationship_analysis.mentions
+    relationships = relationship_analysis.canonical_mentions or relationship_analysis.mentions
     if not relationships:
         msg_lc_for_pronoun = (user_message or "").lower()
         has_pronoun_reference = bool(re.search(r"\b(he|she|they|him|her|them)\b", msg_lc_for_pronoun))
@@ -2415,7 +2416,7 @@ Core guidelines:
         "timestamp": datetime.now().isoformat()
     })
 
-    _latest_relationships = analyze_relationship_clause(message).mentions
+    _latest_relationships = _extract_relationship_mentions(message)
     if _latest_relationships:
         session["last_relationship_mentions"] = _latest_relationships
     

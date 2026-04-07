@@ -160,6 +160,8 @@ _PRESSURE_PATTERNS: tuple[str, ...] = (
     r"\bpeer pressure\b",
     r"\b(?:wants?|wanted|asks?|asked|asking|urges?|urged|encourag(?:e|es|ed|ing)|push(?:es|ed|ing))\s+me\s+to\b",
     r"\bjoin\s+(?:him|her|them)\s+for\b",
+    r"\b(?:call(?:s|ed|ing)?|invit(?:e|es|ed|ing)|ask(?:s|ed|ing)|want(?:s|ed)?|urge(?:s|d|ing)|push(?:es|ed|ing)|encourag(?:e|es|ed|ing))\s+me\s+(?:to|for)\b",
+    r"\b(?:for|to)\s+(?:a\s+)?(?:beer|drink|drinks|party)\b",
 )
 
 
@@ -206,7 +208,27 @@ def _tone_from_text(text: str) -> tuple[Optional[str], Optional[str]]:
 
 def analyze_relationship_clause(message: str) -> RelationshipClauseAnalysis:
     msg = message or ""
-    matches = sorted(_iter_relationship_matches(msg), key=lambda item: item[0])
+    raw_matches = sorted(
+        _iter_relationship_matches(msg),
+        key=lambda item: (item[0], -(item[1] - item[0])),
+    )
+    # Drop overlapping shorter matches so compounds like "girl friend" do not
+    # also emit nested "friend" mentions.
+    matches: list[tuple[int, int, str, str]] = []
+    for candidate in raw_matches:
+        if not matches:
+            matches.append(candidate)
+            continue
+        prev_start, prev_end, _, _ = matches[-1]
+        cur_start, cur_end, _, _ = candidate
+        if cur_start < prev_end:
+            prev_span = prev_end - prev_start
+            cur_span = cur_end - cur_start
+            if cur_span > prev_span:
+                matches[-1] = candidate
+            continue
+        matches.append(candidate)
+
     if not matches:
         return RelationshipClauseAnalysis([], [], None, None, None, "")
 

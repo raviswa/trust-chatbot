@@ -813,3 +813,32 @@ def test_peer_invitation_pressure_not_greeting_secondary():
     assert r2.get("resolution"), "Expected resolution payload for peer invitation pressure message"
     response_lc = (r2.get("response") or "").lower()
     assert "friends is" not in response_lc, "Expected plural-aware relationship grammar in response"
+
+
+def test_girlfriend_phrase_does_not_duplicate_friend_mentions():
+    """Compound relationship phrase should not produce duplicate nested mentions in response text."""
+    sid = f"realistic-gf-{uuid.uuid4().hex[:12]}"
+    pid = f"user-{uuid.uuid4().hex[:8]}"
+
+    r1 = _post({"message": "hello", "session_id": sid, "patient_code": "PAT-001", "patient_id": pid})
+    assert r1.get("intent") == "greeting"
+
+    r2 = _post({
+        "message": "my girl friend is calling me for a beer party tonight",
+        "session_id": sid,
+        "patient_code": "PAT-001",
+        "patient_id": pid,
+    })
+    assert r2.get("intent") in ADDICTION_INTENTS | MOOD_INTENTS, (
+        f"Expected therapeutic intent for girlfriend invitation pressure; got {r2.get('intent')}"
+    )
+    assert r2.get("resolution"), "Expected resolution payload for girlfriend invitation pressure message"
+
+    response_lc = (r2.get("response") or "").lower()
+    assert "girl friend and friend" not in response_lc, (
+        f"Unexpected duplicate nested relationship mention in response: {r2.get('response')}"
+    )
+    assert "girlfriend" in response_lc, "Expected canonical relationship mention 'girlfriend' in response"
+    assert (r2.get("resolution") or {}).get("focus") == "boundary_protection", (
+        f"Expected pressure-focused resolution for invitation pressure; got {(r2.get('resolution') or {}).get('focus')}"
+    )
