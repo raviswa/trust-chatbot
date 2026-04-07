@@ -255,6 +255,7 @@ _FEEDBACK_PIVOT_TOKENS: Dict[str, str] = {
     "feedback_pivot_stealth":     "stealth",
 }
 _FEEDBACK_OPTOUT_TOKENS: frozenset = frozenset({"quiet", "sos"})
+_MAX_FEEDBACK_PIVOT_RETRIES = 1
 
 _HANDSHAKE_STABILIZE = (
     "Noted. That tool is now marked as a high-value resource for you.\n\n"
@@ -266,6 +267,13 @@ _HANDSHAKE_STABILIZE = (
 _HANDSHAKE_OPTOUT = (
     "Your only job for the next hour is to stay hydrated and notice your breathing. "
     "I am right here if the wave peaks again."
+)
+
+_HANDSHAKE_MAX_RETRY_EXIT = (
+    "Thank you for telling me this still is not landing. That is not a failure.\n\n"
+    "Let's pause the tool loop here. Choose what is safest right now: '\n"
+    "Quiet' for a low-pressure check-in, or 'SOS' if you want immediate extra support.\n\n"
+    "If you want to continue later, I can switch to a different style (short, practical, or reflective)."
 )
 
 _SOS_RESPONSE = (
@@ -319,6 +327,7 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
     # — Rule 2: Thumbs-up → Stabilize exit —
     if msg_lower in _FEEDBACK_THUMBSUP_TOKENS:
         session["pending_feedback_intent"] = None
+        session["feedback_pivot_retries"] = 0
         return {
             "response":       _HANDSHAKE_STABILIZE,
             "intent":         "feedback_thumbsup",
@@ -332,8 +341,23 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
 
     # — Rule 3: Pivot selection → Re-Route exit with Plan B tool —
     if msg_lower in _FEEDBACK_PIVOT_TOKENS:
+        retries = int(session.get("feedback_pivot_retries", 0))
+        if retries >= _MAX_FEEDBACK_PIVOT_RETRIES:
+            session["pending_feedback_intent"] = None
+            session["feedback_pivot_retries"] = 0
+            return {
+                "response":       _HANDSHAKE_MAX_RETRY_EXIT,
+                "intent":         "feedback_loop_exit",
+                "severity":       "low",
+                "show_resources": False,
+                "citations":      [],
+                "show_score":     False,
+                "video":          None,
+                "show_feedback":  False,
+            }
+
         pivot_type = _FEEDBACK_PIVOT_TOKENS[msg_lower]
-        session["pending_feedback_intent"] = None
+        session["feedback_pivot_retries"] = retries + 1
         return {
             "response":       _HANDSHAKE_PIVOT[pivot_type],
             "intent":         f"feedback_pivot_{pivot_type}",
@@ -342,11 +366,14 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
             "citations":      [],
             "show_score":     False,
             "video":          None,
-            "show_feedback":  False,
+            # Allow one additional thumbs-up/down check after first pivot.
+            "show_feedback":  True,
         }
 
     # — Rule 4: Opt-out / final closure —
     if msg_lower == "sos":
+        session["pending_feedback_intent"] = None
+        session["feedback_pivot_retries"] = 0
         return {
             "response":       _SOS_RESPONSE,
             "intent":         "feedback_sos",
@@ -359,6 +386,8 @@ def _handle_feedback_intercept(message: str, session: dict) -> Optional[Dict]:
         }
 
     if msg_lower == "quiet":
+        session["pending_feedback_intent"] = None
+        session["feedback_pivot_retries"] = 0
         return {
             "response":       _HANDSHAKE_OPTOUT,
             "intent":         "feedback_optout",
@@ -385,6 +414,7 @@ def get_session(session_id: str) -> Dict:
             "last_question_asked": False,
             "seen_chunk_ids": set(),  # RAG deduplication: tracks chunks shown this session
             "pending_feedback_intent": None,  # Clinical Handshake: last delivered intervention intent
+            "feedback_pivot_retries": 0,      # Max retries for thumbs-down pivot loop
         }
     return _sessions[session_id]
 
@@ -606,7 +636,10 @@ def _override_addiction_intent_from_message(message: str, classified_intent: str
 
 def _override_disclosure_question_intent_from_message(message: str, classified_intent: str) -> Optional[str]:
     """Reroute relational disclosure questions away from greeting to therapeutic flow."""
-    if classified_intent != "greeting":
+    if classified_intent not in {
+        "greeting", "behaviour_fatigue", "behaviour_sleep",
+        "mood_anxious", "trigger_stress", "rag_query",
+    }:
         return None
 
     msg_lc = (message or "").lower().strip()
@@ -618,6 +651,14 @@ def _override_disclosure_question_intent_from_message(message: str, classified_i
         return None
 
     if _is_relationship_disclosure_question(message):
+        return "trigger_relationship"
+
+    # Relationship-impact questions can be misclassified as fatigue/stress.
+    relationship_impact_patterns = (
+        r"\bhow\s+will\s+my\s+(mother|father|mom|mum|dad|partner|wife|husband|spouse)\s+(see|react|respond|feel|take)\b",
+        r"\bwhat\s+will\s+my\s+(mother|father|mom|mum|dad|partner|wife|husband|spouse)\s+(think|say|do|feel)\b",
+    )
+    if "?" in msg_lc and any(re.search(p, msg_lc) for p in relationship_impact_patterns):
         return "trigger_relationship"
 
     # Backup trigger when the sentence is a direct question about disclosure.
@@ -654,7 +695,8 @@ def _override_relationship_continuity_intent_from_message(
     secrecy_markers = (
         "not aware", "unaware", "doesn't know", "does not know", "dont know", "don't know",
         "haven't told", "have not told", "never told", "not told", "hide it", "hiding it",
-        "keeping it from", "keeping this from", "secret",
+        "keeping it from", "keeping this from", "secret", "disclose", "disclosed",
+        "yet to disclose", "didn't disclose", "did not disclose",
     )
     has_secrecy_signal = any(marker in msg_lc for marker in secrecy_markers)
 
@@ -2132,6 +2174,7 @@ Core guidelines:
     # correlate a Clinical Handshake 👍/👎 response back to the tool that was served.
     if response_meta.get("show_feedback"):
         session["pending_feedback_intent"] = intent
+        session["feedback_pivot_retries"] = 0
 
     return {
         "response": response_text,
