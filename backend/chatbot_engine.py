@@ -741,6 +741,40 @@ def _override_disclosure_question_intent_from_message(message: str, classified_i
     return None
 
 
+def _override_relationship_disclosure_statement_intent_from_message(
+    message: str,
+    classified_intent: str,
+) -> Optional[str]:
+    """Reroute relationship disclosure statements away from greeting fallback.
+
+    Handles first-pass statements such as:
+    - "my partner is not aware"
+    - "my dad doesn't know"
+    - "I haven't told my wife"
+    """
+    if classified_intent not in {"greeting", "unclear", "rag_query"}:
+        return None
+
+    msg_lc = (message or "").lower().strip()
+    if not msg_lc:
+        return None
+
+    relationship_analysis = analyze_relationship_clause(message)
+    if not relationship_analysis.has_relationship:
+        return None
+
+    secrecy_markers = (
+        "not aware", "unaware", "doesn't know", "does not know", "dont know", "don't know",
+        "haven't told", "have not told", "never told", "not told", "hide", "hiding",
+        "keeping it from", "keeping this from", "secret", "disclose", "disclosed",
+        "yet to disclose", "didn't disclose", "did not disclose", "not informed", "uninformed",
+    )
+    if relationship_analysis.tone == "secrecy" or any(marker in msg_lc for marker in secrecy_markers):
+        return "trigger_relationship"
+
+    return None
+
+
 def _override_relationship_continuity_intent_from_message(
     message: str,
     classified_intent: str,
@@ -924,18 +958,27 @@ def _detect_resolution_focus(
             default,
         )
 
-    if intent == "trigger_relationship" and disclosure_question:
+    if intent == "trigger_relationship":
+        # Generalized relationship focus selection for BOTH first-pass and feedback
+        # clarification turns. This avoids falling back to generic cycle phrasing.
         if relationship_analysis.tone == "secrecy":
             return {
                 "key": "disclosure_readiness",
                 "phrase": "deciding what to share, why it may help, and how to do it safely at your pace",
                 "video_hint_intent": _primary_hint_from_profile("trigger_relationship"),
             }
-        return {
-            "key": "connection_accountability",
-            "phrase": "weighing why disclosure can help recovery while protecting your boundaries and timing",
-            "video_hint_intent": _primary_hint_from_profile("trigger_relationship"),
-        }
+        if relationship_analysis.tone == "conflict":
+            return {
+                "key": "relationship_friction",
+                "phrase": "staying grounded when other people's reactions feel sharp, disapproving, or hard to absorb",
+                "video_hint_intent": _primary_hint_from_profile("trigger_relationship"),
+            }
+        if disclosure_question or relationship_analysis.has_relationship:
+            return {
+                "key": "connection_accountability",
+                "phrase": "weighing why disclosure can help recovery while protecting your boundaries and timing",
+                "video_hint_intent": _primary_hint_from_profile("trigger_relationship"),
+            }
 
     def _theme_video_hint() -> str:
         if intent in _ADDICTION_INTENTS and intent != "addiction_drugs":
@@ -1799,6 +1842,7 @@ def handle_message(
         _secondary_intents: List[str] = []
 
     _addiction_override_intent = None
+    _relationship_statement_override_intent = None
     _feedback_clarification_override_intent = None
     _relationship_continuity_override_intent = None
     _disclosure_question_override_intent = None
@@ -1820,6 +1864,15 @@ def handle_message(
             if intent and intent != _feedback_clarification_override_intent and intent not in _secondary_intents:
                 _secondary_intents = [intent] + _secondary_intents
             intent = _feedback_clarification_override_intent
+
+        _relationship_statement_override_intent = _override_relationship_disclosure_statement_intent_from_message(
+            message,
+            intent,
+        )
+        if _relationship_statement_override_intent:
+            if intent and intent != _relationship_statement_override_intent and intent not in _secondary_intents:
+                _secondary_intents = [intent] + _secondary_intents
+            intent = _relationship_statement_override_intent
 
         _relationship_continuity_override_intent = _override_relationship_continuity_intent_from_message(
             message,
