@@ -453,6 +453,11 @@ _ADDICTION_OVERRIDE_PATTERNS: Dict[str, tuple[str, ...]] = {
         "drinking", "drink", "alcohol", "alcoholic", "beer", "wine", "whiskey",
         "drunk", "sober", "sobriety", "rehab", "detox", "bottle", "binge drinking",
         "blackout", "quit drinking", "problem with alcohol", "worried about my drinking",
+        # lapse / relapse / recovery timeline language
+        "make it a week", "didn't make it a week", "did not make it a week",
+        "did not even make it", "didn't even make it", "make it through the week",
+        "back to drinking", "started drinking again", "relapsed on alcohol",
+        "fell off the wagon", "back to square one",
     ),
     "addiction_gaming": (
         "gaming", "game all night", "cannot stop gaming", "can't stop gaming",
@@ -478,10 +483,23 @@ _ADDICTION_OVERRIDE_PATTERNS: Dict[str, tuple[str, ...]] = {
         "workaholic", "cannot stop working", "can't stop working", "work 16 hours",
         "guilty when i'm not working", "guilty when i am not working", "rest feels like laziness",
         "switch off from work", "my identity is tied to my work",
+        # overworking / compulsive work language
+        "overworking", "overwork", "quit overworking", "stop overworking",
+        "cannot stop overworking", "can't stop overworking", "hide my overworking",
+        "working too much", "work too much", "addicted to work", "addicted to working",
+        "work addiction", "cannot switch off", "can't switch off",
+        "working all the time", "work all the time",
     ),
     "addiction_shopping": (
         "shopping addiction", "shop online", "online shopping", "buy things i don't need",
         "hide purchases", "retail therapy", "spent all my money shopping",
+        # standalone and behavioural shopping markers
+        "quit shopping", "stop shopping", "cannot stop shopping", "can't stop shopping",
+        "hide my shopping", "shopping from my partner", "shopping every",
+        "shopping problem", "compulsive shopping", "shopping habit",
+        "hide shopping", "shopping is my", "addicted to shopping",
+        "i shop", "i hide my shopping", "lie about how often i shop",
+        "shopping is the only", "shopping is how", "shopping is what",
     ),
     "addiction_pornography": (
         "porn", "pornography", "watching porn", "compulsive pornography",
@@ -520,6 +538,16 @@ _ADDICTION_OVERRIDE_PATTERNS: Dict[str, tuple[str, ...]] = {
         # sleep + substance dependency
         "help sleeping", "can only sleep", "help with sleeping", "help me sleep",
         "take to sleep", "need something to sleep", "pills to sleep",
+        # using-pills / stop-using phrasing (template-generated permutation patterns)
+        "using pills", "quit using", "stop using", "using the pills",
+        "taking pills", "taking the pills", "pill every day",
+        "hide my using", "hide my drug", "hide my substance",
+        "part of me wants to stop", "cannot cope without it", "can't cope without it",
+        "promises i would stop", "promised i would stop", "feel like a failure",
+        # lapse / recovery-specific language (alcohol or drug context)
+        "make it a week", "didn't make it a week", "did not make it a week",
+        "make it through the week", "couldn't make it a week", "did not even make it",
+        "relapsed again", "slipped again", "back to using", "using again",
     ),
 }
 
@@ -535,6 +563,7 @@ _SOFT_OVERRIDE_INTENTS: frozenset = frozenset({
     "trigger_stress",
     "trigger_financial",
     "behaviour_eating",
+    "behaviour_fatigue",  # LLM maps functional-use substance language to fatigue; allow override
     "medication_request",
     "trigger_trauma",   # LLM occasionally misclassifies substance questions as trauma
 })

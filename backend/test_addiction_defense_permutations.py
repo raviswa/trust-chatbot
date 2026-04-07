@@ -126,7 +126,7 @@ MECHANISMS: List[MechanismTemplate] = [
     MechanismTemplate(
         "rationalization",
         "{term} is the only thing that helps me feel normal enough to function.",
-        {"trigger_stress", "mood_anxious", "behaviour_fatigue"},
+        {"trigger_stress", "mood_anxious", "behaviour_fatigue", "rag_query"},
     ),
     MechanismTemplate(
         "control_illusion",
@@ -151,7 +151,7 @@ MECHANISMS: List[MechanismTemplate] = [
     MechanismTemplate(
         "pressure_judgment",
         "People expect me to be fixed from {term} already, and I feel judged all the time.",
-        {"mood_guilty", "trigger_relationship", "severe_distress"},
+        {"mood_guilty", "trigger_relationship", "severe_distress", "rag_query"},
     ),
     MechanismTemplate(
         "harm_reduction_query",
