@@ -487,12 +487,47 @@ _ADDICTION_OVERRIDE_PATTERNS: Dict[str, tuple[str, ...]] = {
         "porn", "pornography", "watching porn", "compulsive pornography",
         "porn use", "porn has replaced real intimacy",
     ),
+    "addiction_drugs": (
+        # daily-use / frequency questions
+        "use every day", "use every night", "use every week", "using every day",
+        "using every night", "using every week", "use daily", "using daily",
+        "bad to use", "is it bad to use", "okay to use", "is it okay to use",
+        "safe to use", "is it safe to use", "harmful to use", "is it harmful",
+        "how much is too much", "using too much", "using too often",
+        "is it normal to use", "keep using", "cannot stop using", "can't stop using",
+        "cut down on", "my substance use", "dependent on", "dependency on",
+        # cannabis / weed
+        "weed", "marijuana", "cannabis", "joint", "blunt", "edible",
+        # functional use and rationalization
+        "helps me feel normal", "helps me function", "need it to function",
+        "get through the day", "make it through the day", "can't function without",
+        "only thing that helps", "only thing that works for me",
+        "helps with my pain", "helps with my chronic", "helps with chronic pain",
+        "helps me cope", "it helps me", "need it to get through",
+        # minimization / normalization about substance
+        "not a real drug", "isn't a real drug", "it's natural", "it's legal in",
+        "only at parties", "only when i party", "social thing not", "do it at parties",
+        "prescribed so it", "it's prescribed", "my doctor gave", "doctor prescribed",
+        "just pills", "just taking pills", "only pills",
+        # identity / dependency language
+        "can't imagine life without", "life without it", "life without the",
+        # shame / disclosure reluctance
+        "embarrassed to tell", "embarrassed about my use", "ashamed to admit",
+        "too ashamed to tell", "too embarrassed to",
+        # recovery pressure from others
+        "expects me to be fixed", "expects me to be better", "expects me to be clean",
+        "recovery is taking longer", "taking longer than they",
+        # sleep + substance dependency
+        "help sleeping", "can only sleep", "help with sleeping", "help me sleep",
+        "take to sleep", "need something to sleep", "pills to sleep",
+    ),
 }
 
 _SOFT_OVERRIDE_INTENTS: frozenset = frozenset({
     "unclear",
     "rag_query",
     "greeting",
+    "venting",
     "mood_anxious",
     "mood_angry",
     "mood_guilty",
@@ -500,6 +535,8 @@ _SOFT_OVERRIDE_INTENTS: frozenset = frozenset({
     "trigger_stress",
     "trigger_financial",
     "behaviour_eating",
+    "medication_request",
+    "trigger_trauma",   # LLM occasionally misclassifies substance questions as trauma
 })
 
 _RESOLUTION_SKIP_INTENTS: frozenset = frozenset({
@@ -825,6 +862,18 @@ def _detect_resolution_focus(
                 "phrase": "breaking the dissociation and reward loop that keeps pulling you back in",
                 "video_hint_intent": "addiction_gaming",
             }
+        daily_use_markers = [
+            "every day", "every night", "every week", "daily",
+            "bad to use", "okay to use", "is it bad", "is it harmful",
+            "how much is too much", "using too much", "using too often",
+            "is it normal", "is it okay to use", "safe to use",
+        ]
+        if any(m in msg_lc for m in daily_use_markers):
+            return {
+                "key": "habit_awareness",
+                "phrase": "understanding how daily use gradually reshapes tolerance and what that pattern means for recovery",
+                "video_hint_intent": addiction_hint,
+            }
         if any(m in msg_lc for m in sleep_markers):
             return {
                 "key": "sleep_reset",
@@ -849,6 +898,24 @@ def _detect_resolution_focus(
         for d in retrieved_docs
     ).lower()
     signal_text = f"{user_message.lower()} {doc_text} {doc_tags}"
+
+    # Message-first: prevent retrieved doc topic-tags from contaminating focus for substance-use questions
+    _msg_only = user_message.lower()
+    _substance_words = ["use", "using", "drink", "drinking", "smoke", "smoking", "substance"]
+    _daily_context = [
+        "every day", "daily", "every night", "every week", "bad to", "okay to",
+        "safe to", "is it harmful", "how much", "too much", "too often", "is it normal",
+    ]
+    if any(sw in _msg_only for sw in _substance_words) and any(dw in _msg_only for dw in _daily_context):
+        _hint = _ADDICTION_TYPE_TO_INTENT.get(
+            (addiction_type or "").lower().replace("-", "_").replace(" ", "_"),
+            "addiction_drugs",
+        )
+        return {
+            "key": "habit_awareness",
+            "phrase": "understanding how daily use gradually reshapes tolerance and what that pattern means for recovery",
+            "video_hint_intent": _hint or "addiction_drugs",
+        }
 
     if any(k in signal_text for k in ["urge surfing", "craving", "delay", "halt", "relapse prevention"]):
         hint = _ADDICTION_TYPE_TO_INTENT.get((addiction_type or "").lower().replace("-", "_").replace(" ", "_"), "addiction_drugs")
@@ -985,6 +1052,8 @@ def _compose_dynamic_resolution(
         frame = "change"
     elif intent == "trigger_relationship" and disclosure_question:
         frame = "change"
+    elif focus.get("key") == "habit_awareness":
+        frame = "habit"
     elif craving >= 7:
         frame = "urge"
     elif intent in _ADDICTION_INTENTS and _has_urge_language(user_message):
@@ -1041,6 +1110,11 @@ def _compose_dynamic_resolution(
             "What you are feeling right now makes sense in context.",
             "Your response is understandable, given the pressure your system is under.",
             "There is nothing abnormal about this reaction in recovery.",
+        ],
+        "habit": [
+            "Asking whether daily use is harmful is one of the most honest and important questions in recovery.",
+            "Daily use is worth examining without judgment, and you are already doing that by asking.",
+            "That question about your daily use deserves a real answer, not just reassurance.",
         ],
     }
 
@@ -1103,6 +1177,11 @@ def _compose_dynamic_resolution(
         line2 = (
             "That part of you that wants to stop or do this differently is clinically important; "
             "it often helps to translate that momentum into one small next step while it is available."
+        )
+    elif focus.get("key") == "habit_awareness":
+        line2 = (
+            "Daily use gradually reshapes the brain's reward system, lowering your baseline comfort and making use feel necessary rather than chosen; "
+            "that shift is gradual, reversible, and worth recognizing early."
         )
     elif relationship_phrase and state_markers:
         state_phrase = ", ".join(state_markers[:2])

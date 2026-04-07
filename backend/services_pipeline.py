@@ -2520,12 +2520,13 @@ class SafetyChecker:
         is_safe=False only for medication abuse in bot output.
         Crisis/distress returns is_safe=True with metadata for routing.
 
+        NOTE: medication-unsafe patterns are intentionally NOT checked against the
+        patient's incoming message here — patients routinely describe their own
+        prescriptions (e.g. "It's prescribed by my doctor"). Medication safety checks
+        on generated responses are handled separately in validate_response().
+
         Crisis detection now uses CrisisDetector (3-tier: exact → fuzzy → semantic).
         """
-        is_safe, med_violation = self._check_medication_safety(message)
-        if not is_safe:
-            return False, med_violation
-
         # Delegate to 3-tier CrisisDetector when available; fall back to
         # legacy exact-pattern checks when the module cannot be imported.
         if self._crisis_detector is not None:
