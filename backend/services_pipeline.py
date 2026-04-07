@@ -1499,11 +1499,12 @@ class ResponseGenerator:
     # Layer 5, Rule 1: all these responses receive a feedback nudge + 👍/👎 UI buttons.
     _INTERVENTION_INTENTS: frozenset = frozenset({
         "mood_sad", "mood_anxious", "mood_angry", "severe_distress",
-        "behaviour_sleep", "behaviour_aggression", "behaviour_exercise",
-        "trigger_stress", "trigger_grief",
-        "addiction_drugs", "addiction_gaming", "addiction_nicotine",
+        "behaviour_sleep", "behaviour_fatigue", "behaviour_aggression", "behaviour_exercise",
+        "trigger_stress", "trigger_grief", "trigger_relationship", "trigger_financial",
+        "addiction_alcohol", "addiction_drugs", "addiction_gaming", "addiction_nicotine",
         "addiction_gambling", "addiction_social_media", "addiction_work",
-        "relapse_disclosure",
+        "addiction_food", "addiction_shopping", "addiction_pornography",
+        "relapse_disclosure", "rag_query",
     })
 
     # Closing line appended after every intervention (Layer 5 Rule 1 — binary feedback).

@@ -769,7 +769,12 @@ def _override_relationship_disclosure_statement_intent_from_message(
         "keeping it from", "keeping this from", "secret", "disclose", "disclosed",
         "yet to disclose", "didn't disclose", "did not disclose", "not informed", "uninformed",
     )
-    if relationship_analysis.tone == "secrecy" or any(marker in msg_lc for marker in secrecy_markers):
+    # Generalized relationship reroute: secrecy/conflict/concern/support statements
+    # should stay in relationship therapeutic flow even when the base classifier
+    # drifts to greeting/unclear/rag_query.
+    if relationship_analysis.tone in {"secrecy", "conflict", "concern", "support"}:
+        return "trigger_relationship"
+    if any(marker in msg_lc for marker in secrecy_markers):
         return "trigger_relationship"
 
     return None
