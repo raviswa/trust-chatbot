@@ -788,3 +788,28 @@ def test_relationship_disclosure_statement_without_apostrophe_not_greeting():
         f"Expected trigger_relationship for disclosure statement without apostrophe; got {r2.get('intent')}"
     )
     assert r2.get("resolution"), "Expected resolution payload for disclosure statement without apostrophe"
+
+
+def test_peer_invitation_pressure_not_greeting_secondary():
+    """Peer invitation pressure should stay therapeutic and avoid social secondary intent bleed."""
+    sid = f"realistic-peer-{uuid.uuid4().hex[:12]}"
+    pid = f"user-{uuid.uuid4().hex[:8]}"
+
+    r1 = _post({"message": "hello", "session_id": sid, "patient_code": "PAT-001", "patient_id": pid})
+    assert r1.get("intent") == "greeting"
+
+    r2 = _post({
+        "message": "my friends likes me to join him for a drink",
+        "session_id": sid,
+        "patient_code": "PAT-001",
+        "patient_id": pid,
+    })
+    assert r2.get("intent") in ADDICTION_INTENTS | MOOD_INTENTS, (
+        f"Expected therapeutic intent for peer invitation pressure; got {r2.get('intent')}"
+    )
+    assert "greeting" not in (r2.get("secondary_intents") or []), (
+        f"Did not expect greeting in secondary intents: {r2.get('secondary_intents')}"
+    )
+    assert r2.get("resolution"), "Expected resolution payload for peer invitation pressure message"
+    response_lc = (r2.get("response") or "").lower()
+    assert "friends is" not in response_lc, "Expected plural-aware relationship grammar in response"

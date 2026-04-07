@@ -157,6 +157,9 @@ _PRESSURE_PATTERNS: tuple[str, ...] = (
     r"\btold me to\b",
     r"\bkeep(s)? telling me\b",
     r"\bputting pressure on me\b",
+    r"\bpeer pressure\b",
+    r"\b(?:wants?|wanted|asks?|asked|asking|urges?|urged|encourag(?:e|es|ed|ing)|push(?:es|ed|ing))\s+me\s+to\b",
+    r"\bjoin\s+(?:him|her|them)\s+for\b",
 )
 
 

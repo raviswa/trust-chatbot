@@ -910,9 +910,13 @@ def _normalize_secondary_intents(primary_intent: str, secondary_intents: List[st
         intent in _ADDICTION_INTENTS and intent != "addiction_drugs"
         for intent in all_intents
     )
+    social_intents = {"greeting", "farewell", "gratitude"}
+    primary_is_therapeutic = primary_intent not in social_intents and primary_intent != "intake"
 
     for intent in secondary_intents or []:
         if not intent or intent == primary_intent or intent in seen:
+            continue
+        if primary_is_therapeutic and intent in social_intents:
             continue
         if has_specific_addiction and intent == "addiction_drugs":
             continue
@@ -953,11 +957,29 @@ def _format_relationship_phrase(relationships: List[str]) -> str:
 
 
 def _relationship_verb(relationships: List[str]) -> str:
-    return "is" if len(relationships) == 1 else "are"
+    if not relationships:
+        return "is"
+    if len(relationships) > 1:
+        return "are"
+    rel = (relationships[0] or "").lower().strip()
+    if rel in {"parents", "siblings", "friends", "children", "kids"}:
+        return "are"
+    if rel.endswith("s") and rel not in {"spouse"}:
+        return "are"
+    return "is"
 
 
 def _relationship_do_verb(relationships: List[str]) -> str:
-    return "does" if len(relationships) == 1 else "do"
+    if not relationships:
+        return "does"
+    if len(relationships) > 1:
+        return "do"
+    rel = (relationships[0] or "").lower().strip()
+    if rel in {"parents", "siblings", "friends", "children", "kids"}:
+        return "do"
+    if rel.endswith("s") and rel not in {"spouse"}:
+        return "do"
+    return "does"
 
 
 def _detect_relationship_tone(message: str) -> Optional[str]:
