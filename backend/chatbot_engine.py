@@ -621,7 +621,7 @@ def _override_disclosure_question_intent_from_message(message: str, classified_i
         return "trigger_relationship"
 
     # Backup trigger when the sentence is a direct question about disclosure.
-    if "?" in msg_lc and any(t in msg_lc for t in ["tell", "share", "say", "open up"]):
+    if "?" in msg_lc and any(t in msg_lc for t in ["tell", "share", "say", "open up", "discuss", "talk to", "bring up", "mention"]):
         return "trigger_relationship"
 
     return None
@@ -634,17 +634,19 @@ def _is_relationship_disclosure_question(message: str) -> bool:
         return False
 
     disclosure_question_patterns = (
-        r"\bwhy\s+should\s+i[o]?\s+(tell|say|share|open\s+up)\b",
-        r"\bshould\s+i[o]?\s+(tell|say|share|open\s+up)\b",
-        r"\bhow\s+do\s+i[o]?\s+(tell|say|share|open\s+up)\b",
-        r"\b(do\s+i[o]?\s+have\s+to\s+(tell|say|share))\b",
-        r"\bhy\s+should\s+i[o]?\s+(tell|say|share|open\s+up)\b",
+        r"\bwhy\s+should\s+i[o]?\s+(tell|say|share|open\s+up|discuss|mention)\b",
+        r"\bshould\s+i[o]?\s+(tell|say|share|open\s+up|discuss|mention)\b",
+        r"\bhow\s+do\s+i[o]?\s+(tell|say|share|open\s+up|discuss|mention)\b",
+        r"\bhow\s+do\s+i[o]?\s+talk\s+to\b",
+        r"\bcan\s+i[o]?\s+(tell|say|share|discuss|mention)\b",
+        r"\bdo\s+i[o]?\s+have\s+to\s+(tell|say|share|discuss|mention)\b",
+        r"\bhy\s+should\s+i[o]?\s+(tell|say|share|open\s+up|discuss|mention)\b",
     )
     if any(re.search(p, msg_lc) for p in disclosure_question_patterns):
         return True
 
     # Backup trigger when the sentence is a direct disclosure question with relationship mention.
-    if "?" in msg_lc and any(t in msg_lc for t in ["tell", "share", "say", "open up"]):
+    if "?" in msg_lc and any(t in msg_lc for t in ["tell", "share", "say", "open up", "discuss", "talk to", "bring up", "mention"]):
         return True
     return False
 

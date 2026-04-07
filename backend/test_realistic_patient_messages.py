@@ -190,6 +190,24 @@ CASES: List[Case] = [
         banned_focus={"trauma_grounding"},
         must_in_response=["dad"],
     ),
+    Case(
+        label="alcohol – should i discuss this with father",
+        patient_code="PAT-001",
+        addiction_cat="alcohol",
+        message="Should I discuss this with my father?",
+        ok_intents=ADDICTION_INTENTS | {"trigger_relationship"},
+        banned_focus={"trauma_grounding"},
+        needs_resolution=True,
+    ),
+    Case(
+        label="alcohol – how do i talk to my father about this",
+        patient_code="PAT-002",
+        addiction_cat="alcohol",
+        message="How do I talk to my father about this?",
+        ok_intents=ADDICTION_INTENTS | {"trigger_relationship"},
+        banned_focus={"trauma_grounding"},
+        needs_resolution=True,
+    ),
 
     # ── ALCOHOL: lapse / relapse ───────────────────────────────────────────
     Case(
