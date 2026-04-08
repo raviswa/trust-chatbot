@@ -12,15 +12,28 @@ from ethical_policy import (
     check_policy, validate_crisis_response,
     POLICY_DISCLOSURE_SHORT, POLICY_SUMMARY
 )
+from trust_layers import (
+    apply_layer5_close,
+    generate_clarifying_question,
+    generate_trust_opening,
+    is_ambiguous_message,
+    layer4_resolution_suffix,
+    register_video_shown,
+    trust_context_or_default,
+    trust_select_video,
+)
 from db import (
     ensure_patient, get_patient, get_patient_sessions,
     get_patient_full_history, get_checkin_status,
+    get_recent_checkin_activity,
+    get_session_scores, save_patient_score,
     ensure_session, update_session_meta, save_message,
     log_policy_violation, log_crisis_event,
     get_pending_crisis_events, get_policy_violation_summary,
     get_session_history, get_all_sessions, get_crisis_sessions,
     get_conversation_stats, get_top_intents
 )
+from video_map import get_video, get_score_group, get_score_label
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -158,6 +171,7 @@ def get_session(sid):
             "started_at": datetime.now().isoformat(),
             "continuity_prompt": None,
             "prior_topics": [],
+            "trust_videos_shown": [],
         }
     return _sessions[sid]
 
@@ -315,9 +329,11 @@ def _llm_classify(text):
 
 # ── System prompt builder ────────────────────────────────────────────────────
 
-def _system_prompt(context, history_text, continuity_prompt=None):
+def _system_prompt(context, history_text, continuity_prompt=None,
+                   trust_resolution: Optional[str] = None):
     ctx = context or "No specific context retrieved — respond with general empathetic support."
     continuity_block = (f"\n{continuity_prompt}\n" if continuity_prompt else "")
+    trust_block = (f"\n{trust_resolution}\n" if trust_resolution else "")
     return f"""You are a compassionate mental health support assistant.
 Your responses are grounded strictly in the provided research document context.
 
@@ -328,8 +344,8 @@ STRICT RULES:
 4. NEVER diagnose or provide treatment plans.
 5. Always recommend consulting a qualified healthcare professional.
 6. Be warm, empathetic, and non-judgmental.
-7. Keep responses to 3-5 sentences unless more detail is clearly needed.
-{continuity_block}
+7. Keep the reply concise (roughly 2-4 short lines of text) unless more detail is clearly needed.
+{continuity_block}{trust_block}
 {PERSON_FIRST_RULES}
 
 RECENT CONVERSATION:
@@ -358,7 +374,7 @@ def _topic_bridge(sid, base):
     ]
     return base + random.choice(bridges)
 
-def _small_talk(tag, sid, user_input):
+def _small_talk(tag, sid, user_input, trust_ctx: Optional[Dict] = None):
     s          = get_session(sid)
     last_topic = s.get("last_topic_label")
     continuity = s.get("continuity_prompt", "")
@@ -377,19 +393,28 @@ def _small_talk(tag, sid, user_input):
         r     = ollama.generate(model="qwen2.5:7b-instruct", prompt=prompt)
         reply = r["response"].strip()
         if _is_unsafe(reply):
-            return _topic_bridge(sid, _intents_response(tag))
-        return sanitise_response(reply)
+            reply = _topic_bridge(sid, _intents_response(tag))
+        else:
+            reply = sanitise_response(reply)
+        tc = trust_ctx or trust_context_or_default(None, sid)
+        return apply_layer5_close(reply, tag, tc, "low")
     except Exception as e:
         logger.error(f"Small talk failed: {e}")
-        return _topic_bridge(sid, _intents_response(tag))
+        reply = _topic_bridge(sid, _intents_response(tag))
+        tc = trust_ctx or trust_context_or_default(None, sid)
+        return apply_layer5_close(reply, tag, tc, "low")
 
-def _contextual_rag(user_input, sid, intent):
+def _contextual_rag(user_input, sid, intent, trust_ctx: Optional[Dict] = None,
+                    apply_layer5: bool = True):
     """Intent-filtered RAG for known mental health intents."""
     chunks    = retrieve(user_input, intent=intent)
     context   = assemble_context(chunks)
     citations = format_citations(chunks)
     continuity = get_session(sid).get("continuity_prompt")
-    system    = _system_prompt(context, _history_text(sid), continuity)
+    tr_block   = layer4_resolution_suffix()
+    system    = _system_prompt(
+        context, _history_text(sid), continuity, trust_resolution=tr_block
+    )
     try:
         r     = ollama.generate(model="qwen2.5:7b-instruct", system=system, prompt=user_input)
         reply = r["response"].strip()
@@ -405,16 +430,25 @@ def _contextual_rag(user_input, sid, intent):
         return {"response": policy.safe_response, "citations": [],
                 "policy_checked": True, "policy_violation": True,
                 "policy_violation_type": policy.violation_type}
-    return {"response": sanitise_response(reply), "citations": citations,
+    out = sanitise_response(reply)
+    if apply_layer5:
+        tc = trust_ctx or trust_context_or_default(None, sid)
+        sev = str(INTENT_MAP.get(intent, {}).get("severity", "medium"))
+        out = apply_layer5_close(out, intent, tc, sev)
+    return {"response": out, "citations": citations,
             "policy_checked": True, "policy_violation": False, "policy_violation_type": None}
 
-def _general_rag(user_input, sid):
+def _general_rag(user_input, sid, trust_ctx: Optional[Dict] = None,
+                 apply_layer5: bool = True):
     """Unfiltered RAG for general health queries."""
     chunks    = retrieve(user_input, intent=None)
     context   = assemble_context(chunks)
     citations = format_citations(chunks)
     continuity = get_session(sid).get("continuity_prompt")
-    system    = _system_prompt(context, _history_text(sid), continuity)
+    tr_block   = layer4_resolution_suffix()
+    system    = _system_prompt(
+        context, _history_text(sid), continuity, trust_resolution=tr_block
+    )
     try:
         r     = ollama.generate(model="qwen2.5:7b-instruct", system=system, prompt=user_input)
         reply = r["response"].strip()
@@ -430,7 +464,11 @@ def _general_rag(user_input, sid):
         return {"response": policy.safe_response, "citations": [],
                 "policy_checked": True, "policy_violation": True,
                 "policy_violation_type": policy.violation_type}
-    return {"response": sanitise_response(reply), "citations": citations,
+    out = sanitise_response(reply)
+    if apply_layer5:
+        tc = trust_ctx or trust_context_or_default(None, sid)
+        out = apply_layer5_close(out, "rag_query", tc, "medium")
+    return {"response": out, "citations": citations,
             "policy_checked": True, "policy_violation": False, "policy_violation_type": None}
 
 # ── Session continuity / check-in greeting ──────────────────────────────────
@@ -513,92 +551,149 @@ def handle_message(user_input: str, session_id: str,
         patient_id = ensure_patient(patient_code)
     ensure_session(session_id, patient_id=patient_id, patient_code=patient_code)
 
+    trust_ctx = trust_context_or_default(patient_code, session_id)
+
     # Save user message to DB with patient identity
     update_session(session_id, "user", user_input,
                    patient_id=patient_id, patient_code=patient_code)
 
-    # Layer 0a: Session continuity — fires on greeting if patient had activity in last 12hrs
+    user_turns = sum(1 for m in get_session(session_id)["history"] if m["role"] == "user")
+
+    # ── TRUST Layer 1+2 — greet with context + invite (first user turn, greeting, with patient) ──
     _raw_intent = classify_intent(user_input)
-    if _raw_intent == "greeting" and patient_code:
-        checkin = build_checkin_greeting(patient_code)
-        if checkin:
-            update_session(session_id, "assistant", checkin["message"],
-                           checkin["intent"], checkin["severity"],
-                           show_resources=checkin["show_resources"],
-                           patient_id=patient_id, patient_code=patient_code)
+    if _raw_intent == "greeting" and patient_code and user_turns == 1:
+        continuity_note = None
+        act = get_recent_checkin_activity(patient_code, within_hours=12)
+        if act and act.get("has_activity"):
+            topics = act.get("topics_discussed") or []
+            if act.get("was_crisis"):
+                continuity_note = (
+                    "Recent conversation included crisis-level distress; acknowledge with care."
+                )
+            elif topics:
+                continuity_note = "Topics recently discussed: " + ", ".join(topics[:6])
+        msg = generate_trust_opening(
+            patient_code, session_id, continuity_note=continuity_note
+        )
+        if msg:
+            update_session(
+                session_id,
+                "assistant",
+                msg,
+                "greeting",
+                "low",
+                patient_id=patient_id,
+                patient_code=patient_code,
+            )
             return _result(
-                checkin["message"], checkin["intent"], checkin["severity"],
-                checkin["show_resources"], [], session_id,
-                extra={"topics_discussed": checkin["topics_discussed"],
-                       "was_crisis":       checkin["was_crisis"],
-                       "checkin":          True}
+                msg,
+                "greeting",
+                "low",
+                False,
+                [],
+                session_id,
+                trust_layers="1+2",
             )
 
-    # Layer 0: Self-stigma reframe
+    # Pipeline: Self-stigma reframe
     reframe = check_self_stigma(user_input)
     if reframe:
         intent = classify_intent(user_input)
-        update_session(session_id, "assistant", reframe, intent, "medium")
-        return _result(reframe, intent, "medium", False, [], session_id)
+        reply = apply_layer5_close(reframe, intent, trust_ctx, "medium")
+        update_session(session_id, "assistant", reply, intent, "medium",
+                       patient_id=patient_id, patient_code=patient_code)
+        return _result(reply, intent, "medium", False, [], session_id)
 
-    # Layer 1: Classify
+    # Pipeline: Classify intent
     intent = classify_intent(user_input)
     logger.info(f"[{session_id}] intent={intent} | '{user_input[:60]}'")
 
-    # Layer 2: Critical safety (hard-coded) — writes to crisis_events via update_session
+    # Pipeline: Critical safety (hard-coded) — crisis_events via update_session
+    sess = get_session(session_id)
     if intent == "crisis_suicidal":
+        vid = get_video("mood_anxious")
+        if vid:
+            register_video_shown(sess, vid)
         update_session(session_id,"assistant",CRISIS_RESPONSE,intent,"critical",show_resources=True,
                        patient_id=patient_id, patient_code=patient_code)
-        return _result(CRISIS_RESPONSE,intent,"critical",True,[],session_id)
+        return _result(CRISIS_RESPONSE,intent,"critical",True,[],session_id, video=vid)
     if intent == "crisis_abuse":
         update_session(session_id,"assistant",ABUSE_RESPONSE,intent,"critical",show_resources=True,
                        patient_id=patient_id, patient_code=patient_code)
         return _result(ABUSE_RESPONSE,intent,"critical",True,[],session_id)
     if intent == "behaviour_self_harm":
+        vid = get_video("mood_anxious")
+        if vid:
+            register_video_shown(sess, vid)
         update_session(session_id,"assistant",SELF_HARM_RESPONSE,intent,"critical",show_resources=True,
                        patient_id=patient_id, patient_code=patient_code)
-        return _result(SELF_HARM_RESPONSE,intent,"critical",True,[],session_id)
+        return _result(SELF_HARM_RESPONSE,intent,"critical",True,[],session_id, video=vid)
 
-    # Layer 2b: Severe distress — empathetic hard-coded response + crisis_events log
+    # Severe distress / psychosis — optional TRUST-aligned video
+    scores_for_video = get_session_scores(session_id) or {}
+
     if intent == "severe_distress":
+        vid = trust_select_video(
+            intent, trust_ctx, scores_for_video, sess.get("trust_videos_shown", [])
+        )
+        if vid:
+            register_video_shown(sess, vid)
         update_session(session_id,"assistant",SEVERE_DISTRESS_RESPONSE,intent,"high",show_resources=True,
                        patient_id=patient_id, patient_code=patient_code)
-        return _result(SEVERE_DISTRESS_RESPONSE,intent,"high",True,[],session_id)
+        return _result(SEVERE_DISTRESS_RESPONSE,intent,"high",True,[],session_id, video=vid)
 
-    # Layer 2c: Psychosis indicators — safety escalation + crisis_events log
     if intent == "psychosis_indicator":
+        vid = trust_select_video(
+            intent, trust_ctx, scores_for_video, sess.get("trust_videos_shown", [])
+        )
+        if vid:
+            register_video_shown(sess, vid)
         update_session(session_id,"assistant",PSYCHOSIS_RESPONSE,intent,"critical",show_resources=True,
                        patient_id=patient_id, patient_code=patient_code)
-        return _result(PSYCHOSIS_RESPONSE,intent,"critical",True,[],session_id)
+        return _result(PSYCHOSIS_RESPONSE,intent,"critical",True,[],session_id, video=vid)
 
-    # Layer 3: Medication block (hard-coded)
+    # Medication block
     if intent == "medication_request":
-        update_session(session_id,"assistant",MEDICATION_REFUSAL,intent,"low")
-        return _result(MEDICATION_REFUSAL,intent,"low",False,[],session_id)
+        reply = apply_layer5_close(MEDICATION_REFUSAL, intent, trust_ctx, "low")
+        update_session(session_id,"assistant",reply,intent,"low",
+                       patient_id=patient_id, patient_code=patient_code)
+        return _result(reply,intent,"low",False,[],session_id)
 
-    # Layer 3b: Trauma — RAG with trauma-informed intro prepended
+    # ── TRUST Layer 3 — one clarifying question when intent is still ambiguous ──
+    if intent in ("unclear", "rag_query") and is_ambiguous_message(user_input):
+        q = generate_clarifying_question(user_input)
+        update_session(session_id, "assistant", q, intent, "low",
+                       patient_id=patient_id, patient_code=patient_code)
+        return _result(q, intent, "low", False, [], session_id, trust_layers="3")
+
+    # Trauma — RAG + intro; TRUST Layer 4 in RAG, Layer 5 on full message
     if intent == "trigger_trauma":
-        r        = _contextual_rag(user_input, session_id, intent)
+        r        = _contextual_rag(
+            user_input, session_id, intent, trust_ctx, apply_layer5=False
+        )
         _log_policy_if_needed(r, session_id, intent, patient_id, patient_code)
         response = TRAUMA_RESPONSE_INTRO + r["response"]
+        response = apply_layer5_close(response, intent, trust_ctx, "high")
         update_session(session_id,"assistant",response,intent,"high",
                        citations=r["citations"],show_resources=True,
                        patient_id=patient_id, patient_code=patient_code,
                        policy_checked=r.get("policy_checked",False),
                        policy_violation=r.get("policy_violation",False),
                        policy_violation_type=r.get("policy_violation_type"))
-        return _result(response,intent,"high",True,r["citations"],session_id)
+        return _result(response,intent,"high",True,r["citations"],session_id,
+                       trust_layers="4+5")
 
-    # Layer 4: Small talk — no score, no video
+    # Small talk — TRUST Layer 5 on generator output; no video
     if intent in {"greeting","farewell","gratitude","unclear"}:
-        reply    = _small_talk(intent, session_id, user_input)
+        reply    = _small_talk(intent, session_id, user_input, trust_ctx)
         severity = INTENT_MAP.get(intent, {}).get("severity","low")
-        update_session(session_id,"assistant",reply,intent,severity)
+        update_session(session_id,"assistant",reply,intent,severity,
+                       patient_id=patient_id, patient_code=patient_code)
         get_session(session_id)["continuity_prompt"] = None
         return _result(reply, intent, severity, False, [], session_id,
-                       show_score=False, video=None)
+                       show_score=False, video=None, trust_layers="5")
 
-    # ── Score + video helpers (using video_map.py + db) ────────────────────────
+    # ── Score + video helpers (video_map.py + db + TRUST) ─────────────────────
     def _should_show_score(sid, cur_intent):
         """Returns score prompt dict if not yet captured for this group, else None."""
         group = get_score_group(cur_intent)
@@ -619,43 +714,55 @@ def handle_message(user_input: str, session_id: str,
         s["pending_scores"].add(group)
         return {"needed": True, "group": group, "label": get_score_label(cur_intent)}
 
-    def _get_video(cur_intent):
-        return get_video(cur_intent)
+    def _resolve_trust_video(cur_intent: str):
+        s = get_session(session_id)
+        sc = get_session_scores(session_id) or {}
+        v = trust_select_video(
+            cur_intent, trust_ctx, sc, s.get("trust_videos_shown", [])
+        )
+        if v:
+            register_video_shown(s, v)
+        return v
 
-    # Layer 5: Known intent → intent-filtered RAG
+    # Known intent → intent-filtered RAG (TRUST Layers 4–5 inside _contextual_rag)
     if intent in INTENT_MAP:
         obj        = INTENT_MAP[intent]
         severity   = obj.get("severity","medium")
         show_res   = obj.get("always_show_resources",False)
-        r          = _contextual_rag(user_input, session_id, intent)
+        r          = _contextual_rag(user_input, session_id, intent, trust_ctx)
         _log_policy_if_needed(r, session_id, intent, patient_id, patient_code)
         show_score = _should_show_score(session_id, intent)
-        video      = _get_video(intent)
+        video      = _resolve_trust_video(intent)
         update_session(session_id,"assistant",r["response"],intent,severity,
                        citations=r["citations"],show_resources=show_res,
                        policy_checked=r.get("policy_checked",False),
                        policy_violation=r.get("policy_violation",False),
-                       policy_violation_type=r.get("policy_violation_type"))
+                       policy_violation_type=r.get("policy_violation_type"),
+                       patient_id=patient_id, patient_code=patient_code)
         return _result(r["response"],intent,severity,show_res,r["citations"],
-                       session_id, show_score=show_score, video=video)
+                       session_id, show_score=show_score, video=video,
+                       trust_layers="4+5")
 
-    # Layer 6: General query → full RAG
-    r          = _general_rag(user_input, session_id)
+    # General query → full RAG
+    r          = _general_rag(user_input, session_id, trust_ctx)
     _log_policy_if_needed(r, session_id, "rag_query", patient_id, patient_code)
     show_score = _should_show_score(session_id, intent)
-    video      = _get_video(intent)
+    video      = _resolve_trust_video("rag_query")
     update_session(session_id,"assistant",r["response"],"rag_query","medium",
                    citations=r["citations"],
                    policy_checked=r.get("policy_checked",False),
                    policy_violation=r.get("policy_violation",False),
-                   policy_violation_type=r.get("policy_violation_type"))
+                   policy_violation_type=r.get("policy_violation_type"),
+                   patient_id=patient_id, patient_code=patient_code)
     return _result(r["response"],"rag_query","medium",False,r["citations"],
-                   session_id, show_score=show_score, video=video)
+                   session_id, show_score=show_score, video=video,
+                   trust_layers="4+5")
 
 
 def _result(response, intent, severity, show_resources,
-            citations, session_id, show_score=None, video=None, score_data=None):
-    return {
+            citations, session_id, show_score=None, video=None, score_data=None,
+            trust_layers: Optional[str] = None, **extra):
+    out = {
         "response":       response,
         "intent":         intent,
         "severity":       severity,
@@ -663,9 +770,13 @@ def _result(response, intent, severity, show_resources,
         "citations":      citations,
         "session_id":     session_id,
         "timestamp":      datetime.now().isoformat(),
-        "score_data":     show_score or score_data,  # score prompt dict or None
-        "video":          video,                     # video dict or None
+        "score_data":     show_score or score_data,
+        "video":          video,
     }
+    if trust_layers is not None:
+        out["trust_layers"] = trust_layers
+    out.update(extra)
+    return out
 
 # ── FastAPI wrapper ──────────────────────────────────────────────────────────
 
