@@ -1521,29 +1521,78 @@ def _compose_dynamic_resolution(
     else:
         line2 = "Your system is trying to protect you quickly; that survival pattern is understandable and changeable."
 
-    video_title = (selected_video or {}).get("title", "a short therapeutic video")
+    seed = (
+        f"{intent}|{user_message}|{session_message_count}|{focus.get('key','')}|"
+        f"{mood}|{sleep_quality}|{craving}|{risk_level}|{onboarding_addiction}"
+    )
 
-    # Fix 4/8: For active high-craving, Line 3 is a direct physical delay action.
-    # The video renders separately in the UI — no need to bridge it in text.
-    # For high severity, append a sponsor CTA after the physical action.
+    # Line 3 bridge phrases — keyed by frame, never start with "I", never "I am matching you with"
+    # For active high-craving: physical delay action in the body (video is separate UI element)
+    # For all other frames: a seamless, natural bridge into the video
+    _line3_options: Dict[str, List[str]] = {
+        "urge": [
+            "Stay where you are — don't open anything. Just breathe; the urge will peak and pass in the next few minutes.",
+            "Don't move from where you are. Stay in this conversation for the next three minutes before deciding anything.",
+            "One thing right now: place both feet flat on the floor and breathe out slowly for eight counts. Do that twice.",
+        ],
+        "anxious": [
+            f"There's a short grounding practice in the video that slows {focus.get('phrase','the anxiety spiral')} — it takes about two minutes.",
+            f"A brief breathing anchor matched to this kind of pressure is in the video — it works directly on {focus.get('phrase','nervous-system activation')}.",
+            f"The video walks through a two-minute technique for {focus.get('phrase','grounding the body before the mind spirals')}.",
+        ],
+        "fatigue": [
+            f"There's a short sleep-reset practice in the video that addresses {focus.get('phrase','the nervous system rhythm')} directly.",
+            f"The video covers a practical approach to {focus.get('phrase','resetting sleep pressure')} — worth three minutes right now.",
+            f"A brief settling practice matched to morning depletion is in the video — it targets {focus.get('phrase','sleep and energy rhythm')}.",
+        ],
+        "heavy_emotion": [
+            f"There's a short emotional regulation practice in the video that works with {focus.get('phrase','this kind of weight')} without requiring you to explain it.",
+            f"The video offers a brief co-presence practice for {focus.get('phrase','staying with heavy feeling')} without being overwhelmed by it.",
+            f"A short grounding exercise matched to this emotional load is in the video — two minutes.",
+        ],
+        "reset": [
+            "There's a brief reset practice in the video — it's specifically for moments like this one, not for when everything is already steady.",
+            f"The video covers a fast stabilising move for {focus.get('phrase','recovering after a slip')} — it helps stop the spiral early.",
+            "A short peer-story practice in the video shows that one slip doesn't define the direction — and what to do right now.",
+        ],
+        "shame": [
+            f"There's a short self-compassion practice in the video that targets {focus.get('phrase','this shame spiral')} directly.",
+            "The video offers a brief compassion-based reset — it's designed for exactly this kind of inner critic loop.",
+            f"A two-minute self-compassion anchor in the video works with {focus.get('phrase','reducing shame while keeping accountability')}.",
+        ],
+        "pressure": [
+            f"There's a short boundary-regulation practice in the video for {focus.get('phrase','staying steady when pressure builds')}.",
+            "The video covers a brief nervous-system down-shift for moments when outside pressure starts closing in.",
+            f"A two-minute settling practice in the video directly addresses {focus.get('phrase','staying grounded under scrutiny')}.",
+        ],
+        "change": [
+            f"There's a short motivation-anchoring practice in the video that helps with {focus.get('phrase','turning the wish to change into one concrete next step')}.",
+            "The video offers a brief values-clarification exercise for moments when the part of you that wants something different is available.",
+            f"A short commitment practice in the video works with {focus.get('phrase','change readiness')} — it's practical, not abstract.",
+        ],
+        "habit": [
+            f"There's a short psychoeducation piece in the video that explains exactly how daily use reshapes {focus.get('phrase','tolerance and the reward system')}.",
+            "The video walks through the neuroscience of habit formation in plain language — it answers the question you're asking.",
+            f"A brief explainer in the video covers {focus.get('phrase','how daily use reshapes tolerance')} — factual, not judgmental.",
+        ],
+        "general": [
+            f"There's a short practice in the video matched to {focus.get('phrase','stabilisation and choice')} — worth a few minutes right now.",
+            f"The video offers a brief technique for {focus.get('phrase','slowing the cycle so choice comes back online')}.",
+            f"A short therapeutic practice in the video addresses {focus.get('phrase','this pattern')} directly.",
+        ],
+    }
+
     _is_high_craving_urge = (frame == "urge" and craving >= 7)
     if _is_high_craving_urge:
         _sponsor_cta = ""
         if risk_level in {"high", "critical"}:
             _sponsor_cta = " If it keeps building, call your sponsor or someone you trust before you act."
-        line3 = (
-            f"Stay where you are. Don't open anything. Just breathe — the urge will peak and pass in the next few minutes."
-            f"{_sponsor_cta}"
-        )
+        _urge_options = _line3_options["urge"]
+        line3 = _stable_pick(_urge_options, seed=f"{intent}|{user_message}|{session_message_count}|urge") + _sponsor_cta
     else:
-        line3 = (
-            f"I am matching you with {video_title} so the next few minutes focus on {focus.get('phrase', 'a practical regulation skill')} while you stay grounded."
-        )
+        _frame_options = _line3_options.get(frame, _line3_options["general"])
+        line3 = _stable_pick(_frame_options, seed=f"{intent}|{user_message}|{session_message_count}|{frame}")
 
-    seed = (
-        f"{intent}|{user_message}|{session_message_count}|{focus.get('key','')}|"
-        f"{mood}|{sleep_quality}|{craving}|{risk_level}|{onboarding_addiction}"
-    )
     line1 = _stable_pick(line1_options.get(frame, line1_options["general"]), seed)
 
     lines = [line1, line2, line3]
@@ -1997,6 +2046,13 @@ def handle_message(
     # This ensures every response is tailored to the patient's current state and risk level
     patient_context_block = format_context_for_prompt(patient_context)
 
+    # Resolve active tone mode (Slide 7: 6 modes, driven by risk_level × todays_mood)
+    # Must be defined before layer_guidance because Layer 4 prompt uses it.
+    _tone_mode = get_tone_mode(
+        patient_context.risk.risk_level,
+        patient_context.checkin.todays_mood,
+    )
+
     # Determine whether intent classification is genuinely ambiguous (drives Layer 3 skip/ask logic)
     _is_ambiguous = (intent == "unclear")
 
@@ -2031,12 +2087,6 @@ def handle_message(
         "\nThe patient signalled that the previous strategy for this intervention did not help. "
         "Do not repeat the same coping instruction; provide a different concrete approach."
         if intent in _ineffective else ""
-    )
-
-    # Resolve active tone mode (Slide 7: 6 modes, driven by risk_level × todays_mood)
-    _tone_mode = get_tone_mode(
-        patient_context.risk.risk_level,
-        patient_context.checkin.todays_mood,
     )
 
     system_prompt = f"""You are a mental health support chatbot specialising in recovery and peer support.
