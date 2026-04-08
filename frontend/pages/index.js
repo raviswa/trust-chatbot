@@ -7,18 +7,47 @@ function generateId() {
   });
 }
 
-const PATIENTS = [
-  { code:'PAT-001', name:'Arjun',   programme:'Alcohol Recovery',          risk:'high'     },
-  { code:'PAT-002', name:'Priya',   programme:'Substance Use Disorder',    risk:'medium'   },
-  { code:'PAT-003', name:'Karthik', programme:'Digital Addiction (Gaming)',risk:'low'      },
-  { code:'PAT-004', name:'Divya',   programme:'Trauma & Anxiety',          risk:'high'     },
-  { code:'PAT-005', name:'Rajesh',  programme:'Nicotine Cessation',        risk:'low'      },
-  { code:'PAT-006', name:'Ananya',  programme:'Digital Addiction (Social)',risk:'medium'   },
-  { code:'PAT-007', name:'Suresh',  programme:'Grief Support',             risk:'medium'   },
-  { code:'PAT-008', name:'Lakshmi', programme:'Alcohol Recovery',          risk:'critical' },
-  { code:'PAT-009', name:'Vikram',  programme:'Behavioural Addiction',     risk:'low'      },
-  { code:'PAT-010', name:'Meera',   programme:'Substance Use (Discharged)',risk:'low'      },
+const PATIENT_COHORT = [
+  { code:'PAT-001', name:'Arjun Rao' },
+  { code:'PAT-002', name:'Emily Carter' },
+  { code:'PAT-003', name:'Rohan Sharma' },
+  { code:'PAT-004', name:'Oliver Thompson' },
+  { code:'PAT-005', name:'Priya Nair' },
+  { code:'PAT-006', name:'Jordan Reyes' },
+  { code:'PAT-007', name:'Karthik Reddy' },
+  { code:'PAT-008', name:'Ishan Rao' },
+  { code:'PAT-009', name:'Sneha Patil' },
+  { code:'PAT-010', name:'Alex Chen' },
+  { code:'PAT-011', name:'Taylor Brooks' },
+  { code:'PAT-012', name:'Aravind Reddy' },
+  { code:'PAT-013', name:'Sophia Martinez' },
 ];
+
+function riskBandFromScore(score) {
+  if (typeof score !== 'number') return 'medium';
+  if (score >= 85) return 'critical';
+  if (score >= 70) return 'high';
+  if (score >= 40) return 'medium';
+  return 'low';
+}
+
+function moodFromTheme(theme) {
+  const t = (theme || '').toLowerCase();
+  if (!t) return 'unknown';
+  if (t.startsWith('mood:')) return t.replace('mood:', '').trim();
+  if (t.startsWith('emotional_distress:')) return t.replace('emotional_distress:', '').trim();
+  if (t.startsWith('high_craving:')) return 'high craving';
+  if (t === 'general_check_in') return 'stable';
+  if (t === 'first_contact') return 'first contact';
+  return t.replace(/[_:]/g, ' ');
+}
+
+function formatHoursAgo(hours) {
+  if (typeof hours !== 'number' || Number.isNaN(hours)) return 'n/a';
+  if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m`;
+  if (hours < 24) return `${Math.round(hours)}h`;
+  return `${Math.round(hours / 24)}d`;
+}
 
 const RISK_COLORS = {
   critical:{ dot:'#dc2626' },
@@ -230,11 +259,56 @@ export default function ChatPage() {
   const [input, setInput]           = useState('');
   const [loading, setLoading]       = useState(false);
   const [showCrisis, setShowCrisis] = useState(false);
+  const [patientMeta, setPatientMeta] = useState({});
   const sessionIdRef                 = useRef(generateId());
   const bottomRef                   = useRef(null);
   const inputRef                    = useRef(null);
+  const patientOptions              = PATIENT_COHORT.map(base => ({
+    ...base,
+    risk: patientMeta[base.code]?.risk || 'medium',
+    riskScore: patientMeta[base.code]?.riskScore,
+    mood: patientMeta[base.code]?.mood || 'unknown',
+    hasRecentActivity: !!patientMeta[base.code]?.hasRecentActivity,
+    hoursSinceCheckin: patientMeta[base.code]?.hoursSinceCheckin,
+  }));
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [messages, loading]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydratePatientMeta() {
+      const loaded = {};
+      await Promise.all(PATIENT_COHORT.map(async ({ code }) => {
+        try {
+          const res = await fetch(`/api/checkin-status?code=${code}&hours=240`);
+          const status = await res.json();
+          loaded[code] = {
+            risk: riskBandFromScore(status?.risk_score),
+            riskScore: status?.risk_score,
+            mood: moodFromTheme(status?.dominant_theme),
+            hasRecentActivity: !!status?.has_recent_activity,
+            hoursSinceCheckin: status?.hours_since_checkin,
+          };
+        } catch (_) {
+          loaded[code] = {
+            risk: 'medium',
+            riskScore: null,
+            mood: 'unknown',
+            hasRecentActivity: false,
+            hoursSinceCheckin: null,
+          };
+        }
+      }));
+
+      if (!cancelled) {
+        setPatientMeta(loaded);
+      }
+    }
+
+    hydratePatientMeta();
+    return () => { cancelled = true; };
+  }, []);
 
   async function selectPatient(p) {
     sessionIdRef.current = generateId();  // fresh session per patient — prevents cross-patient memory
@@ -438,7 +512,7 @@ export default function ChatPage() {
           </div>
           {patient && screen === 'chat' && (
             <div className="p-badge" onClick={() => { setScreen('select'); setMessages([]); setShowCrisis(false); setPatient(null); }} title="Switch patient">
-              <span className="rdot" style={{ background: RISK_COLORS[patient.risk]?.dot }}/>
+              <span className="rdot" style={{ background: (RISK_COLORS[patient.risk] || RISK_COLORS.medium).dot }}/>
               {patient.name} · {patient.code}
               <span style={{ color:'#475569' }}>⇄</span>
             </div>
@@ -451,17 +525,23 @@ export default function ChatPage() {
             <div className="sel-title">Select a Patient</div>
             <div className="sel-sub">POC Demo — choose a patient to begin the session</div>
             <div className="grid">
-              {PATIENTS.map(p => {
-                const rc = RISK_COLORS[p.risk];
+              {patientOptions.map(p => {
+                const rc = RISK_COLORS[p.risk] || RISK_COLORS.medium;
                 return (
                   <div key={p.code} className="pcard" onClick={() => selectPatient(p)}>
                     <div className="pcard-name">
                       {p.name}
                       <span className="pcard-code">{p.code}</span>
                     </div>
-                    <div className="pcard-prog">{p.programme}</div>
+                    <div className="pcard-prog">Mood: {p.mood}</div>
+                    <div className="pcard-prog">
+                      {p.hasRecentActivity
+                        ? `Last check-in: ${formatHoursAgo(p.hoursSinceCheckin)} ago`
+                        : 'No recent check-in data'}
+                    </div>
                     <div className="rbadge" style={{ background: rc.dot+'18', color: rc.dot, borderColor: rc.dot+'44' }}>
-                      <span className="rdot" style={{ background: rc.dot }}/>{p.risk} risk
+                      <span className="rdot" style={{ background: rc.dot }}/>
+                      {p.risk} risk{typeof p.riskScore === 'number' ? ` (${p.riskScore})` : ''}
                     </div>
                   </div>
                 );
