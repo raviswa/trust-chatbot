@@ -1996,7 +1996,18 @@ def handle_message(
     # Build LLM system prompt with patient context injection
     # This ensures every response is tailored to the patient's current state and risk level
     patient_context_block = format_context_for_prompt(patient_context)
-    layer_guidance = add_layer_awareness_to_system_prompt(patient_context, current_layer)
+
+    # Determine whether intent classification is genuinely ambiguous (drives Layer 3 skip/ask logic)
+    _is_ambiguous = (intent == "unclear")
+
+    layer_guidance = add_layer_awareness_to_system_prompt(
+        ctx=patient_context,
+        current_layer=current_layer,
+        intent=intent,
+        secondary_intents=_secondary_intents,
+        tone_mode=_tone_mode,
+        is_ambiguous=_is_ambiguous,
+    )
 
     # Extract addiction type and profile flags for clinical context differentiation
     addiction_type = (patient_context.onboarding.addiction_type or "").lower() or None
@@ -2473,6 +2484,30 @@ Core guidelines:
             or severity == "critical"
         ):
             response_meta["show_feedback"] = False
+
+    # ── LAYER 5 FEEDBACK GUARANTEE ───────────────────────────────────────
+    # At Layer 5+, feedback (👍/👎) is always shown regardless of whether
+    # the resolution composer ran, UNLESS the turn is:
+    #   — a crisis or severe-distress response
+    #   — a social/closing intent (greeting, farewell, gratitude, intake)
+    #   — a feedback-mechanic token (thumbsup, pivot, sos, optout)
+    #   — an active semantic crisis override (_semantic_crisis_override)
+    _LAYER5_FEEDBACK_SKIP_INTENTS = frozenset({
+        "crisis_suicidal", "crisis_abuse", "behaviour_self_harm",
+        "psychosis_indicator", "severe_distress",
+        "greeting", "farewell", "gratitude", "intake",
+        "feedback_thumbsup", "feedback_optout", "feedback_sos",
+        "feedback_pivot_overwhelmed", "feedback_pivot_urge",
+        "feedback_pivot_stealth", "feedback_safety_override",
+        "feedback_loop_exit",
+    })
+    if (
+        current_layer >= 5
+        and not _semantic_crisis_override
+        and severity != "critical"
+        and intent not in _LAYER5_FEEDBACK_SKIP_INTENTS
+    ):
+        response_meta["show_feedback"] = True
 
     if response_meta.get("show_feedback"):
         session["pending_feedback_intent"] = intent

@@ -495,49 +495,55 @@ def enforce_5layer_rules(response_text: str, current_layer: int, last_question_a
     return response_text, notes
 
 
-def add_layer_awareness_to_system_prompt(ctx: PatientContext, current_layer: int) -> str:
-    """Return layer-specific guidance string for injection into the LLM system prompt."""
-    layer_guidance = {
-        1: """LAYER 1 - GREETING WITH CONTEXT (First message only)
-CRITICAL RULES:
-- Greet with patient name and specific check-in data (mood, sleep, cravings)
-- Never ask "how are you" or generic questions
-- Zero questions in this response
-- Build empathy using what you already know
-- Set the tone based on risk level""",
+def add_layer_awareness_to_system_prompt(
+    ctx: PatientContext,
+    current_layer: int,
+    intent: str = "unclear",
+    secondary_intents: Optional[List[str]] = None,
+    tone_mode: Optional[Dict] = None,
+    is_ambiguous: bool = False,
+    next_target_days: Optional[int] = None,
+) -> str:
+    """
+    Return the full layer-specific guidance block for injection into the LLM system prompt.
 
-        2: """LAYER 2 - INVITE, DON'T INTERROGATE (Second message)
-CRITICAL RULES:
-- One open invitation maximum (e.g., "Tell me what's happening")
-- Listen, don't ask multiple questions
-- Acknowledge emotions with markers (I hear you, that sounds tough)
-- Zero interrogation questions
-- Match the tone from Layer 1""",
+    Delegates to layer_prompts.compose_layer_prompt() which implements the complete
+    5-layer conversation model rules with live patient data populated into each prompt.
 
-        3: """LAYER 3 - CLARIFY IF AMBIGUOUS (Third message)
-CRITICAL RULES:
-- Ask max 1 targeted clarifying question if intent is unclear
-- Skip the question if you understand the issue
-- If patient describes multiple issues, pick the most urgent one
-- Use NLP-based confidence: if confident > 80%, don't ask""",
+    Args:
+        ctx:               PatientContext object.
+        current_layer:     Active conversation layer (1-5).
+        intent:            Classified primary intent for this turn.
+        secondary_intents: Co-present secondary intents.
+        tone_mode:         Dict from get_tone_mode() — label + directive.
+        is_ambiguous:      True when intent classification returns "unclear".
+        next_target_days:  Next milestone day count (Layer 5 progress CTA).
 
-        4: """LAYER 4 - TEXT + VIDEO RESPONSE (Fourth message onwards)
-CRITICAL RULES:
-- Keep response to 2-3 lines max
-- Validate the user's experience first
-- Then offer concrete support (tools, practices, next steps)
-- Video will be included separately in response object
-- One brief soft prompt or no prompt at all""",
-
-        5: """LAYER 5 - CLOSE WITH AGENCY (Fifth message onwards)
-CRITICAL RULES:
-- End with soft CTA: a tool, practice, or opt-out
-- NOT another question
-- Examples: "You could try...", "Next time consider...", "No pressure to..."
-- Let the user decide next steps (agency matters)
-- Affirm their strength""",
-    }
-    return layer_guidance.get(current_layer, "")
+    Returns:
+        str: Prompt fragment injected into the system prompt before LLM generation.
+    """
+    try:
+        from layer_prompts import compose_layer_prompt
+        return compose_layer_prompt(
+            layer=current_layer,
+            patient_context=ctx,
+            intent=intent,
+            secondary_intents=secondary_intents or [],
+            tone_mode=tone_mode,
+            is_ambiguous=is_ambiguous,
+            next_target_days=next_target_days,
+        )
+    except Exception as _lp_err:
+        logger.warning(f"layer_prompts.compose_layer_prompt failed (layer={current_layer}): {_lp_err}")
+        # Minimal safe fallback — preserves the most critical per-layer constraint
+        _fallbacks = {
+            1: "LAYER 1: Greet with patient name and one concrete observation. ZERO questions.",
+            2: "LAYER 2: Offer one open invitation. Not a question. Skip if patient already shared.",
+            3: "LAYER 3: Ask at most one binary clarifying question. Skip if intent is clear.",
+            4: "LAYER 4: Validate first (1 sentence). Normalise (1 sentence). Bridge to action (1 sentence). 2-3 lines max. No questions.",
+            5: "LAYER 5: One soft CTA — not a question. Return control to the patient.",
+        }
+        return _fallbacks.get(current_layer, "")
 
 
 # ════════════════════════════════════════════════════════════════════════════
