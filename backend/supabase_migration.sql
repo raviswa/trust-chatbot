@@ -330,3 +330,52 @@ FROM risk_assessments ra
 WHERE ra.computed_at >= NOW() - INTERVAL '7 days'
 GROUP BY ra.patient_id, DATE(ra.computed_at)
 ORDER BY ra.patient_id, risk_date DESC;
+
+
+-- ============================================================================
+-- 6. ALTER TABLE — add missing columns to risk_assessments
+--    Code sends: assessment_type, updated_at
+--    (overall_risk_score is fixed in code to use live_risk_score instead)
+-- ============================================================================
+
+ALTER TABLE risk_assessments
+  ADD COLUMN IF NOT EXISTS assessment_type  VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS updated_at       TIMESTAMP DEFAULT now();
+
+
+-- ============================================================================
+-- 7. ALTER TABLE — add missing columns to conversation_metrics
+--    Code sends: layer_reached, intent_at_layer, severity_at_layer,
+--                layer_compliance_status
+--    (recorded_at is handled by existing created_at DEFAULT now())
+-- ============================================================================
+
+ALTER TABLE conversation_metrics
+  ADD COLUMN IF NOT EXISTS layer_reached            INTEGER,
+  ADD COLUMN IF NOT EXISTS intent_at_layer          VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS severity_at_layer        VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS layer_compliance_status  VARCHAR(20);
+
+
+-- ============================================================================
+-- 8. Seed patient_addictions from existing onboarding_profiles
+--    Populates one row per patient so addictions list is available
+--    via get_patient_addictions() without requiring a separate intake step.
+-- ============================================================================
+
+INSERT INTO patient_addictions (patient_id, patient_code, addiction_type, is_primary, severity, is_active)
+SELECT
+  p.patient_id,
+  p.patient_code,
+  LOWER(o.addiction_type),
+  TRUE,
+  'high',
+  TRUE
+FROM patients p
+JOIN onboarding_profiles o ON o.patient_id = p.patient_id
+WHERE o.addiction_type IS NOT NULL
+  AND o.addiction_type <> ''
+  AND LOWER(o.addiction_type) IN (
+    'alcohol','drugs','gaming','social_media','nicotine','smoking','gambling','work'
+  )
+ON CONFLICT (patient_id, addiction_type) DO NOTHING;

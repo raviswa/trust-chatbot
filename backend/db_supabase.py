@@ -57,23 +57,21 @@ def ensure_patient(patient_code: str,
     """
     try:
         # Try to get existing patient
-        result = supabase.table("patients").select("id").eq("patient_code", patient_code).execute()
+        result = supabase.table("patients").select("patient_id").eq("patient_code", patient_code).execute()
         
         if result.data:
-            return str(result.data[0]["id"])
+            return str(result.data[0]["patient_id"])
         
-        # Create new patient
+        # Create new patient — only include columns that exist in the schema
         new_patient = {
             "patient_code": patient_code,
-            "display_name": display_name,
-            "programme": programme,
-            "assigned_to": assigned_to,
+            "first_name": display_name or "",
             "created_at": datetime.now().isoformat()
         }
         
         result = supabase.table("patients").insert([new_patient]).execute()
         if result.data:
-            return str(result.data[0]["id"])
+            return str(result.data[0]["patient_id"])
         
         return None
     except Exception as e:
@@ -190,16 +188,19 @@ def get_patient_addictions(patient_code: str) -> List[dict]:
             return []
         patient_id = patient.get("patient_id") or patient.get("id")
 
-        result = (
-            supabase.table("patient_addictions")
-            .select("addiction_type, is_primary, severity, noted_at, clinical_notes")
-            .eq("patient_id", patient_id)
-            .eq("is_active", True)
-            .order("is_primary", desc=True)   # primary first
-            .execute()
-        )
-        if result.data:
-            return result.data
+        try:
+            result = (
+                supabase.table("patient_addictions")
+                .select("addiction_type, is_primary, severity, noted_at, clinical_notes")
+                .eq("patient_id", patient_id)
+                .eq("is_active", True)
+                .order("is_primary", desc=True)   # primary first
+                .execute()
+            )
+            if result.data:
+                return result.data
+        except Exception:
+            pass  # table may not exist yet — fall through to onboarding fallback
 
         # Fallback: synthesise a single-item list from the onboarding profile
         onboarding = get_patient_onboarding(patient_code)

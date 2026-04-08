@@ -704,6 +704,7 @@ _RESOLUTION_SKIP_INTENTS: frozenset = frozenset({
     "crisis_suicidal", "crisis_abuse", "behaviour_self_harm",
     "medication_request", "psychosis_indicator",
     "greeting", "farewell", "gratitude", "intake",
+    "progress_milestone",
     "feedback_thumbsup", "feedback_optout", "feedback_sos",
     "feedback_pivot_overwhelmed", "feedback_pivot_urge", "feedback_pivot_stealth",
 })
@@ -1386,9 +1387,10 @@ def _compose_dynamic_resolution(
 
     line1_options = {
         "urge": [
-            "What you are feeling right now is a common recovery moment, and it makes sense that it feels intense.",
-            "This kind of pull can feel urgent, and that does not mean you are weak or failing.",
-            "You are not broken for feeling this urge; this is a known nervous-system pattern in recovery.",
+            "That pull is real — and the fact you're here instead of acting on it already matters.",
+            "What you're feeling right now is a known nervous-system pattern in recovery, not a personal failure.",
+            "That craving is real. You're not weak for feeling it — your brain is doing what it learned to do.",
+            "This kind of pull can feel urgent. It will peak and pass — usually within 15 minutes.",
         ],
         "anxious": [
             "Given what your system is carrying, this level of anxiety is understandable.",
@@ -1520,9 +1522,23 @@ def _compose_dynamic_resolution(
         line2 = "Your system is trying to protect you quickly; that survival pattern is understandable and changeable."
 
     video_title = (selected_video or {}).get("title", "a short therapeutic video")
-    line3 = (
-        f"I am matching you with {video_title} so the next few minutes focus on {focus.get('phrase', 'a practical regulation skill')} while you stay grounded."
-    )
+
+    # Fix 4/8: For active high-craving, Line 3 is a direct physical delay action.
+    # The video renders separately in the UI — no need to bridge it in text.
+    # For high severity, append a sponsor CTA after the physical action.
+    _is_high_craving_urge = (frame == "urge" and craving >= 7)
+    if _is_high_craving_urge:
+        _sponsor_cta = ""
+        if risk_level in {"high", "critical"}:
+            _sponsor_cta = " If it keeps building, call your sponsor or someone you trust before you act."
+        line3 = (
+            f"Stay where you are. Don't open anything. Just breathe — the urge will peak and pass in the next few minutes."
+            f"{_sponsor_cta}"
+        )
+    else:
+        line3 = (
+            f"I am matching you with {video_title} so the next few minutes focus on {focus.get('phrase', 'a practical regulation skill')} while you stay grounded."
+        )
 
     seed = (
         f"{intent}|{user_message}|{session_message_count}|{focus.get('key','')}|"
@@ -2282,7 +2298,8 @@ Core guidelines:
     _focus_video_intent = _focus.get("video_hint_intent")
     video = get_video_for_patient(_focus_video_intent, watched_video_ids) if _focus_video_intent else None
     if not video:
-        video = get_video_for_intents(_active_intents, watched_video_ids)
+        from datetime import datetime as _dt
+        video = get_video_for_intents(_active_intents, watched_video_ids, hour=_dt.now().hour)
     if video:
         video = {**video, "active_intents": _active_intents}
 
@@ -2453,7 +2470,7 @@ Core guidelines:
         if (
             intent in _ineffective_set
             or session.get("feedback_prompt_suppressed")
-            or severity in {"high", "critical"}
+            or severity == "critical"
         ):
             response_meta["show_feedback"] = False
 

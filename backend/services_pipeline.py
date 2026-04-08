@@ -192,6 +192,12 @@ class IntentClassifier:
                 "urge to drink", "urge to use",
                 "tempted to drink", "tempted to use",
                 "thinking about drinking", "thinking about using",
+                # Social event / pre-trigger situations (e.g. UC 5.4 — going out where alcohol is present)
+                "will be drinking", "they'll be drinking", "everyone will be drinking",
+                "people will be drinking", "there will be alcohol", "there's going to be alcohol",
+                "going out and they", "going out with friends who drink",
+                "know they'll drink", "know they will drink",
+                "conflicted about going out", "worried about going out tonight",
                 "craving alcohol", "craving drugs", "craving a drink",
                 "drug craving", "substance craving",
                 "cocaine", "heroin", "meth", "methamphetamine", "crack cocaine",
@@ -318,6 +324,12 @@ class IntentClassifier:
                 "need to post", "urge to post", "want to post", "need to check likes",
                 "checking my phone constantly", "keep checking my phone",
                 "need to check notifications", "urge to check notifications",
+                # Reward-seeking / excitement-triggered posting (e.g. UC 6.2)
+                "checking likes", "check my likes", "check the likes", "count the likes",
+                "all i can think about is posting", "think about posting", "want to share it",
+                "just want to post", "really want to post", "urge to share",
+                "posting it", "posting right now", "going to post",
+                "can't stop myself from posting", "keep wanting to post",
             ],
             # Gambling cravings
             "addiction_gambling": [
@@ -415,7 +427,19 @@ class IntentClassifier:
                 "don't know why i'm here", "not sure why i'm here", "i don't know why i'm here",
                 "really struggling", "struggling a lot", "been struggling lately",
             ],
-            # Priority 4b: Mood
+            # Priority 4b: Progress / Milestone — must fire BEFORE single-word mood patterns
+            # (e.g. "made" contains "mad" which would otherwise match mood_angry first)
+            "progress_milestone": [
+                "days sober", "weeks sober", "months sober", "days clean", "weeks clean",
+                "days without", "weeks without", "months without",
+                "didn't drink", "didn't use", "didn't smoke", "didn't game",
+                "managed to avoid", "stayed sober", "stayed clean",
+                "sober for", "clean for", "haven't had a drink", "haven't used",
+                "i made it", "i did it", "i didn't", "proud of myself",
+                "recovery milestone", "kept my streak", "streak intact",
+                "didn't relapse", "not relapsed", "resisted the urge",
+            ],
+            # Priority 4c: Mood
             # NOTE: "feel like a burden" must appear in mood_guilty BEFORE mood_sad,
             # because mood_sad contains "feel like" as a substring that would match first.
             "mood_sad":     ["sad", "depressed", "depression", "feeling down", "unhappy", "worthless", "down in the dumps", "blue", "gloomy"],
@@ -443,7 +467,7 @@ class IntentClassifier:
                 "i can't even stop", "can't even stop drinking",
             ],
             # Priority 5: Small talk
-            "greeting":  ["hi ", "hello", "hey", "good morning", "good afternoon", "good evening", "good night", "howdy", "greetings", "what's up", "how are you"],
+            "greeting":  ["hi ", "hello", "hey ", "good morning", "good afternoon", "good evening", "good night", "howdy", "greetings", "what's up", "how are you"],
             "farewell":  ["bye", "goodbye", "see you", "see you later", "take care", "i have to go", "gotta go", "talk later", "i'm leaving", "that's all for now", "thanks bye"],
             "gratitude": ["thank you", "thanks", "thank you so much", "that was helpful", "you helped me", "i appreciate it", "really appreciate", "cheers"],
         }
@@ -744,6 +768,7 @@ class IntentClassifier:
             "addiction_nicotine": "high", "addiction_gambling": "high",
             "addiction_social_media": "medium",
             "venting": "medium",
+            "progress_milestone": "low",
         }
         category_map = {
             "crisis_suicidal": "safety", "crisis_abuse": "safety",
@@ -759,6 +784,7 @@ class IntentClassifier:
             "behaviour_sleep": "behavioral",
             "behaviour_eating": "behavioral", "medication_request": "safety",
             "greeting": "social", "farewell": "social", "gratitude": "social",
+            "progress_milestone": "social",
             "rag_query": "information",
         }
         _all_addiction_intents = {
@@ -1012,13 +1038,23 @@ RESPONSE_TEMPLATES = {
     },
     # ── Venting / Implicit Distress ────────────────────────────────────────
     # Overwhelm, emotional exhaustion, burnout, frustration — no advice, no solutions.
-    # Empathy first + gentle emotional regulation suggestion with video.
+    # Empathy only. Being heard IS the resolution. No questions, no tips.
     "venting": {
         "type": "supportive", "severity": "medium", "show_resources": False,
         "base": (
-            "That sounds really hard, and it makes complete sense that you're feeling overwhelmed."
-            " Take one slow breath right now — you don't need to have the answers, just make a little space."
-            " What's been weighing on you most today?"
+            "That sounds really hard, and it makes complete sense that you're feeling this way."
+            " You don't need to have answers right now — just being here and naming it matters."
+            " Take one slow breath. I'm here."
+        ),
+    },
+    # ── Progress / Milestone ──────────────────────────────────────────────
+    # Patient shares a positive recovery milestone — celebrate, don't probe.
+    # No video. No "but watch out for...". Hold the positive space.
+    "progress_milestone": {
+        "type": "supportive", "severity": "low", "show_resources": False,
+        "base": (
+            "That is real progress — and it matters."
+            " What you've built doesn't disappear; every day you've held on is still there."
         ),
     },
     # ── Small talk ───────────────────────────────────────────────────────
@@ -1474,7 +1510,8 @@ class ResponseGenerator:
         ),
         "relapse_disclosure":    (
             "Take your time. You don't need answers right now — "
-            "saying it out loud is already the hard part."
+            "saying it out loud is already the hard part. "
+            "If it would help to talk with a therapist, I can point you toward one — just let me know."
         ),
         # Safety-adjacent
         "behaviour_self_harm":   (
@@ -1491,8 +1528,10 @@ class ResponseGenerator:
 
     # Intents whose responses already carry explicit safety directives —
     # appending a second agency close would dilute the critical message.
+    # progress_milestone is also skipped — the celebratory response is self-contained.
     _SKIP_AGENCY_INTENTS: frozenset = frozenset({
         "crisis_suicidal", "crisis_abuse", "medication_request", "psychosis_indicator",
+        "progress_milestone",
     })
 
     # Intents where an active coping tool was delivered — eligible for binary feedback.
@@ -1902,7 +1941,7 @@ class ResponseGenerator:
                     " Is there something specific going on?"
                 ),
                 "social_media": (
-                    "I'm sorry you're feeling this way — sadness and scrolling make a tough combination."
+                    "That low mood and the pull to scroll often feed each other — one reinforces the other."
                     " Step away from social media for at least an hour right now; it often deepens low mood rather than lifting it."
                     " What's going on for you today?"
                 ),
@@ -2155,12 +2194,12 @@ class ResponseGenerator:
                     " Would you like to tell me what's happened?"
                 ),
                 "drugs": (
-                    "I'm so sorry — grief is one of the most painful experiences, and I hear you."
+                    "Grief is one of the most painful experiences, and the urge to reach for something to numb it makes complete sense."
                     " Try reaching out to a grief counsellor or therapist today who also understands substance use, so both can be held together."
                     " What's happened?"
                 ),
                 "gaming": (
-                    "I'm sorry for what you're going through — grief is overwhelming, and I hear you."
+                    "Grief is overwhelming, and wanting to escape it even for a moment is deeply human."
                     " Allow yourself one brief, intentional moment today to sit with the feeling rather than escaping it."
                     " What's happened?"
                 ),
@@ -2170,12 +2209,12 @@ class ResponseGenerator:
                     " What's happened?"
                 ),
                 "nicotine": (
-                    "I'm sorry for what you're going through — grief is overwhelming, and reaching for something familiar makes sense."
+                    "Grief is overwhelming, and reaching for something familiar right now makes complete sense."
                     " Be gentle with yourself, and let your GP or stop smoking service know what's happening so they can adjust their support."
                     " What's happened?"
                 ),
                 "gambling": (
-                    "I'm sorry for what you're going through — grief can be a powerful gambling trigger."
+                    "Grief can be one of the most powerful triggers in gambling recovery — that pull is real and understandable."
                     " If the urge comes on, call the National Gambling Helpline before acting: UK 0808 8020 133."
                     " What's happened?"
                 ),

@@ -79,6 +79,19 @@ _CRISIS_SAFE_PHRASES: tuple = (
     "sick and tired of feeling",
     "feel awful in the morning",
     "feel awful every",
+    # Recovery-setback contexts — ambiguous phrases like "no point continuing"
+    # mean continuing their *recovery*, not life. Block tiers 2 & 3 semantic.
+    "missed my check-in",
+    "missed a check-in",
+    "ruined my streak",
+    "missed my streak",
+    "slipped once",
+    "i slipped once",
+    "one slip",
+    "small setback",
+    "no point continuing my recovery",
+    "no point trying to recover",
+    "ruined everything and there is no point",
 )
 
 # ── Tier-3 Sentinel Words ────────────────────────────────────────────────────
@@ -134,7 +147,7 @@ CRISIS_EXACT_PATTERNS: Dict[str, List[str]] = {
         "i feel like i can't go on", "feels like i can't go on",
         "i've been having dark thoughts", "having dark thoughts",
         "dark thoughts about myself", "dark thoughts about my life",
-        "there's no point in continuing", "no point continuing",
+        "there's no point in continuing",
         "i just want to disappear", "want to just disappear",
         "i'm at the end of my rope", "at the end of my rope",
         "i have nothing left to live for", "nothing left to live for",

@@ -606,7 +606,11 @@ def get_video_for_patient(intent: str, watched_video_ids: set = None) -> dict | 
     return primary
 
 
-def get_video_for_intents(active_intents: list, watched_video_ids: set = None) -> dict | None:
+def get_video_for_intents(
+    active_intents: list,
+    watched_video_ids: set = None,
+    hour: int = None,
+) -> dict | None:
     """
     Returns the best-matching video for a set of co-present intents.
 
@@ -619,8 +623,11 @@ def get_video_for_intents(active_intents: list, watched_video_ids: set = None) -
     intents ranks higher than one that tags only one.
 
     Args:
-        active_intents:   Ordered list — primary intent first, then secondary.
+        active_intents:    Ordered list — primary intent first, then secondary.
         watched_video_ids: Set of video_id strings already seen by this patient.
+        hour:              Current hour (0–23). When provided, applies a time-of-day
+                           tiebreaker: evening/night (18–5) prefers calming/sleep
+                           videos; morning (6–11) prefers energising/greeting videos.
 
     Returns:
         Best-matching video dict, or falls back to get_video_for_patient(primary).
@@ -630,6 +637,21 @@ def get_video_for_intents(active_intents: list, watched_video_ids: set = None) -
     if watched_video_ids is None:
         watched_video_ids = set()
 
+    # Time-of-day tiebreaker tag sets
+    _EVENING_TAGS = frozenset({"behaviour_sleep", "severe_distress", "venting", "behaviour_fatigue", "mood_anxious"})
+    _MORNING_TAGS = frozenset({"greeting", "gratitude", "trigger_exercise"})
+
+    def _time_bonus(vid_tags: list) -> int:
+        """Return 1 if this video aligns with time-of-day preference, else 0."""
+        if hour is None:
+            return 0
+        tag_set = set(vid_tags)
+        if 18 <= hour or hour < 6:  # evening / night
+            return 1 if tag_set & _EVENING_TAGS else 0
+        if 6 <= hour < 12:          # morning
+            return 1 if tag_set & _MORNING_TAGS else 0
+        return 0
+
     primary_intent = active_intents[0]
     active_set = set(active_intents)
     # Position map: lower index = higher priority (primary intent = highest)
@@ -638,26 +660,31 @@ def get_video_for_intents(active_intents: list, watched_video_ids: set = None) -
     best: dict | None = None
     best_overlap = 0
     best_position = float('inf')   # lower is better
+    best_time = 0
     best_unwatched = False
 
     for key, vid in VIDEO_MAP.items():
-        overlap = len(set(vid.get("tags", [])) & active_set)
+        vid_tags = vid.get("tags", [])
+        overlap = len(set(vid_tags) & active_set)
         if overlap == 0:
             continue
         unwatched = vid.get("video_id", "") not in watched_video_ids
         # Position score: best (lowest) position of any matching tag in active_intents
-        matching_tags = set(vid.get("tags", [])) & active_set
+        matching_tags = set(vid_tags) & active_set
         position = min(intent_position[t] for t in matching_tags)
-        # Prefer: 1) higher overlap  2) earlier position in active_intents  3) unwatched
+        time_bonus = _time_bonus(vid_tags)
+        # Prefer: 1) higher overlap  2) earlier position  3) time-of-day alignment  4) unwatched
         better = (
             overlap > best_overlap
             or (overlap == best_overlap and position < best_position)
-            or (overlap == best_overlap and position == best_position and unwatched and not best_unwatched)
+            or (overlap == best_overlap and position == best_position and time_bonus > best_time)
+            or (overlap == best_overlap and position == best_position and time_bonus == best_time and unwatched and not best_unwatched)
         )
         if better:
             best = vid
             best_overlap = overlap
             best_position = position
+            best_time = time_bonus
             best_unwatched = unwatched
 
     return best if best else get_video_for_patient(primary_intent, watched_video_ids)

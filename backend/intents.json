@@ -1,17 +1,24 @@
 {
   "intents": [
-
-    // ─────────────────────────────────────────────
-    // SECTION 1: GENERAL CONVERSATION
-    // ─────────────────────────────────────────────
-
     {
       "tag": "greeting",
       "patterns": [
-        "Hi", "Hello", "Hey", "Good morning", "Good afternoon",
-        "Good evening", "Good night", "Howdy", "Hey there",
-        "Greetings", "What's up", "How are you", "How are you doing",
-        "Is anyone there", "Hello?", "Hi there"
+        "Hi ",
+        "Hello",
+        "Hey ",
+        "Good morning",
+        "Good afternoon",
+        "Good evening",
+        "Good night",
+        "Howdy",
+        "Hey there",
+        "Greetings",
+        "What's up",
+        "How are you",
+        "How are you doing",
+        "Is anyone there",
+        "Hello?",
+        "Hi there"
       ],
       "responses": [
         "Hello! I'm here for you. How are you feeling today?",
@@ -22,50 +29,75 @@
       ],
       "context": "general"
     },
-
     {
       "tag": "farewell",
       "patterns": [
-        "Bye", "Goodbye", "See you", "See you later", "Take care",
-        "I have to go", "Gotta go", "Talk later", "Catch you later",
-        "I'm leaving", "Closing now", "That's all for now", "Thanks bye"
+        "Bye",
+        "Goodbye",
+        "See you",
+        "See you later",
+        "Take care",
+        "I have to go",
+        "Gotta go",
+        "Talk later",
+        "Catch you later",
+        "I'm leaving",
+        "Closing now",
+        "That's all for now",
+        "Thanks bye"
       ],
       "responses": [
         "Take care of yourself. Remember, I'm always here when you need to talk.",
         "Goodbye! Be kind to yourself today.",
         "See you soon. You're doing great by taking steps to understand yourself.",
-        "Take care. Reach out anytime — no matter the hour.",
+        "Take care. Reach out anytime \u2014 no matter the hour.",
         "Goodbye for now. Remember, every small step forward counts."
       ],
       "context": "general"
     },
-
     {
       "tag": "gratitude",
       "patterns": [
-        "Thank you", "Thanks", "Thank you so much", "That was helpful",
-        "You helped me", "I appreciate it", "That makes sense", "Great help",
-        "This is useful", "Cheers", "You're great", "Very helpful"
+        "Thank you",
+        "Thanks",
+        "Thank you so much",
+        "That was helpful",
+        "You helped me",
+        "I appreciate it",
+        "That makes sense",
+        "Great help",
+        "This is useful",
+        "Cheers",
+        "You're great",
+        "Very helpful"
       ],
       "responses": [
         "I'm really glad I could help. You're not alone in this journey.",
-        "You're welcome. It takes courage to talk about these things — well done.",
+        "You're welcome. It takes courage to talk about these things \u2014 well done.",
         "Happy to help! Is there anything else on your mind?",
-        "Of course. I'm always here. Keep going — you're doing well.",
+        "Of course. I'm always here. Keep going \u2014 you're doing well.",
         "It means a lot that this was helpful. How are you feeling right now?"
       ],
       "context": "general"
     },
-
     {
       "tag": "unclear",
       "patterns": [
-        "I don't know", "Not sure", "Maybe", "I'm confused",
-        "I don't understand", "What do you mean", "Can you explain",
-        "Huh", "Hmm", "Whatever", "Just talking", "Nothing really"
+        "I don't know",
+        "Not sure",
+        "Maybe",
+        "I'm confused",
+        "I don't understand",
+        "What do you mean",
+        "Can you explain",
+        "Huh",
+        "Hmm",
+        "Whatever",
+        "Just talking",
+        "Nothing really"
       ],
       "responses": [
-        "That's completely okay. Take your time — there's no rush here.",
+        "That's completely okay. Take your time \u2014 there's no rush here.",
         "No worries. Sometimes it's hard to put things into words. I'm listening.",
         "It's okay not to have all the answers. What are you feeling right now?",
         "You don't need to have it figured out. Just share what feels right.",
@@ -73,48 +105,69 @@
       ],
       "context": "general"
     },
-
     {
       "tag": "venting",
       "patterns": [
-        "This is so hard", "I can't do this anymore", "I'm exhausted",
-        "I'm so exhausted", "Everything is too much", "It's all too much",
-        "I can't take it anymore", "I'm at my limit", "I'm at breaking point",
-        "I'm breaking down", "I'm falling apart", "I just need to vent",
-        "I need to let it out", "I just want to let it out",
-        "I'm done", "I can't cope", "I just can't", "I give up",
-        "I'm so tired of this", "I'm worn out", "I'm drained",
-        "I'm burned out", "I don't know how much more I can take",
-        "I can't keep going like this", "I'm running on empty"
+        "This is so hard",
+        "I can't do this anymore",
+        "I'm exhausted",
+        "I'm so exhausted",
+        "Everything is too much",
+        "It's all too much",
+        "I can't take it anymore",
+        "I'm at my limit",
+        "I'm at breaking point",
+        "I'm breaking down",
+        "I'm falling apart",
+        "I just need to vent",
+        "I need to let it out",
+        "I just want to let it out",
+        "I'm done",
+        "I can't cope",
+        "I just can't",
+        "I give up",
+        "I'm so tired of this",
+        "I'm worn out",
+        "I'm drained",
+        "I'm burned out",
+        "I don't know how much more I can take",
+        "I can't keep going like this",
+        "I'm running on empty"
       ],
       "responses": [
         "That sounds really hard, and it makes complete sense you're feeling this way. You don't have to have the answers right now.",
-        "I hear you. What you're carrying sounds genuinely heavy — it's okay to just let it out here.",
+        "I hear you. What you're carrying sounds genuinely heavy \u2014 it's okay to just let it out here.",
         "Sometimes things just pile up until they feel impossible. I'm here, and there's no rush.",
-        "That level of exhaustion is real. You don't have to explain or justify it — I'm listening.",
+        "That level of exhaustion is real. You don't have to explain or justify it \u2014 I'm listening.",
         "It makes sense you feel this way. Just being here and saying it out loud takes courage."
       ],
       "context": "mood",
       "severity": "medium"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 2: MOOD
-    // ─────────────────────────────────────────────
-
     {
       "tag": "mood_sad",
       "patterns": [
-        "I feel sad", "I'm feeling down", "I'm depressed", "I feel empty",
-        "I feel hopeless", "Everything feels grey", "I feel worthless",
-        "I feel like nothing matters", "I'm really low", "I feel blue",
-        "I can't stop crying", "I feel numb", "Life feels meaningless",
-        "I feel broken", "I have no motivation", "I feel lost"
+        "I feel sad",
+        "I'm feeling down",
+        "I'm depressed",
+        "I feel empty",
+        "I feel hopeless",
+        "Everything feels grey",
+        "I feel worthless",
+        "I feel like nothing matters",
+        "I'm really low",
+        "I feel blue",
+        "I can't stop crying",
+        "I feel numb",
+        "Life feels meaningless",
+        "I feel broken",
+        "I have no motivation",
+        "I feel lost"
       ],
       "responses": [
         "I'm really sorry you're feeling this way. Your feelings are valid and you're not alone.",
         "That sounds incredibly hard. Can you tell me more about what's been happening?",
-        "Feeling sad is a signal that something needs attention — I'm here to listen.",
+        "Feeling sad is a signal that something needs attention \u2014 I'm here to listen.",
         "I hear you. These feelings are real and they matter. What's been weighing on you?",
         "You don't have to face this alone. Would you like to talk about what's brought this on?"
       ],
@@ -122,19 +175,29 @@
       "severity": "medium",
       "follow_up": "mood_support"
     },
-
     {
       "tag": "mood_anxious",
       "patterns": [
-        "I feel anxious", "I'm worried", "I can't stop worrying",
-        "I feel nervous", "I have anxiety", "My heart is racing",
-        "I feel panicky", "I had a panic attack", "I feel restless",
-        "I'm scared", "I feel tense", "I'm overwhelmed",
-        "Everything feels too much", "I can't relax", "I feel on edge",
-        "I have racing thoughts", "I feel uneasy"
+        "I feel anxious",
+        "I'm worried",
+        "I can't stop worrying",
+        "I feel nervous",
+        "I have anxiety",
+        "My heart is racing",
+        "I feel panicky",
+        "I had a panic attack",
+        "I feel restless",
+        "I'm scared",
+        "I feel tense",
+        "I'm overwhelmed",
+        "Everything feels too much",
+        "I can't relax",
+        "I feel on edge",
+        "I have racing thoughts",
+        "I feel uneasy"
       ],
       "responses": [
-        "Anxiety can feel overwhelming. You're safe here — let's take this one step at a time.",
+        "Anxiety can feel overwhelming. You're safe here \u2014 let's take this one step at a time.",
         "I hear you. Can you tell me what's been triggering these anxious feelings?",
         "Feeling anxious is your mind signalling that something feels uncertain. Let's talk through it.",
         "You're not alone in feeling this way. What's been weighing most heavily on your mind?",
@@ -144,20 +207,28 @@
       "severity": "medium",
       "follow_up": "coping_breathing"
     },
-
     {
       "tag": "mood_angry",
       "patterns": [
-        "I'm angry", "I feel rage", "I'm so frustrated", "I want to scream",
-        "I'm furious", "Everything makes me angry", "I can't control my anger",
-        "I lash out at people", "I feel irritable all the time",
-        "I get angry very easily", "I have a short temper", "I'm constantly irritated",
-        "People make me so angry", "I feel rage inside me"
+        "I'm angry",
+        "I feel rage",
+        "I'm so frustrated",
+        "I want to scream",
+        "I'm furious",
+        "Everything makes me angry",
+        "I can't control my anger",
+        "I lash out at people",
+        "I feel irritable all the time",
+        "I get angry very easily",
+        "I have a short temper",
+        "I'm constantly irritated",
+        "People make me so angry",
+        "I feel rage inside me"
       ],
       "responses": [
         "Anger is a valid emotion. Let's talk about what's been triggering it.",
         "It sounds like you're carrying a lot of frustration. What's been going on?",
-        "Anger often points to something deeper — a boundary crossed, or a need unmet. Can you tell me more?",
+        "Anger often points to something deeper \u2014 a boundary crossed, or a need unmet. Can you tell me more?",
         "I hear you. That level of anger sounds exhausting. What's been happening?",
         "You're safe to express yourself here. What's been making you feel this way?"
       ],
@@ -165,38 +236,52 @@
       "severity": "medium",
       "follow_up": "anger_management"
     },
-
     {
       "tag": "mood_happy",
       "patterns": [
-        "I'm feeling good", "I'm happy today", "I feel great",
-        "Things are going well", "I'm in a good mood", "I feel positive",
-        "Today was a good day", "I feel hopeful", "I feel better than before",
-        "I'm doing well", "I feel proud of myself", "I made progress today"
+        "I'm feeling good",
+        "I'm happy today",
+        "I feel great",
+        "Things are going well",
+        "I'm in a good mood",
+        "I feel positive",
+        "Today was a good day",
+        "I feel hopeful",
+        "I feel better than before",
+        "I'm doing well",
+        "I feel proud of myself",
+        "I made progress today"
       ],
       "responses": [
         "That's wonderful to hear! What's been contributing to these positive feelings?",
         "I love hearing that. What's been going well for you?",
-        "That's great! Hold onto that feeling — you deserve it.",
-        "Wonderful! Progress and positive moments matter — what happened today?",
+        "That's great! Hold onto that feeling \u2014 you deserve it.",
+        "Wonderful! Progress and positive moments matter \u2014 what happened today?",
         "So glad to hear that! What's made today feel good?"
       ],
       "context": "mood",
       "severity": "low"
     },
-
     {
       "tag": "mood_lonely",
       "patterns": [
-        "I feel lonely", "I feel isolated", "Nobody understands me",
-        "I have no one to talk to", "I feel alone", "I feel disconnected",
-        "Nobody cares about me", "I feel invisible", "I have no friends",
-        "My family doesn't get me", "I feel like an outsider",
-        "I don't belong anywhere", "No one listens to me"
+        "I feel lonely",
+        "I feel isolated",
+        "Nobody understands me",
+        "I have no one to talk to",
+        "I feel alone",
+        "I feel disconnected",
+        "Nobody cares about me",
+        "I feel invisible",
+        "I have no friends",
+        "My family doesn't get me",
+        "I feel like an outsider",
+        "I don't belong anywhere",
+        "No one listens to me"
       ],
       "responses": [
         "Loneliness is one of the hardest feelings. I'm here and I'm listening.",
-        "You reached out — and that matters. You don't have to feel alone right now.",
+        "You reached out \u2014 and that matters. You don't have to feel alone right now.",
         "I hear you. Feeling unseen and unheard is painful. Can you tell me more?",
         "You matter, even when it doesn't feel that way. What's been making you feel so isolated?",
         "I'm glad you're talking to me. What's been happening that's made you feel this disconnected?"
@@ -205,18 +290,24 @@
       "severity": "medium",
       "follow_up": "connection_support"
     },
-
     {
       "tag": "mood_guilt",
       "patterns": [
-        "I feel guilty", "I feel ashamed", "I regret what I did",
-        "I blame myself", "It's all my fault", "I hate myself",
-        "I feel like a bad person", "I've hurt people I love",
-        "I can't forgive myself", "I keep making mistakes",
-        "I've let everyone down", "I feel like a failure"
+        "I feel guilty",
+        "I feel ashamed",
+        "I regret what I did",
+        "I blame myself",
+        "It's all my fault",
+        "I hate myself",
+        "I feel like a bad person",
+        "I've hurt people I love",
+        "I can't forgive myself",
+        "I keep making mistakes",
+        "I've let everyone down",
+        "I feel like a failure"
       ],
       "responses": [
-        "Guilt shows that you care — but carrying it alone is heavy. Can you tell me what happened?",
+        "Guilt shows that you care \u2014 but carrying it alone is heavy. Can you tell me what happened?",
         "Self-blame can be overwhelming. You're human, and humans make mistakes. What's on your mind?",
         "I hear you. Those feelings are painful. What's been making you feel this way?",
         "You don't have to carry this alone. Let's talk through what happened.",
@@ -225,58 +316,75 @@
       "context": "mood",
       "severity": "medium"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 3: BEHAVIOUR PATTERNS
-    // ─────────────────────────────────────────────
-
     {
       "tag": "behaviour_isolation",
       "patterns": [
-        "I keep to myself", "I avoid people", "I don't go out anymore",
-        "I cancelled on everyone", "I stopped talking to friends",
-        "I don't leave my room", "I push people away", "I prefer being alone",
-        "I stopped socialising", "I don't answer calls or messages",
-        "I stay in bed all day", "I have no energy to meet anyone"
+        "I keep to myself",
+        "I avoid people",
+        "I don't go out anymore",
+        "I cancelled on everyone",
+        "I stopped talking to friends",
+        "I don't leave my room",
+        "I push people away",
+        "I prefer being alone",
+        "I stopped socialising",
+        "I don't answer calls or messages",
+        "I stay in bed all day",
+        "I have no energy to meet anyone"
       ],
       "responses": [
         "Withdrawing from others is a common response to pain. What's been making you want to pull away?",
         "That sounds like a difficult pattern to be in. How long have you been feeling this way?",
         "Sometimes isolation feels protective. What's been happening that's made you want to be alone?",
-        "I hear you. Withdrawing from the world can feel safe — but lonely too. Can you tell me more?",
+        "I hear you. Withdrawing from the world can feel safe \u2014 but lonely too. Can you tell me more?",
         "You reached out here, which shows a part of you wants connection. What's been going on?"
       ],
       "context": "behaviour",
       "severity": "medium"
     },
-
     {
       "tag": "behaviour_sleep",
       "patterns": [
-        "I can't sleep", "I sleep too much", "I have insomnia",
-        "I stay up all night", "I wake up at 3am", "I have nightmares",
-        "My sleep is ruined", "I sleep all day", "I have no sleep routine",
-        "I feel tired even after sleeping", "I can't get out of bed",
-        "I oversleep every day", "Sleep is my escape"
+        "I can't sleep",
+        "I sleep too much",
+        "I have insomnia",
+        "I stay up all night",
+        "I wake up at 3am",
+        "I have nightmares",
+        "My sleep is ruined",
+        "I sleep all day",
+        "I have no sleep routine",
+        "I feel tired even after sleeping",
+        "I can't get out of bed",
+        "I oversleep every day",
+        "Sleep is my escape"
       ],
       "responses": [
         "Sleep problems often signal that something deeper is going on. How long has this been happening?",
         "Sleep is so connected to our emotional state. What do you think is keeping you up?",
-        "I hear you — disrupted sleep can affect everything. Can you tell me more about your routine?",
+        "I hear you \u2014 disrupted sleep can affect everything. Can you tell me more about your routine?",
         "Whether you're sleeping too much or too little, your body is trying to tell you something. What's going on?",
         "That sounds exhausting. Sleep disruption is often linked to stress or emotional pain. What's been happening?"
       ],
       "context": "behaviour",
       "severity": "medium"
     },
-
     {
       "tag": "behaviour_eating",
       "patterns": [
-        "I'm not eating", "I can't eat", "I binge eat", "I eat when stressed",
-        "I've lost my appetite", "I eat too much", "Food is my comfort",
-        "I skip meals", "I eat to feel better", "I have no interest in food",
-        "I can't stop eating", "I eat late at night", "I eat when I'm bored"
+        "I'm not eating",
+        "I can't eat",
+        "I binge eat",
+        "I eat when stressed",
+        "I've lost my appetite",
+        "I eat too much",
+        "Food is my comfort",
+        "I skip meals",
+        "I eat to feel better",
+        "I have no interest in food",
+        "I can't stop eating",
+        "I eat late at night",
+        "I eat when I'm bored"
       ],
       "responses": [
         "Our relationship with food is deeply connected to our emotions. What's been going on?",
@@ -288,19 +396,25 @@
       "context": "behaviour",
       "severity": "medium"
     },
-
     {
       "tag": "behaviour_aggression",
       "patterns": [
-        "I broke something", "I hit a wall", "I got into a fight",
-        "I screamed at someone", "I hurt someone", "I destroyed things",
-        "I have violent thoughts", "I act out when angry",
-        "I throw things when angry", "I get physical when upset",
-        "I've been in trouble for fighting", "I can't control my reactions"
+        "I broke something",
+        "I hit a wall",
+        "I got into a fight",
+        "I screamed at someone",
+        "I hurt someone",
+        "I destroyed things",
+        "I have violent thoughts",
+        "I act out when angry",
+        "I throw things when angry",
+        "I get physical when upset",
+        "I've been in trouble for fighting",
+        "I can't control my reactions"
       ],
       "responses": [
         "It takes courage to admit this. What's been happening that leads to these moments?",
-        "Those moments can feel scary — for you and others. Can you walk me through what triggers it?",
+        "Those moments can feel scary \u2014 for you and others. Can you walk me through what triggers it?",
         "I hear you. What do you think is underneath that reaction? What's the feeling before it?",
         "Acting out physically is often a sign of pain that hasn't found another outlet. What's going on?",
         "I'm not here to judge. Let's talk about what's been building up inside you."
@@ -309,44 +423,50 @@
       "severity": "high",
       "follow_up": "anger_management"
     },
-
     {
       "tag": "behaviour_self_harm",
       "patterns": [
-        "I hurt myself", "I cut myself", "I self harm",
-        "I scratch myself when upset", "I burn myself",
-        "I hit myself", "I pull my hair out",
-        "I injure myself on purpose", "I harm my body",
-        "Physical pain helps me cope", "I punish myself"
+        "I hurt myself",
+        "I cut myself",
+        "I self harm",
+        "I scratch myself when upset",
+        "I burn myself",
+        "I hit myself",
+        "I pull my hair out",
+        "I injure myself on purpose",
+        "I harm my body",
+        "Physical pain helps me cope",
+        "I punish myself"
       ],
       "responses": [
         "Thank you for trusting me with this. Your safety matters more than anything right now. Please reach out to a mental health professional or crisis line as soon as you can.",
-        "I hear you. What you're going through must be incredibly painful. Please speak to a healthcare provider today — you deserve proper support.",
+        "I hear you. What you're going through must be incredibly painful. Please speak to a healthcare provider today \u2014 you deserve proper support.",
         "This is important. I'm concerned about your safety. Please contact a crisis helpline or visit your nearest health centre right away.",
-        "You matter deeply. Self-harm is a sign that the pain has become too much to carry alone — please reach out to a professional who can truly help."
+        "You matter deeply. Self-harm is a sign that the pain has become too much to carry alone \u2014 please reach out to a professional who can truly help."
       ],
       "context": "crisis",
       "severity": "critical",
       "always_show_resources": true
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 4: TRIGGERS
-    // ─────────────────────────────────────────────
-
     {
       "tag": "trigger_stress",
       "patterns": [
-        "I'm so stressed", "Work is stressing me out", "I have too much pressure",
-        "Deadlines are killing me", "I can't handle the pressure",
-        "Everything is piling up", "I feel overwhelmed with responsibilities",
-        "My boss is stressing me out", "Family pressure is too much",
-        "Financial stress is getting to me", "I have too much on my plate",
+        "I'm so stressed",
+        "Work is stressing me out",
+        "I have too much pressure",
+        "Deadlines are killing me",
+        "I can't handle the pressure",
+        "Everything is piling up",
+        "I feel overwhelmed with responsibilities",
+        "My boss is stressing me out",
+        "Family pressure is too much",
+        "Financial stress is getting to me",
+        "I have too much on my plate",
         "I can't cope with the workload"
       ],
       "responses": [
         "Stress at that level is unsustainable. What's putting the most pressure on you right now?",
-        "That sounds really heavy. Let's talk about what's driving the stress — where does it feel worst?",
+        "That sounds really heavy. Let's talk about what's driving the stress \u2014 where does it feel worst?",
         "You don't have to handle all of this alone. What's the biggest thing on your mind right now?",
         "Overwhelm often comes from carrying too much for too long. What's been piling up for you?",
         "I hear you. What would feel like the most important thing to address first?"
@@ -354,36 +474,50 @@
       "context": "trigger",
       "severity": "medium"
     },
-
     {
       "tag": "trigger_trauma",
       "patterns": [
-        "I went through something traumatic", "I was abused", "I experienced violence",
-        "I had a traumatic childhood", "I was assaulted", "Something bad happened to me",
-        "I have PTSD", "I have flashbacks", "I can't stop thinking about what happened",
-        "A traumatic event changed me", "I witnessed something horrific",
-        "I was in an accident", "I lost someone suddenly"
+        "I went through something traumatic",
+        "I was abused",
+        "I experienced violence",
+        "I had a traumatic childhood",
+        "I was assaulted",
+        "Something bad happened to me",
+        "I have PTSD",
+        "I have flashbacks",
+        "I can't stop thinking about what happened",
+        "A traumatic event changed me",
+        "I witnessed something horrific",
+        "I was in an accident",
+        "I lost someone suddenly"
       ],
       "responses": [
         "I'm so sorry that happened to you. You didn't deserve that, and what you're feeling makes complete sense.",
-        "Thank you for trusting me with something so personal. Trauma leaves real marks — you're not making this up.",
+        "Thank you for trusting me with something so personal. Trauma leaves real marks \u2014 you're not making this up.",
         "What you went through sounds incredibly difficult. I'm here, and I'm listening.",
         "Your feelings about what happened are valid. Have you been able to speak with a trauma-informed professional?",
-        "That sounds like a lot to carry. You don't have to process this alone — professional support can really help."
+        "That sounds like a lot to carry. You don't have to process this alone \u2014 professional support can really help."
       ],
       "context": "trigger",
       "severity": "high"
     },
-
     {
       "tag": "trigger_relationship",
       "patterns": [
-        "My relationship is falling apart", "I had a breakup", "My partner left me",
-        "I'm going through a divorce", "I feel unloved", "My relationship is toxic",
-        "My partner doesn't understand me", "We keep fighting",
-        "I feel trapped in my relationship", "I'm dealing with infidelity",
-        "I was cheated on", "I'm in an abusive relationship",
-        "My family relationships are broken", "I feel rejected by my partner"
+        "My relationship is falling apart",
+        "I had a breakup",
+        "My partner left me",
+        "I'm going through a divorce",
+        "I feel unloved",
+        "My relationship is toxic",
+        "My partner doesn't understand me",
+        "We keep fighting",
+        "I feel trapped in my relationship",
+        "I'm dealing with infidelity",
+        "I was cheated on",
+        "I'm in an abusive relationship",
+        "My family relationships are broken",
+        "I feel rejected by my partner"
       ],
       "responses": [
         "Relationship pain can cut very deep. I'm sorry you're going through this. Can you tell me more?",
@@ -395,18 +529,25 @@
       "context": "trigger",
       "severity": "medium"
     },
-
     {
       "tag": "trigger_grief",
       "patterns": [
-        "I lost someone", "Someone I love died", "I'm grieving",
-        "I'm dealing with loss", "I can't get over someone's death",
-        "My loved one passed away", "I lost my parent", "I lost my child",
-        "I lost my friend", "I'm mourning", "Death has affected me deeply",
-        "I don't know how to grieve", "I'm struggling with bereavement"
+        "I lost someone",
+        "Someone I love died",
+        "I'm grieving",
+        "I'm dealing with loss",
+        "I can't get over someone's death",
+        "My loved one passed away",
+        "I lost my parent",
+        "I lost my child",
+        "I lost my friend",
+        "I'm mourning",
+        "Death has affected me deeply",
+        "I don't know how to grieve",
+        "I'm struggling with bereavement"
       ],
       "responses": [
-        "I'm so deeply sorry for your loss. Grief has no timeline — be gentle with yourself.",
+        "I'm so deeply sorry for your loss. Grief has no timeline \u2014 be gentle with yourself.",
         "Losing someone you love changes everything. I'm here to listen for as long as you need.",
         "Grief is love with nowhere to go. What you're feeling is completely natural.",
         "There's no right way to grieve. How are you doing right now?",
@@ -415,45 +556,55 @@
       "context": "trigger",
       "severity": "high"
     },
-
     {
       "tag": "trigger_financial",
       "patterns": [
-        "I have money problems", "I'm in debt", "I can't afford basic things",
-        "I'm broke", "I lost my job", "I'm unemployed",
-        "Financial stress is ruining me", "I can't pay my bills",
-        "I'm worried about money", "I have no savings", "I'm facing bankruptcy"
+        "I have money problems",
+        "I'm in debt",
+        "I can't afford basic things",
+        "I'm broke",
+        "I lost my job",
+        "I'm unemployed",
+        "Financial stress is ruining me",
+        "I can't pay my bills",
+        "I'm worried about money",
+        "I have no savings",
+        "I'm facing bankruptcy"
       ],
       "responses": [
         "Financial stress is one of the most common triggers for anxiety and depression. You're not alone.",
         "That sounds really stressful. Money problems affect every area of life. What's the biggest concern right now?",
         "I hear you. Financial pressure can feel suffocating. How long have you been dealing with this?",
-        "This is really tough. Have you been able to speak to anyone — a financial advisor or support service?",
+        "This is really tough. Have you been able to speak to anyone \u2014 a financial advisor or support service?",
         "You're dealing with a lot. Let's talk about how this has been affecting you."
       ],
       "context": "trigger",
       "severity": "medium"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 5: ADDICTION — ALCOHOL
-    // ─────────────────────────────────────────────
-
     {
       "tag": "addiction_alcohol",
       "patterns": [
-        "I drink too much", "I have a drinking problem", "I can't stop drinking",
-        "I'm an alcoholic", "I drink every day", "Alcohol helps me cope",
-        "I need a drink to get through the day", "I drink when I'm stressed",
-        "I drink when I'm lonely", "I hide how much I drink",
-        "People say I drink too much", "I've tried to stop drinking but can't",
-        "Alcohol is ruining my life", "I drink to forget",
-        "I blackout when I drink", "I can't imagine life without alcohol"
+        "I drink too much",
+        "I have a drinking problem",
+        "I can't stop drinking",
+        "I'm an alcoholic",
+        "I drink every day",
+        "Alcohol helps me cope",
+        "I need a drink to get through the day",
+        "I drink when I'm stressed",
+        "I drink when I'm lonely",
+        "I hide how much I drink",
+        "People say I drink too much",
+        "I've tried to stop drinking but can't",
+        "Alcohol is ruining my life",
+        "I drink to forget",
+        "I blackout when I drink",
+        "I can't imagine life without alcohol"
       ],
       "responses": [
         "Thank you for being honest about this. Acknowledging it takes real courage. How long have you been feeling dependent on alcohol?",
         "Alcohol dependency is more common than people realise, and it's treatable. What does a typical day of drinking look like for you?",
-        "I hear you. Alcohol often starts as a way to cope — what has it been helping you escape from?",
+        "I hear you. Alcohol often starts as a way to cope \u2014 what has it been helping you escape from?",
         "You're not weak for struggling with this. It's a real condition that responds well to support. Have you spoken to a doctor?",
         "That took courage to share. What's been making it hard to cut back or stop?"
       ],
@@ -462,60 +613,104 @@
       "addiction_type": "substance",
       "follow_up": "professional_referral"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 6: ADDICTION — DRUGS
-    // ─────────────────────────────────────────────
-
     {
       "tag": "addiction_drugs",
       "patterns": [
-        "I use drugs", "I'm addicted to drugs", "I can't stop using",
-        "I take pills to cope", "I use to feel normal",
-        "I'm dependent on substances", "I use recreational drugs",
-        "I've been using cocaine", "I use marijuana every day",
-        "I'm hooked on painkillers", "I use opioids",
-        "I've tried to quit drugs but relapsed", "Drug use is taking over my life",
-        "I spend all my money on drugs", "I use drugs to numb the pain",
+        "I use drugs",
+        "I'm addicted to drugs",
+        "I can't stop using",
+        "I take pills to cope",
+        "I use to feel normal",
+        "I'm dependent on substances",
+        "I use recreational drugs",
+        "I've been using cocaine",
+        "I use marijuana every day",
+        "I'm hooked on painkillers",
+        "I use opioids",
+        "I've tried to quit drugs but relapsed",
+        "Drug use is taking over my life",
+        "I spend all my money on drugs",
+        "I use drugs to numb the pain",
         "I can't function without using",
-        "need cocaine", "need some cocaine", "want cocaine", "need heroin",
-        "need meth", "need crack", "need ecstasy", "need fentanyl",
-        "need some drugs", "craving cocaine", "craving heroin", "craving meth",
-        "using cocaine", "using heroin", "using meth", "using crack"
+        "need cocaine",
+        "need some cocaine",
+        "want cocaine",
+        "need heroin",
+        "need meth",
+        "need crack",
+        "need ecstasy",
+        "need fentanyl",
+        "need some drugs",
+        "craving cocaine",
+        "craving heroin",
+        "craving meth",
+        "using cocaine",
+        "using heroin",
+        "using meth",
+        "using crack",
+        "craving to use",
+        "urge to use",
+        "craving is intense",
+        "craving to use is intense",
+        "really intense craving",
+        "intense urge to use",
+        "need to use right now",
+        "want to use right now",
+        "craving is really strong",
+        "urge to use is strong",
+        "craving after argument",
+        "craving after fight",
+        "want to use after"
       ],
       "responses": [
         "Thank you for trusting me with this. What you're going through is serious, and you deserve proper support.",
-        "Substance use often fills a gap — numbing pain, creating calm, or providing escape. What's been driving it for you?",
+        "Substance use often fills a gap \u2014 numbing pain, creating calm, or providing escape. What's been driving it for you?",
         "You're not alone in this. Many people have found their way through with the right help. Have you been able to speak to a professional?",
         "That took a lot to say. What does your current use look like, and how long has it been going on?",
-        "Recovery is possible — many people do it every day. What feels like the biggest barrier to getting help right now?"
+        "Recovery is possible \u2014 many people do it every day. What feels like the biggest barrier to getting help right now?"
       ],
       "context": "addiction",
       "severity": "high",
       "addiction_type": "substance",
       "follow_up": "professional_referral"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 7: ADDICTION — GAMING
-    // ─────────────────────────────────────────────
-
     {
       "tag": "addiction_gaming",
       "patterns": [
-        "I can't stop gaming", "I game all night", "Gaming is ruining my life",
-        "I skip meals to game", "I game instead of sleeping",
-        "I've lost relationships because of gaming", "I spend all day gaming",
-        "I get angry when I can't game", "I can't focus on real life",
-        "Gaming is the only thing I enjoy", "My grades are dropping because of gaming",
-        "I game to escape reality", "I spend all my money on games",
-        "I feel empty without gaming", "I've tried to stop gaming but can't",
-        "Gaming is more real to me than real life"
+        "I can't stop gaming",
+        "I game all night",
+        "Gaming is ruining my life",
+        "I skip meals to game",
+        "I game instead of sleeping",
+        "I've lost relationships because of gaming",
+        "I spend all day gaming",
+        "I get angry when I can't game",
+        "I can't focus on real life",
+        "Gaming is the only thing I enjoy",
+        "My grades are dropping because of gaming",
+        "I game to escape reality",
+        "I spend all my money on games",
+        "I feel empty without gaming",
+        "I've tried to stop gaming but can't",
+        "Gaming is more real to me than real life",
+        "cannot stop playing",
+        "can't stop playing",
+        "one more game",
+        "just one more game",
+        "keep playing just one more",
+        "urge to keep gaming",
+        "gaming urge",
+        "late night gaming",
+        "stay up gaming",
+        "game all night",
+        "gaming late at night",
+        "I'm exhausted but I can't stop gaming",
+        "I'm tired but I keep playing"
       ],
       "responses": [
         "Gaming addiction is increasingly recognised as a real condition. What does a typical gaming day look like for you?",
-        "Games are designed to be compelling — but when they start replacing life, it's worth exploring. What does gaming give you that real life doesn't?",
-        "I hear you. Many people use gaming as an escape — from stress, loneliness, or pain. What's been going on in your life outside of gaming?",
+        "Games are designed to be compelling \u2014 but when they start replacing life, it's worth exploring. What does gaming give you that real life doesn't?",
+        "I hear you. Many people use gaming as an escape \u2014 from stress, loneliness, or pain. What's been going on in your life outside of gaming?",
         "That sounds like gaming has become more of a coping mechanism than a hobby. How long has it felt this way?",
         "You're not alone. Gaming addiction affects many people. What's been hardest about trying to cut back?"
       ],
@@ -524,29 +719,32 @@
       "addiction_type": "behavioural",
       "follow_up": "behavioural_addiction_support"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 8: ADDICTION — SOCIAL MEDIA
-    // ─────────────────────────────────────────────
-
     {
       "tag": "addiction_social_media",
       "patterns": [
-        "I can't stop scrolling", "I'm addicted to social media",
-        "I check my phone constantly", "I can't put my phone down",
-        "I feel anxious without my phone", "Social media is consuming me",
-        "I compare myself to others online", "I feel bad after scrolling",
-        "I spend hours on Instagram", "I spend hours on TikTok",
-        "I need likes to feel good", "I feel worthless when posts don't get likes",
-        "I've lost hours to social media", "I check notifications obsessively",
+        "I can't stop scrolling",
+        "I'm addicted to social media",
+        "I check my phone constantly",
+        "I can't put my phone down",
+        "I feel anxious without my phone",
+        "Social media is consuming me",
+        "I compare myself to others online",
+        "I feel bad after scrolling",
+        "I spend hours on Instagram",
+        "I spend hours on TikTok",
+        "I need likes to feel good",
+        "I feel worthless when posts don't get likes",
+        "I've lost hours to social media",
+        "I check notifications obsessively",
         "I can't be present because of my phone",
-        "Online validation is important to me", "I feel FOMO constantly"
+        "Online validation is important to me",
+        "I feel FOMO constantly"
       ],
       "responses": [
-        "Social media is engineered to be addictive — you're not weak for struggling with it. What does your typical screen time look like?",
+        "Social media is engineered to be addictive \u2014 you're not weak for struggling with it. What does your typical screen time look like?",
         "The comparison trap on social media is real and damaging. How does scrolling make you feel afterward?",
         "I hear you. That constant pull to check is exhausting. What do you think you're looking for when you open the app?",
-        "Many people feel exactly this way. Social media can fill a loneliness gap temporarily — but often deepens it. What's been going on?",
+        "Many people feel exactly this way. Social media can fill a loneliness gap temporarily \u2014 but often deepens it. What's been going on?",
         "Phone anxiety is very real. What would feel most difficult about putting it down for a few hours?"
       ],
       "context": "addiction",
@@ -554,25 +752,27 @@
       "addiction_type": "behavioural",
       "follow_up": "digital_detox_support"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 9: ADDICTION — GAMBLING
-    // ─────────────────────────────────────────────
-
     {
       "tag": "addiction_gambling",
       "patterns": [
-        "I can't stop gambling", "I've lost a lot of money gambling",
-        "I gamble online constantly", "Betting is taking over my life",
-        "I gamble to win back what I lost", "I hide gambling from my family",
-        "I've borrowed money to gamble", "I feel a rush when I gamble",
-        "I think about gambling all the time", "I can't stop placing bets",
-        "Sports betting is ruining me", "Casino is my escape",
-        "I gamble when I'm stressed", "I need to gamble to feel alive"
+        "I can't stop gambling",
+        "I've lost a lot of money gambling",
+        "I gamble online constantly",
+        "Betting is taking over my life",
+        "I gamble to win back what I lost",
+        "I hide gambling from my family",
+        "I've borrowed money to gamble",
+        "I feel a rush when I gamble",
+        "I think about gambling all the time",
+        "I can't stop placing bets",
+        "Sports betting is ruining me",
+        "Casino is my escape",
+        "I gamble when I'm stressed",
+        "I need to gamble to feel alive"
       ],
       "responses": [
         "Gambling addiction can spiral quickly and quietly. You were brave to acknowledge it. How long has this been going on?",
-        "The cycle of chasing losses is a hallmark of gambling addiction — it's not a character flaw. What started it for you?",
+        "The cycle of chasing losses is a hallmark of gambling addiction \u2014 it's not a character flaw. What started it for you?",
         "I hear you. The thrill of gambling activates the same reward system as substances. Have you been able to talk to anyone about this?",
         "Financial and emotional damage from gambling can feel overwhelming. What's been the biggest impact on your life?",
         "Recovery from gambling addiction is absolutely possible. What feels like the biggest barrier right now?"
@@ -582,24 +782,24 @@
       "addiction_type": "behavioural",
       "follow_up": "professional_referral"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 10: ADDICTION — PORNOGRAPHY
-    // ─────────────────────────────────────────────
-
     {
       "tag": "addiction_pornography",
       "patterns": [
-        "I'm addicted to porn", "I can't stop watching pornography",
-        "Porn is affecting my relationships", "I watch porn compulsively",
-        "I feel shame about my porn use", "Porn has replaced real intimacy",
-        "I spend hours watching porn", "I watch porn at work",
-        "Porn is affecting my mental health", "I feel out of control with porn"
+        "I'm addicted to porn",
+        "I can't stop watching pornography",
+        "Porn is affecting my relationships",
+        "I watch porn compulsively",
+        "I feel shame about my porn use",
+        "Porn has replaced real intimacy",
+        "I spend hours watching porn",
+        "I watch porn at work",
+        "Porn is affecting my mental health",
+        "I feel out of control with porn"
       ],
       "responses": [
         "Thank you for being open about this. Compulsive pornography use affects many people and is a recognised issue. How long has this felt out of control?",
         "Porn addiction often connects to deeper emotional needs. What do you think it's been filling for you?",
-        "The shame around this can make it hard to seek help — but you deserve support. Have you spoken to a professional?",
+        "The shame around this can make it hard to seek help \u2014 but you deserve support. Have you spoken to a professional?",
         "I hear you. This is more common than people admit. What's been most difficult about trying to change this pattern?"
       ],
       "context": "addiction",
@@ -607,25 +807,26 @@
       "addiction_type": "behavioural",
       "follow_up": "professional_referral"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 11: ADDICTION — FOOD / EATING
-    // ─────────────────────────────────────────────
-
     {
       "tag": "addiction_food",
       "patterns": [
-        "I eat compulsively", "I can't stop eating", "I binge eat",
-        "Food is my addiction", "I eat when I'm emotional",
-        "I eat in secret", "I feel out of control around food",
-        "I eat when I'm not even hungry", "I use food to cope",
+        "I eat compulsively",
+        "I can't stop eating",
+        "I binge eat",
+        "Food is my addiction",
+        "I eat when I'm emotional",
+        "I eat in secret",
+        "I feel out of control around food",
+        "I eat when I'm not even hungry",
+        "I use food to cope",
         "I feel ashamed about how much I eat",
-        "I eat to numb myself", "I can't resist junk food",
+        "I eat to numb myself",
+        "I can't resist junk food",
         "Eating is the only thing that makes me feel better"
       ],
       "responses": [
         "Food addiction and emotional eating are real and valid struggles. What does eating feel like for you emotionally?",
-        "Many people use food as a coping mechanism — it's not a lack of willpower. What emotions tend to trigger the eating?",
+        "Many people use food as a coping mechanism \u2014 it's not a lack of willpower. What emotions tend to trigger the eating?",
         "I hear you. Eating can feel like comfort and control. What's been going on in your life that's been hardest to handle?",
         "The relationship between emotions and eating runs very deep. How long have you been experiencing this?",
         "You're not alone in this. Have you been able to speak with a nutritionist or therapist about this pattern?"
@@ -635,74 +836,76 @@
       "addiction_type": "behavioural",
       "follow_up": "professional_referral"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 12: ADDICTION — WORK / PRODUCTIVITY
-    // ─────────────────────────────────────────────
-
     {
       "tag": "addiction_work",
       "patterns": [
-        "I'm a workaholic", "I can't stop working", "Work is my entire life",
-        "I work 16 hours a day", "I feel guilty when I'm not working",
-        "I don't know how to rest", "My identity is tied to my work",
-        "I've sacrificed relationships for work", "I work on weekends and holidays",
-        "Working is how I cope", "I feel worthless when I'm not productive",
-        "I can't switch off from work", "Rest feels like laziness to me"
+        "I'm a workaholic",
+        "I can't stop working",
+        "Work is my entire life",
+        "I work 16 hours a day",
+        "I feel guilty when I'm not working",
+        "I don't know how to rest",
+        "My identity is tied to my work",
+        "I've sacrificed relationships for work",
+        "I work on weekends and holidays",
+        "Working is how I cope",
+        "I feel worthless when I'm not productive",
+        "I can't switch off from work",
+        "Rest feels like laziness to me"
       ],
       "responses": [
-        "Work addiction is often praised by society — but it takes a real toll. What happens when you try to stop working?",
+        "Work addiction is often praised by society \u2014 but it takes a real toll. What happens when you try to stop working?",
         "Using work as a way to feel valued or avoid emotions is very common. What does being busy give you?",
         "I hear you. The pressure to be constantly productive can be crushing. What are you afraid happens if you slow down?",
         "Workaholism often masks anxiety or a fear of worthlessness. What's driving the need to always be working?",
-        "Rest is not a reward — it's a need. What would 'enough' look like for you?"
+        "Rest is not a reward \u2014 it's a need. What would 'enough' look like for you?"
       ],
       "context": "addiction",
       "severity": "medium",
       "addiction_type": "behavioural"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 13: ADDICTION — SHOPPING
-    // ─────────────────────────────────────────────
-
     {
       "tag": "addiction_shopping",
       "patterns": [
-        "I can't stop shopping", "I shop when I'm sad",
-        "Shopping makes me feel better", "I've spent all my money shopping",
-        "I buy things I don't need", "I hide purchases from my partner",
-        "Online shopping is out of control", "I feel a rush when I buy something",
-        "Shopping is how I cope with stress", "I have a shopping addiction"
+        "I can't stop shopping",
+        "I shop when I'm sad",
+        "Shopping makes me feel better",
+        "I've spent all my money shopping",
+        "I buy things I don't need",
+        "I hide purchases from my partner",
+        "Online shopping is out of control",
+        "I feel a rush when I buy something",
+        "Shopping is how I cope with stress",
+        "I have a shopping addiction"
       ],
       "responses": [
         "Compulsive shopping often provides a short-lived emotional boost. What does buying something feel like in the moment?",
         "I hear you. Shopping can be a way to manage painful emotions. What tends to trigger it for you?",
-        "The relief from shopping is real — but temporary. What's been happening in your life that's been hardest to sit with?",
+        "The relief from shopping is real \u2014 but temporary. What's been happening in your life that's been hardest to sit with?",
         "Many people use retail therapy to cope. Have you noticed a pattern in when the urge to shop is strongest?"
       ],
       "context": "addiction",
       "severity": "medium",
       "addiction_type": "behavioural"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 14: ADDICTION — NICOTINE / SMOKING
-    // ─────────────────────────────────────────────
-
     {
       "tag": "addiction_nicotine",
       "patterns": [
-        "I can't quit smoking", "I'm addicted to cigarettes",
-        "I vape constantly", "I need to smoke to relax",
-        "I've tried to quit but failed", "Smoking is how I deal with stress",
-        "I smoke a pack a day", "I've been smoking for years",
-        "I smoke when I'm anxious", "Nicotine patches don't work for me"
+        "I can't quit smoking",
+        "I'm addicted to cigarettes",
+        "I vape constantly",
+        "I need to smoke to relax",
+        "I've tried to quit but failed",
+        "Smoking is how I deal with stress",
+        "I smoke a pack a day",
+        "I've been smoking for years",
+        "I smoke when I'm anxious",
+        "Nicotine patches don't work for me"
       ],
       "responses": [
-        "Nicotine addiction is one of the strongest there is — quitting is genuinely hard. How long have you been smoking?",
+        "Nicotine addiction is one of the strongest there is \u2014 quitting is genuinely hard. How long have you been smoking?",
         "Smoking as a stress reliever is extremely common. What tends to trigger the urge most strongly?",
-        "Many people try several times before quitting for good — that doesn't mean you've failed. What's worked partially before?",
+        "Many people try several times before quitting for good \u2014 that doesn't mean you've failed. What's worked partially before?",
         "I hear you. Have you spoken to a doctor about cessation support? There are options that work well alongside willpower."
       ],
       "context": "addiction",
@@ -710,20 +913,22 @@
       "addiction_type": "substance",
       "follow_up": "professional_referral"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 15: CRISIS & SAFETY
-    // ─────────────────────────────────────────────
-
     {
       "tag": "crisis_suicidal",
       "patterns": [
-        "I want to die", "I want to kill myself", "I'm thinking about suicide",
-        "I don't want to be here anymore", "I've been thinking about ending it",
-        "Life is not worth living", "I have a plan to end my life",
-        "Nobody would miss me", "The world is better without me",
-        "I want to disappear forever", "I'm thinking of harming myself fatally",
-        "I feel like giving up on life", "I can't go on anymore"
+        "I want to die",
+        "I want to kill myself",
+        "I'm thinking about suicide",
+        "I don't want to be here anymore",
+        "I've been thinking about ending it",
+        "Life is not worth living",
+        "I have a plan to end my life",
+        "Nobody would miss me",
+        "The world is better without me",
+        "I want to disappear forever",
+        "I'm thinking of harming myself fatally",
+        "I feel like giving up on life",
+        "I can't go on anymore"
       ],
       "responses": [
         "What you're feeling right now is real, and I'm taking it seriously. Please contact a crisis line or go to your nearest emergency room right now. You matter, and this feeling can change with the right support.",
@@ -735,14 +940,18 @@
       "always_show_resources": true,
       "immediate_escalation": true
     },
-
     {
       "tag": "crisis_abuse",
       "patterns": [
-        "I'm being abused", "Someone is hurting me", "I'm in a dangerous situation",
-        "My partner hits me", "I'm scared of someone at home",
-        "I'm being threatened", "I feel unsafe at home",
-        "Someone is controlling me", "I'm experiencing domestic violence",
+        "I'm being abused",
+        "Someone is hurting me",
+        "I'm in a dangerous situation",
+        "My partner hits me",
+        "I'm scared of someone at home",
+        "I'm being threatened",
+        "I feel unsafe at home",
+        "Someone is controlling me",
+        "I'm experiencing domestic violence",
         "I'm afraid to go home"
       ],
       "responses": [
@@ -755,18 +964,18 @@
       "always_show_resources": true,
       "immediate_escalation": true
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 16: COPING & SUPPORT
-    // ─────────────────────────────────────────────
-
     {
       "tag": "coping_breathing",
       "patterns": [
-        "Help me calm down", "I need to calm down", "I'm panicking right now",
-        "I can't breathe properly", "I feel like I'm going to lose control",
-        "I need something to calm me", "How do I calm anxiety",
-        "I need a coping technique", "Help me with breathing"
+        "Help me calm down",
+        "I need to calm down",
+        "I'm panicking right now",
+        "I can't breathe properly",
+        "I feel like I'm going to lose control",
+        "I need something to calm me",
+        "How do I calm anxiety",
+        "I need a coping technique",
+        "Help me with breathing"
       ],
       "responses": [
         "Let's try this together. Breathe in slowly for 4 counts... hold for 4... and out for 6. Repeat this 3 times. How do you feel?",
@@ -776,17 +985,20 @@
       "context": "coping",
       "severity": "medium"
     },
-
     {
       "tag": "coping_journaling",
       "patterns": [
-        "How do I process my feelings", "What can I do to feel better",
-        "How do I deal with my emotions", "I want to understand myself better",
-        "What coping strategies are there", "How do I manage my mental health",
-        "I want to help myself", "What can I do right now"
+        "How do I process my feelings",
+        "What can I do to feel better",
+        "How do I deal with my emotions",
+        "I want to understand myself better",
+        "What coping strategies are there",
+        "How do I manage my mental health",
+        "I want to help myself",
+        "What can I do right now"
       ],
       "responses": [
-        "Journaling can be a powerful tool. Try writing about what you're feeling without judgment — just let it flow onto the page.",
+        "Journaling can be a powerful tool. Try writing about what you're feeling without judgment \u2014 just let it flow onto the page.",
         "Some strategies that help many people: daily journaling, gentle exercise, limiting social media, talking to someone you trust, and consistent sleep.",
         "Small steps matter. Even 5 minutes of quiet reflection, a short walk, or writing down three things you're grateful for can shift your state.",
         "Being here and asking these questions is already a coping strategy. What feels most manageable to try today?"
@@ -794,85 +1006,104 @@
       "context": "coping",
       "severity": "low"
     },
-
     {
       "tag": "professional_referral",
       "patterns": [
-        "Should I see a therapist", "Do I need professional help",
-        "How do I find a counsellor", "Is therapy right for me",
-        "I think I need help", "I want to talk to someone professional",
-        "How do I get mental health support", "Where can I get help"
+        "Should I see a therapist",
+        "Do I need professional help",
+        "How do I find a counsellor",
+        "Is therapy right for me",
+        "I think I need help",
+        "I want to talk to someone professional",
+        "How do I get mental health support",
+        "Where can I get help"
       ],
       "responses": [
         "Reaching out for professional help is one of the bravest things you can do. A therapist or counsellor can provide the personalised support you deserve.",
-        "Yes — based on what you've shared, speaking with a mental health professional would be really valuable. Your doctor can refer you, or you can search for licensed therapists in your area.",
-        "Therapy is not just for crisis moments — it's for anyone who wants to understand themselves better and feel more supported. I'd encourage you to explore it.",
+        "Yes \u2014 based on what you've shared, speaking with a mental health professional would be really valuable. Your doctor can refer you, or you can search for licensed therapists in your area.",
+        "Therapy is not just for crisis moments \u2014 it's for anyone who wants to understand themselves better and feel more supported. I'd encourage you to explore it.",
         "You've taken a great first step by talking here. A professional can offer tools and ongoing support that go far beyond what I'm able to provide."
       ],
       "context": "support",
       "severity": "medium"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 17: RECOVERY JOURNEY
-    // ─────────────────────────────────────────────
-
     {
       "tag": "recovery_early_stage",
       "patterns": [
-        "I just started recovery", "I'm in early recovery", "I've been sober for a few days",
-        "I stopped using recently", "I quit a week ago", "I'm only a few days clean",
-        "I just started my sobriety", "I'm new to recovery", "This is my first week sober",
-        "I decided to get clean", "I made the decision to stop", "I'm just beginning this journey",
-        "I don't know how to start recovery", "How do I begin recovery",
+        "I just started recovery",
+        "I'm in early recovery",
+        "I've been sober for a few days",
+        "I stopped using recently",
+        "I quit a week ago",
+        "I'm only a few days clean",
+        "I just started my sobriety",
+        "I'm new to recovery",
+        "This is my first week sober",
+        "I decided to get clean",
+        "I made the decision to stop",
+        "I'm just beginning this journey",
+        "I don't know how to start recovery",
+        "How do I begin recovery",
         "I want to get clean but don't know how"
       ],
       "responses": [
         "Those first days take extraordinary strength. How are you feeling physically and emotionally right now?",
-        "Early recovery is one of the hardest phases — and the fact that you're here is a sign of real commitment. What's been most challenging so far?",
+        "Early recovery is one of the hardest phases \u2014 and the fact that you're here is a sign of real commitment. What's been most challenging so far?",
         "Starting is the hardest step, and you've taken it. What does your support system look like right now?",
-        "The early days can feel overwhelming. You don't have to have everything figured out — one hour at a time is enough. What's helping you stay on track?",
+        "The early days can feel overwhelming. You don't have to have everything figured out \u2014 one hour at a time is enough. What's helping you stay on track?",
         "You've made a huge decision. Recovery is a journey, not a destination. What's feeling most uncertain about these early days?"
       ],
       "context": "recovery",
       "severity": "medium",
       "recovery_stage": "early"
     },
-
     {
       "tag": "recovery_commitment",
       "patterns": [
-        "I want to get better", "I want to change", "I'm committed to recovery",
-        "I want to be free from this", "I'm ready to fight this",
-        "I want my life back", "I want to be a better person",
-        "I'm serious about getting clean this time", "I've decided to change my life",
-        "I want to live without addiction", "Recovery is important to me",
-        "I'm done letting this control me", "I want to break this cycle"
+        "I want to get better",
+        "I want to change",
+        "I'm committed to recovery",
+        "I want to be free from this",
+        "I'm ready to fight this",
+        "I want my life back",
+        "I want to be a better person",
+        "I'm serious about getting clean this time",
+        "I've decided to change my life",
+        "I want to live without addiction",
+        "Recovery is important to me",
+        "I'm done letting this control me",
+        "I want to break this cycle"
       ],
       "responses": [
         "That commitment is everything. What has made this moment feel different from before?",
         "Wanting to change is where all recovery begins. What does the life you want for yourself look like?",
         "That resolve is powerful. What feels like the most important first step you can take today?",
-        "Recovery takes courage and commitment — and you clearly have both. What's your biggest concern about the road ahead?",
+        "Recovery takes courage and commitment \u2014 and you clearly have both. What's your biggest concern about the road ahead?",
         "That decision to break the cycle is profound. What support do you have around you to help make it real?"
       ],
       "context": "recovery",
       "severity": "medium",
       "recovery_stage": "contemplation"
     },
-
     {
       "tag": "recovery_long_term",
       "patterns": [
-        "I've been sober for months", "I've been clean for a year", "I have a year of sobriety",
-        "I've been in recovery for a long time", "I'm celebrating my sobriety anniversary",
-        "I have years of recovery", "I've maintained my sobriety", "Long-term recovery is hard",
-        "I've been sober for over a year", "I've come so far in recovery",
-        "I never thought I'd make it this far", "Staying sober long-term is a challenge"
+        "I've been sober for months",
+        "I've been clean for a year",
+        "I have a year of sobriety",
+        "I've been in recovery for a long time",
+        "I'm celebrating my sobriety anniversary",
+        "I have years of recovery",
+        "I've maintained my sobriety",
+        "Long-term recovery is hard",
+        "I've been sober for over a year",
+        "I've come so far in recovery",
+        "I never thought I'd make it this far",
+        "Staying sober long-term is a challenge"
       ],
       "responses": [
         "That's a remarkable achievement. What's been the most important thing that's kept you going?",
-        "Long-term recovery takes daily dedication — you should be incredibly proud. What does recovery look like for you now compared to the beginning?",
+        "Long-term recovery takes daily dedication \u2014 you should be incredibly proud. What does recovery look like for you now compared to the beginning?",
         "Every day of long-term sobriety represents a choice made over and over. What keeps you grounded?",
         "That milestone speaks to your resilience. What's changed most about your life since entering recovery?",
         "Long-term recovery is living proof that change is possible. What wisdom would you share with your earlier self?"
@@ -881,49 +1112,57 @@
       "severity": "low",
       "recovery_stage": "maintenance"
     },
-
     {
       "tag": "recovery_ambivalence",
       "patterns": [
-        "I'm not sure I want to stop", "Part of me wants to use", "I miss using",
-        "I'm not sure recovery is for me", "I don't know if I really want to change",
-        "Sometimes I think I don't have a problem", "I'm on the fence about recovery",
-        "I can control it sometimes", "Maybe I'm not that bad",
-        "I'm unsure about giving it up completely", "I have mixed feelings about recovery",
+        "I'm not sure I want to stop",
+        "Part of me wants to use",
+        "I miss using",
+        "I'm not sure recovery is for me",
+        "I don't know if I really want to change",
+        "Sometimes I think I don't have a problem",
+        "I'm on the fence about recovery",
+        "I can control it sometimes",
+        "Maybe I'm not that bad",
+        "I'm unsure about giving it up completely",
+        "I have mixed feelings about recovery",
         "I question whether I need to be completely sober"
       ],
       "responses": [
         "Ambivalence about recovery is completely normal and honest. Both parts of you deserve to be heard. What does the part that wants to change feel most strongly about?",
-        "That mix of feelings makes sense — you're weighing real losses against real gains. What would your life look like if nothing changed in a year?",
-        "Many people in recovery have felt exactly this way. The question isn't whether you're 'bad enough' — it's whether this is the life you want.",
-        "Mixed feelings don't mean you're failing — they mean you're being honest. What's the thing you value most that your use has put at risk?",
+        "That mix of feelings makes sense \u2014 you're weighing real losses against real gains. What would your life look like if nothing changed in a year?",
+        "Many people in recovery have felt exactly this way. The question isn't whether you're 'bad enough' \u2014 it's whether this is the life you want.",
+        "Mixed feelings don't mean you're failing \u2014 they mean you're being honest. What's the thing you value most that your use has put at risk?",
         "Uncertainty is part of the process. What would help you feel more clarity about the direction you want to go?"
       ],
       "context": "recovery",
       "severity": "medium",
       "recovery_stage": "pre-contemplation"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 18: CRAVINGS & URGES
-    // ─────────────────────────────────────────────
-
     {
       "tag": "craving_active",
       "patterns": [
-        "I'm having a craving", "I really want to use right now", "I'm craving badly",
-        "The urge is overwhelming", "I want to drink so badly", "I feel like using",
-        "I can't stop thinking about it", "The craving won't go away",
-        "I'm really struggling with urges right now", "I'm about to give in",
-        "I need something to help with this craving", "I'm white-knuckling it",
-        "I'm fighting the urge to use", "Help me get through this craving",
+        "I'm having a craving",
+        "I really want to use right now",
+        "I'm craving badly",
+        "The urge is overwhelming",
+        "I want to drink so badly",
+        "I feel like using",
+        "I can't stop thinking about it",
+        "The craving won't go away",
+        "I'm really struggling with urges right now",
+        "I'm about to give in",
+        "I need something to help with this craving",
+        "I'm white-knuckling it",
+        "I'm fighting the urge to use",
+        "Help me get through this craving",
         "I'm on the edge right now"
       ],
       "responses": [
-        "You're in the right place. Right now, cravings typically last 15–30 minutes. Let's get through this together — what's around you that you can focus on?",
-        "That urge is real and it's strong — but it will pass. Can you name 5 things you can see right now? Let's ground you in this moment.",
-        "You reached out instead of giving in — that's a win. What's helped you ride out a craving before?",
-        "The craving has a peak and then it drops. Try breathing slowly — in for 4, hold for 4, out for 6. Stay with me here. How are you feeling right now?",
+        "You're in the right place. Right now, cravings typically last 15\u201330 minutes. Let's get through this together \u2014 what's around you that you can focus on?",
+        "That urge is real and it's strong \u2014 but it will pass. Can you name 5 things you can see right now? Let's ground you in this moment.",
+        "You reached out instead of giving in \u2014 that's a win. What's helped you ride out a craving before?",
+        "The craving has a peak and then it drops. Try breathing slowly \u2014 in for 4, hold for 4, out for 6. Stay with me here. How are you feeling right now?",
         "You're stronger than this craving even when it doesn't feel that way. Can you get away from whatever triggered it? Movement can help break the cycle."
       ],
       "context": "recovery",
@@ -931,134 +1170,161 @@
       "recovery_stage": "active_craving",
       "follow_up": "coping_breathing"
     },
-
     {
       "tag": "craving_triggers",
       "patterns": [
-        "I know what triggers my cravings", "My triggers are getting to me",
-        "Seeing it made me want to use", "I passed a place where I used to use",
-        "Being around certain people makes me want to use", "Certain smells trigger me",
-        "I was in a triggering situation", "Boredom makes me want to use",
-        "Stress always makes me crave", "I was at a party and it was hard",
-        "Social situations trigger me", "I walked past a pub",
-        "Someone offered me something", "I saw drugs and wanted them"
+        "I know what triggers my cravings",
+        "My triggers are getting to me",
+        "Seeing it made me want to use",
+        "I passed a place where I used to use",
+        "Being around certain people makes me want to use",
+        "Certain smells trigger me",
+        "I was in a triggering situation",
+        "Boredom makes me want to use",
+        "Stress always makes me crave",
+        "I was at a party and it was hard",
+        "Social situations trigger me",
+        "I walked past a pub",
+        "Someone offered me something",
+        "I saw drugs and wanted them"
       ],
       "responses": [
-        "Triggers are powerful — they wire themselves into our brains over time. You recognised it, which is important. What happened, and how did you handle it?",
+        "Triggers are powerful \u2014 they wire themselves into our brains over time. You recognised it, which is important. What happened, and how did you handle it?",
         "Being exposed to a trigger and reaching out here is exactly the right response. How are you feeling right now?",
         "Understanding your triggers is one of the most powerful things you can do in recovery. Was this one you'd identified before, or a new one?",
-        "That took real presence of mind. Avoiding certain people and places is often necessary in early recovery — is that possible for this trigger?",
+        "That took real presence of mind. Avoiding certain people and places is often necessary in early recovery \u2014 is that possible for this trigger?",
         "Triggers don't disappear, but your response to them can change completely. What tools do you have for when this one shows up again?"
       ],
       "context": "recovery",
       "severity": "high"
     },
-
     {
       "tag": "urge_surfing",
       "patterns": [
-        "How do I ride out a craving", "What is urge surfing", "How do I manage urges",
-        "I need a technique for cravings", "What do I do when cravings hit",
-        "Help me deal with this urge", "I don't know how to handle cravings",
-        "What can I do to distract myself", "How do I cope with urges without using"
+        "How do I ride out a craving",
+        "What is urge surfing",
+        "How do I manage urges",
+        "I need a technique for cravings",
+        "What do I do when cravings hit",
+        "Help me deal with this urge",
+        "I don't know how to handle cravings",
+        "What can I do to distract myself",
+        "How do I cope with urges without using"
       ],
       "responses": [
-        "Urge surfing is a powerful technique. Picture the craving like an ocean wave — it builds, peaks, and then passes. Your job isn't to fight it, just to observe it without acting on it. Notice where you feel it in your body.",
-        "Try this: sit with the urge without judging it. Notice how it feels in your body — is it in your chest? Your hands? Stay curious, not scared. Waves always fade.",
-        "When a craving hits: pause, breathe, notice. Ask yourself — where is this urge in my body? What does it feel like? Observe it like a wave rather than fighting or feeding it. They're usually gone within 20–30 minutes.",
+        "Urge surfing is a powerful technique. Picture the craving like an ocean wave \u2014 it builds, peaks, and then passes. Your job isn't to fight it, just to observe it without acting on it. Notice where you feel it in your body.",
+        "Try this: sit with the urge without judging it. Notice how it feels in your body \u2014 is it in your chest? Your hands? Stay curious, not scared. Waves always fade.",
+        "When a craving hits: pause, breathe, notice. Ask yourself \u2014 where is this urge in my body? What does it feel like? Observe it like a wave rather than fighting or feeding it. They're usually gone within 20\u201330 minutes.",
         "Distraction can help: go for a walk, call someone safe, drink cold water, or change your environment. The goal is just to get past the peak. What's something you could do right now?"
       ],
       "context": "recovery",
       "severity": "medium",
       "follow_up": "coping_breathing"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 19: RELAPSE
-    // ─────────────────────────────────────────────
-
     {
       "tag": "relapse_disclosure",
       "patterns": [
-        "I relapsed", "I used again", "I slipped up", "I had a drink",
-        "I fell off the wagon", "I broke my sobriety", "I went back to using",
-        "I couldn't stay clean", "I gave in", "I had a relapse",
-        "I messed up my recovery", "I failed at sobriety", "I took something last night",
-        "I lost my sober days", "I've been using again", "I'm ashamed to say I used"
+        "I relapsed",
+        "I used again",
+        "I slipped up",
+        "I had a drink",
+        "I fell off the wagon",
+        "I broke my sobriety",
+        "I went back to using",
+        "I couldn't stay clean",
+        "I gave in",
+        "I had a relapse",
+        "I messed up my recovery",
+        "I failed at sobriety",
+        "I took something last night",
+        "I lost my sober days",
+        "I've been using again",
+        "I'm ashamed to say I used"
       ],
       "responses": [
-        "Thank you for telling me. That took honesty and courage. Relapse is a common part of many people's recovery journeys — not a moral failure. How are you feeling right now?",
+        "Thank you for telling me. That took honesty and courage. Relapse is a common part of many people's recovery journeys \u2014 not a moral failure. How are you feeling right now?",
         "You came back here, and that matters completely. One slip does not erase your progress or your capacity to recover. What happened, if you're okay to share?",
-        "I'm glad you're talking to me. Relapse doesn't mean you've failed — it means your recovery needs some adjustments. Are you safe right now?",
-        "That takes real honesty to admit. What you're feeling right now is probably heavy — guilt, shame, disappointment. All of those are natural. What do you need most in this moment?",
+        "I'm glad you're talking to me. Relapse doesn't mean you've failed \u2014 it means your recovery needs some adjustments. Are you safe right now?",
+        "That takes real honesty to admit. What you're feeling right now is probably heavy \u2014 guilt, shame, disappointment. All of those are natural. What do you need most in this moment?",
         "The people who recover long-term are often the ones who faced relapses and got back up anyway. You're still here, still reaching out. Let's figure out the next step together."
       ],
       "context": "recovery",
       "severity": "high",
       "recovery_stage": "relapse"
     },
-
     {
       "tag": "relapse_prevention",
       "patterns": [
-        "How do I prevent relapse", "I'm scared of relapsing", "What if I relapse",
-        "I want to stay clean but worry about slipping", "How do I avoid going back to it",
-        "I'm afraid of falling back into old patterns", "I almost relapsed today",
-        "I'm close to relapsing", "I've been in danger of relapsing",
-        "How do I protect my sobriety", "I need a relapse prevention plan"
+        "How do I prevent relapse",
+        "I'm scared of relapsing",
+        "What if I relapse",
+        "I want to stay clean but worry about slipping",
+        "How do I avoid going back to it",
+        "I'm afraid of falling back into old patterns",
+        "I almost relapsed today",
+        "I'm close to relapsing",
+        "I've been in danger of relapsing",
+        "How do I protect my sobriety",
+        "I need a relapse prevention plan"
       ],
       "responses": [
         "That awareness is your biggest protection. The fact that you're thinking about this means you're taking your recovery seriously. Let's talk about what your high-risk moments look like.",
-        "Relapse prevention starts with knowing your warning signs — often the spiral begins days or weeks before any actual use. Have you noticed any changes in your mood, sleep, or routine lately?",
+        "Relapse prevention starts with knowing your warning signs \u2014 often the spiral begins days or weeks before any actual use. Have you noticed any changes in your mood, sleep, or routine lately?",
         "HALT is a useful check-in: are you Hungry, Angry, Lonely, or Tired? These four states are responsible for a large share of relapses. How are you doing on each of those right now?",
         "Having a plan for when things get hard is one of the most protective things you can do. Who can you call in a crisis? What places or people should you avoid?",
-        "The three stages of relapse — emotional, mental, physical — mean the real prevention happens long before any use. What's your emotional state been like over the past few days?"
+        "The three stages of relapse \u2014 emotional, mental, physical \u2014 mean the real prevention happens long before any use. What's your emotional state been like over the past few days?"
       ],
       "context": "recovery",
       "severity": "high",
       "recovery_stage": "maintenance"
     },
-
     {
       "tag": "relapse_recovery_after",
       "patterns": [
-        "I relapsed but I want to get back on track", "How do I start over after a relapse",
-        "I slipped but I'm not giving up", "I want to rebuild after relapse",
-        "I need to get back into recovery", "Relapse doesn't mean I'm done",
-        "I'm ready to try again", "I fell but I want to get back up",
-        "What do I do after a relapse", "I need help restarting my sobriety"
+        "I relapsed but I want to get back on track",
+        "How do I start over after a relapse",
+        "I slipped but I'm not giving up",
+        "I want to rebuild after relapse",
+        "I need to get back into recovery",
+        "Relapse doesn't mean I'm done",
+        "I'm ready to try again",
+        "I fell but I want to get back up",
+        "What do I do after a relapse",
+        "I need help restarting my sobriety"
       ],
       "responses": [
         "Getting back up after a relapse is recovery. You're doing it right now. What would feel like the most grounding first step today?",
         "The moment you decide to get back on track is the moment recovery restarts. What happened, and what have you learned from it that can protect you going forward?",
-        "Many people's most powerful recovery came after a relapse — because it showed them what was still missing. Is there something in your support or plan that needs to change?",
-        "What you're doing right now — reaching back out — is exactly right. Your recovery isn't lost. Let's rebuild the foundation together.",
+        "Many people's most powerful recovery came after a relapse \u2014 because it showed them what was still missing. Is there something in your support or plan that needs to change?",
+        "What you're doing right now \u2014 reaching back out \u2014 is exactly right. Your recovery isn't lost. Let's rebuild the foundation together.",
         "Compassion for yourself is as important as commitment. You're human, and this is one of the hardest battles anyone can face. What do you need most right now?"
       ],
       "context": "recovery",
       "severity": "high",
       "recovery_stage": "relapse"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 20: WITHDRAWAL
-    // ─────────────────────────────────────────────
-
     {
       "tag": "withdrawal_symptoms",
       "patterns": [
-        "I'm going through withdrawal", "I feel terrible from stopping",
-        "My body is in shock from stopping", "I have withdrawal symptoms",
-        "I'm shaking from stopping", "I feel sick from not using",
-        "Withdrawal is unbearable", "I feel horrible detoxing",
-        "I can't sleep because of withdrawal", "I'm sweating and shaking",
-        "My body aches from withdrawal", "I feel like I'm dying from withdrawal",
-        "I'm detoxing and it's really hard", "The physical symptoms are awful"
+        "I'm going through withdrawal",
+        "I feel terrible from stopping",
+        "My body is in shock from stopping",
+        "I have withdrawal symptoms",
+        "I'm shaking from stopping",
+        "I feel sick from not using",
+        "Withdrawal is unbearable",
+        "I feel horrible detoxing",
+        "I can't sleep because of withdrawal",
+        "I'm sweating and shaking",
+        "My body aches from withdrawal",
+        "I feel like I'm dying from withdrawal",
+        "I'm detoxing and it's really hard",
+        "The physical symptoms are awful"
       ],
       "responses": [
-        "Withdrawal is one of the hardest parts of early recovery, and your body is working hard to rebalance. Have you been medically supervised for this? That's really important — please reach out to a healthcare provider if not.",
+        "Withdrawal is one of the hardest parts of early recovery, and your body is working hard to rebalance. Have you been medically supervised for this? That's really important \u2014 please reach out to a healthcare provider if not.",
         "What you're experiencing physically is real and difficult. Staying hydrated, resting, and having medical oversight can make a real difference. Are you currently being supported by a doctor or clinic?",
-        "The physical discomfort of withdrawal is temporary, even though it doesn't feel that way right now. Please ensure you have medical support — some withdrawal types require supervised care for safety.",
+        "The physical discomfort of withdrawal is temporary, even though it doesn't feel that way right now. Please ensure you have medical support \u2014 some withdrawal types require supervised care for safety.",
         "I hear you. The discomfort is your body beginning to heal. You're doing the hardest thing. Please make sure a healthcare professional knows what you're going through."
       ],
       "context": "recovery",
@@ -1066,169 +1332,198 @@
       "always_show_resources": true,
       "recovery_stage": "withdrawal"
     },
-
     {
       "tag": "withdrawal_emotional",
       "patterns": [
-        "I feel emotionally awful since stopping", "I'm crying all the time since I quit",
-        "My moods are all over the place since stopping", "I feel depressed since quitting",
-        "I feel anxious since stopping", "I feel worse emotionally since I stopped",
-        "Quitting made my emotions explode", "I feel numb since getting clean",
-        "My head is a mess since I got sober", "I feel empty without it",
-        "I don't know who I am without using", "I feel lost since I stopped"
+        "I feel emotionally awful since stopping",
+        "I'm crying all the time since I quit",
+        "My moods are all over the place since stopping",
+        "I feel depressed since quitting",
+        "I feel anxious since stopping",
+        "I feel worse emotionally since I stopped",
+        "Quitting made my emotions explode",
+        "I feel numb since getting clean",
+        "My head is a mess since I got sober",
+        "I feel empty without it",
+        "I don't know who I am without using",
+        "I feel lost since I stopped"
       ],
       "responses": [
-        "Emotional withdrawal is real and can be more difficult than the physical. Your brain is recalibrating after relying on substances — this will ease. How long have you been feeling this way?",
+        "Emotional withdrawal is real and can be more difficult than the physical. Your brain is recalibrating after relying on substances \u2014 this will ease. How long have you been feeling this way?",
         "That emotional rawness after stopping is incredibly common. For a long time, substances were managing your feelings. Now those feelings are surfacing. That's actually a sign of healing, even though it hurts.",
-        "Feeling lost without it makes sense — when something has been central to your life, stopping creates a void. What used to bring you joy or meaning before, that you might want to reconnect with?",
+        "Feeling lost without it makes sense \u2014 when something has been central to your life, stopping creates a void. What used to bring you joy or meaning before, that you might want to reconnect with?",
         "The emotional turbulence can feel like things are getting worse when they're actually getting better. Are you connected with any professional support to help you through this phase?",
-        "You don't have to feel okay right now — you're going through something enormous. What's one small thing that might bring even a tiny sense of steadiness today?"
+        "You don't have to feel okay right now \u2014 you're going through something enormous. What's one small thing that might bring even a tiny sense of steadiness today?"
       ],
       "context": "recovery",
       "severity": "medium",
       "recovery_stage": "withdrawal"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 21: BEYOND THE CHECK-IN
-    // Things patients couldn't fully express in structured check-ins
-    // ─────────────────────────────────────────────
-
     {
       "tag": "checkin_beyond_numbers",
       "patterns": [
-        "I wanted to say more in the check-in", "The check-in didn't capture how I feel",
-        "There's more I wanted to express", "My score doesn't tell the whole story",
-        "I rated myself but that doesn't explain everything", "The questions missed something",
-        "I feel more than what the check-in asked", "I couldn't fit my feelings into those answers",
-        "There's something I didn't say in my check-in", "I want to tell you more",
-        "The check-in was too simple", "Numbers don't capture what I'm going through"
+        "I wanted to say more in the check-in",
+        "The check-in didn't capture how I feel",
+        "There's more I wanted to express",
+        "My score doesn't tell the whole story",
+        "I rated myself but that doesn't explain everything",
+        "The questions missed something",
+        "I feel more than what the check-in asked",
+        "I couldn't fit my feelings into those answers",
+        "There's something I didn't say in my check-in",
+        "I want to tell you more",
+        "The check-in was too simple",
+        "Numbers don't capture what I'm going through"
       ],
       "responses": [
-        "That's exactly what I'm here for. The check-in captures data — but you're a whole person with a story. What didn't it capture?",
+        "That's exactly what I'm here for. The check-in captures data \u2014 but you're a whole person with a story. What didn't it capture?",
         "Thank you for saying that. This space is here specifically for everything that doesn't fit into a score or rating. What's on your mind?",
         "Numbers can only say so much. What's the thing that's been sitting with you that a score couldn't express?",
-        "I'm really glad you're sharing this. There's always more to the story. Take as much space as you need — what's really been going on?",
+        "I'm really glad you're sharing this. There's always more to the story. Take as much space as you need \u2014 what's really been going on?",
         "This is your space to say everything. The check-in is just a starting point. What would you like to tell me that you couldn't say there?"
       ],
       "context": "checkin",
       "severity": "low"
     },
-
     {
       "tag": "checkin_dishonest",
       "patterns": [
-        "I wasn't honest in my check-in", "I lied on the check-in",
-        "I put a better score than I really feel", "I told them I was fine but I'm not",
-        "I didn't want to worry anyone in my check-in", "I downplayed things in my check-in",
-        "I wasn't truthful about how I really feel", "I said I was okay when I wasn't",
-        "My check-in didn't reflect the truth", "I hid how bad I really feel"
+        "I wasn't honest in my check-in",
+        "I lied on the check-in",
+        "I put a better score than I really feel",
+        "I told them I was fine but I'm not",
+        "I didn't want to worry anyone in my check-in",
+        "I downplayed things in my check-in",
+        "I wasn't truthful about how I really feel",
+        "I said I was okay when I wasn't",
+        "My check-in didn't reflect the truth",
+        "I hid how bad I really feel"
       ],
       "responses": [
         "What you're sharing now is the real check-in, and it matters. What made it hard to be fully honest there?",
-        "I'm really glad you're telling me now. It's very common to hold back — protecting yourself, or protecting others. What's the truth of how you've really been feeling?",
-        "It takes courage to say that. This space is completely safe — there's no wrong answer here. What's really been going on?",
+        "I'm really glad you're telling me now. It's very common to hold back \u2014 protecting yourself, or protecting others. What's the truth of how you've really been feeling?",
+        "It takes courage to say that. This space is completely safe \u2014 there's no wrong answer here. What's really been going on?",
         "The gap between how we present ourselves and how we actually feel can be exhausting to carry. Let's close that gap here. What's the real picture?",
         "You don't have to manage anyone's reaction here. This is just you and me. What would you have said if you knew it was completely safe?"
       ],
       "context": "checkin",
       "severity": "medium"
     },
-
     {
       "tag": "checkin_overwhelmed",
       "patterns": [
-        "So much has happened since my last check-in", "A lot has changed since we last spoke",
-        "I have a lot to process", "I've been through a lot recently",
-        "Everything has been too much this week", "I don't know where to start",
-        "It's been an overwhelming few days", "Too much has happened",
-        "I've been dealing with a lot since last time", "My week was really hard",
-        "Since my last check-in things have gotten worse", "Things have built up"
+        "So much has happened since my last check-in",
+        "A lot has changed since we last spoke",
+        "I have a lot to process",
+        "I've been through a lot recently",
+        "Everything has been too much this week",
+        "I don't know where to start",
+        "It's been an overwhelming few days",
+        "Too much has happened",
+        "I've been dealing with a lot since last time",
+        "My week was really hard",
+        "Since my last check-in things have gotten worse",
+        "Things have built up"
       ],
       "responses": [
         "That's okay. You don't have to process everything at once. What feels most important to start with?",
         "A lot can accumulate between check-ins. You're here now, and there's no rush. What's been weighing most heavily?",
         "It sounds like it's been a heavy stretch. I'm here to work through whatever you need. Where does it feel most urgent to start?",
         "Let's take it one thing at a time. What's been the hardest part of this past week?",
-        "You've made it through all of it, even when it was hard. Take a breath, and start wherever feels right — I'm listening."
+        "You've made it through all of it, even when it was hard. Take a breath, and start wherever feels right \u2014 I'm listening."
       ],
       "context": "checkin",
       "severity": "medium"
     },
-
     {
       "tag": "checkin_good_news",
       "patterns": [
-        "I wanted to share something positive", "I had a win today",
-        "Something good happened", "I made progress and wanted to tell someone",
-        "I've been doing better and wanted to share", "A milestone happened",
-        "I had a breakthrough", "I wanted to talk about something positive for once",
-        "Things are looking up", "I have some good news"
+        "I wanted to share something positive",
+        "I had a win today",
+        "Something good happened",
+        "I made progress and wanted to tell someone",
+        "I've been doing better and wanted to share",
+        "A milestone happened",
+        "I had a breakthrough",
+        "I wanted to talk about something positive for once",
+        "Things are looking up",
+        "I have some good news"
       ],
       "responses": [
-        "I love hearing this — please tell me everything.",
+        "I love hearing this \u2014 please tell me everything.",
         "This is what recovery is built on. What happened? I want to hear it all.",
         "Sharing wins is just as important as sharing struggles. What's the good news?",
-        "Yes! Tell me what happened — these moments deserve to be celebrated.",
+        "Yes! Tell me what happened \u2014 these moments deserve to be celebrated.",
         "I'm here for this. What positive thing would you like to share?"
       ],
       "context": "checkin",
       "severity": "low"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 22: SUPPORT NETWORK & COMMUNITY
-    // ─────────────────────────────────────────────
-
     {
       "tag": "support_meetings",
       "patterns": [
-        "I've been going to AA", "I've been going to NA", "I go to meetings",
-        "I started going to a support group", "The group is helping",
-        "I don't want to go to meetings", "Meetings aren't for me",
-        "I tried AA but didn't like it", "I feel judged at meetings",
-        "I find meetings helpful", "My sponsor has been supporting me",
-        "I haven't been to a meeting in a while", "Should I go to a meeting"
+        "I've been going to AA",
+        "I've been going to NA",
+        "I go to meetings",
+        "I started going to a support group",
+        "The group is helping",
+        "I don't want to go to meetings",
+        "Meetings aren't for me",
+        "I tried AA but didn't like it",
+        "I feel judged at meetings",
+        "I find meetings helpful",
+        "My sponsor has been supporting me",
+        "I haven't been to a meeting in a while",
+        "Should I go to a meeting"
       ],
       "responses": [
         "Peer support through meetings has helped a huge number of people in recovery. What's your experience been like when you've attended?",
-        "It's okay if traditional meetings don't feel right — there are many formats including online, SMART Recovery, and other alternatives. What specifically hasn't resonated for you?",
+        "It's okay if traditional meetings don't feel right \u2014 there are many formats including online, SMART Recovery, and other alternatives. What specifically hasn't resonated for you?",
         "Having a community of people who truly understand is one of the most protective factors in recovery. What kind of connection have you found there?",
         "Consistent meeting attendance is one of the strongest predictors of long-term sobriety. Even when it feels like it's not helping, showing up has value. What's making it hard to go?",
-        "Whether it's AA, NA, SMART Recovery, or another group — community matters in recovery. What would feel most accessible for you right now?"
+        "Whether it's AA, NA, SMART Recovery, or another group \u2014 community matters in recovery. What would feel most accessible for you right now?"
       ],
       "context": "support",
       "severity": "medium"
     },
-
     {
       "tag": "support_sponsor",
       "patterns": [
-        "I have a sponsor", "My sponsor isn't helping", "I need a sponsor",
-        "I spoke to my sponsor", "I can't reach my sponsor",
-        "My sponsor said something that upset me", "I'm looking for a sponsor",
-        "What does a sponsor do", "I don't have anyone supporting me in recovery",
-        "My support person is great", "I rely on my sponsor"
+        "I have a sponsor",
+        "My sponsor isn't helping",
+        "I need a sponsor",
+        "I spoke to my sponsor",
+        "I can't reach my sponsor",
+        "My sponsor said something that upset me",
+        "I'm looking for a sponsor",
+        "What does a sponsor do",
+        "I don't have anyone supporting me in recovery",
+        "My support person is great",
+        "I rely on my sponsor"
       ],
       "responses": [
         "Having a sponsor or recovery mentor is one of the most powerful assets in recovery. What's your current relationship with yours like?",
         "A good sponsor relationship takes time to build. What's been happening with yours?",
-        "Not having a sponsor yet means you're doing this partly alone — do you have someone in your meetings or recovery community you've connected with?",
-        "Sometimes sponsor relationships need to be renegotiated or changed — that's okay. What would you need from a sponsor to feel truly supported?",
+        "Not having a sponsor yet means you're doing this partly alone \u2014 do you have someone in your meetings or recovery community you've connected with?",
+        "Sometimes sponsor relationships need to be renegotiated or changed \u2014 that's okay. What would you need from a sponsor to feel truly supported?",
         "Reaching out to your sponsor when things get hard is exactly what that relationship is for. What's making it difficult to reach them?"
       ],
       "context": "support",
       "severity": "medium"
     },
-
     {
       "tag": "support_family_help",
       "patterns": [
-        "My family is supportive", "My family is helping me with recovery",
-        "I have support from loved ones", "People around me are helping",
-        "My partner is supporting me", "My friends know and they're helping",
-        "I feel supported in this", "I have people behind me",
-        "I'm not doing this alone", "I have a strong support network"
+        "My family is supportive",
+        "My family is helping me with recovery",
+        "I have support from loved ones",
+        "People around me are helping",
+        "My partner is supporting me",
+        "My friends know and they're helping",
+        "I feel supported in this",
+        "I have people behind me",
+        "I'm not doing this alone",
+        "I have a strong support network"
       ],
       "responses": [
         "Having people in your corner makes an enormous difference. Who has been most important to your recovery so far?",
@@ -1240,202 +1535,230 @@
       "context": "support",
       "severity": "low"
     },
-
     {
       "tag": "support_no_network",
       "patterns": [
-        "I don't have anyone", "I'm doing this alone", "Nobody supports my recovery",
-        "My family doesn't believe I can change", "I have no support network",
-        "I feel completely alone in this", "Nobody around me understands",
-        "I don't have anyone to talk to about my recovery", "I'm isolated in my recovery",
-        "I can't talk to anyone about this", "Nobody in my life knows I'm struggling"
+        "I don't have anyone",
+        "I'm doing this alone",
+        "Nobody supports my recovery",
+        "My family doesn't believe I can change",
+        "I have no support network",
+        "I feel completely alone in this",
+        "Nobody around me understands",
+        "I don't have anyone to talk to about my recovery",
+        "I'm isolated in my recovery",
+        "I can't talk to anyone about this",
+        "Nobody in my life knows I'm struggling"
       ],
       "responses": [
-        "Doing this without a support network is one of the hardest paths. You are not completely alone — reaching out here matters. Let's think about where connection might be possible.",
+        "Doing this without a support network is one of the hardest paths. You are not completely alone \u2014 reaching out here matters. Let's think about where connection might be possible.",
         "That isolation is one of the most painful parts of recovery. Would you consider an online peer support group or meeting as a first step toward community?",
         "You deserve people who understand. While that network is being built, I'm here. What's stopped you from reaching out to peers in recovery before?",
-        "Recovery support communities exist specifically for people in exactly your situation — people who don't have it in their immediate lives. Would you like to explore that?",
-        "Not having a network doesn't mean recovery is impossible — it means building one becomes a priority. Who in your life, even slightly, might be safe to open up to?"
+        "Recovery support communities exist specifically for people in exactly your situation \u2014 people who don't have it in their immediate lives. Would you like to explore that?",
+        "Not having a network doesn't mean recovery is impossible \u2014 it means building one becomes a priority. Who in your life, even slightly, might be safe to open up to?"
       ],
       "context": "support",
       "severity": "high",
       "follow_up": "professional_referral"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 23: TREATMENT PROGRAMS
-    // ─────────────────────────────────────────────
-
     {
       "tag": "treatment_in_program",
       "patterns": [
-        "I'm in a treatment program", "I'm doing outpatient treatment",
-        "I'm in rehab", "I'm going through a treatment program",
-        "I'm receiving professional addiction support", "I'm in a recovery programme",
-        "I have a counsellor for my addiction", "I'm working with a therapist on recovery",
-        "I'm in a detox programme", "I'm receiving treatment"
+        "I'm in a treatment program",
+        "I'm doing outpatient treatment",
+        "I'm in rehab",
+        "I'm going through a treatment program",
+        "I'm receiving professional addiction support",
+        "I'm in a recovery programme",
+        "I have a counsellor for my addiction",
+        "I'm working with a therapist on recovery",
+        "I'm in a detox programme",
+        "I'm receiving treatment"
       ],
       "responses": [
         "That's a really significant step. How is the programme going for you?",
         "Being in a structured programme is one of the most powerful things you can do. What's been most helpful about it so far?",
         "Treatment programmes work best when combined with honest self-reflection. How are you finding the experience?",
         "It takes tremendous commitment to enter and stay in a programme. What's been most challenging about it?",
-        "You're getting the professional support you deserve. This chatbot is here to complement that support — what's on your mind that you'd like to explore here?"
+        "You're getting the professional support you deserve. This chatbot is here to complement that support \u2014 what's on your mind that you'd like to explore here?"
       ],
       "context": "treatment",
       "severity": "low"
     },
-
     {
       "tag": "treatment_considering",
       "patterns": [
-        "Should I go to rehab", "Am I bad enough for rehab", "I'm considering treatment",
+        "Should I go to rehab",
+        "Am I bad enough for rehab",
+        "I'm considering treatment",
         "I've been thinking about getting professional help for my addiction",
-        "What is residential treatment like", "Should I do inpatient treatment",
-        "Is outpatient treatment right for me", "How do I know if I need treatment",
-        "I need more help than I'm getting", "I've been thinking about a programme",
-        "I want to go to some kind of facility", "What are my treatment options"
+        "What is residential treatment like",
+        "Should I do inpatient treatment",
+        "Is outpatient treatment right for me",
+        "How do I know if I need treatment",
+        "I need more help than I'm getting",
+        "I've been thinking about a programme",
+        "I want to go to some kind of facility",
+        "What are my treatment options"
       ],
       "responses": [
         "The fact that you're asking this question is often the answer. You don't have to reach rock bottom to deserve treatment. What feels like it's holding you back from reaching out?",
-        "Treatment comes in many forms — from brief outpatient counselling to residential programmes. The right fit depends on the severity, your history, and your life situation. Speaking to a doctor or addiction specialist is the first step.",
-        "There's no threshold for 'bad enough' — if addiction is affecting your life, you deserve support. Reaching out to an addiction service for an assessment costs nothing and answers a lot.",
-        "Outpatient, day programme, residential — the options exist across a spectrum. Your GP or a local addiction service can help identify what level of care makes sense for you.",
+        "Treatment comes in many forms \u2014 from brief outpatient counselling to residential programmes. The right fit depends on the severity, your history, and your life situation. Speaking to a doctor or addiction specialist is the first step.",
+        "There's no threshold for 'bad enough' \u2014 if addiction is affecting your life, you deserve support. Reaching out to an addiction service for an assessment costs nothing and answers a lot.",
+        "Outpatient, day programme, residential \u2014 the options exist across a spectrum. Your GP or a local addiction service can help identify what level of care makes sense for you.",
         "Considering treatment is a huge step. What's been making it hard to take the next step toward it?"
       ],
       "context": "treatment",
       "severity": "high",
       "follow_up": "professional_referral"
     },
-
     {
       "tag": "treatment_resistance",
       "patterns": [
-        "I don't want to go to treatment", "Treatment doesn't work", "Rehab failed me before",
-        "I tried treatment and it didn't help", "I can do this on my own",
-        "I don't believe in AA or rehab", "Treatment is not for me",
-        "I had a bad experience with a counsellor", "I don't trust the system",
-        "I don't want professional help", "Therapy never works for me"
+        "I don't want to go to treatment",
+        "Treatment doesn't work",
+        "Rehab failed me before",
+        "I tried treatment and it didn't help",
+        "I can do this on my own",
+        "I don't believe in AA or rehab",
+        "Treatment is not for me",
+        "I had a bad experience with a counsellor",
+        "I don't trust the system",
+        "I don't want professional help",
+        "Therapy never works for me"
       ],
       "responses": [
         "You've had experiences that gave you real reasons to feel this way. That's important to acknowledge. What happened that's made you feel treatment isn't for you?",
         "Not all treatment is the same, and bad experiences are unfortunately real. What would a form of support that actually worked need to look like for you?",
         "That scepticism is completely understandable, especially after disappointments. Many people find the right support on their second or third try with a different approach. What specifically felt unhelpful before?",
-        "You have the right to choose your path. The question is — what is working, and what more support might make recovery more sustainable?",
+        "You have the right to choose your path. The question is \u2014 what is working, and what more support might make recovery more sustainable?",
         "I hear your resistance. Can you tell me more about what happened that made treatment feel like it didn't work?"
       ],
       "context": "treatment",
       "severity": "high"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 24: CELEBRATING PROGRESS & MILESTONES
-    // ─────────────────────────────────────────────
-
     {
       "tag": "milestone_sobriety",
       "patterns": [
-        "Today is my sobriety anniversary", "I hit a sobriety milestone",
-        "I've been sober for 30 days", "I've been clean for 90 days",
-        "I got my one year chip", "I reached a recovery milestone",
-        "I celebrated my sobriety date", "I'm marking my clean date",
-        "I hit 100 days sober", "Today marks my 6 months clean",
-        "I'm proud of my sobriety milestone", "I've reached a big recovery anniversary"
+        "Today is my sobriety anniversary",
+        "I hit a sobriety milestone",
+        "I've been sober for 30 days",
+        "I've been clean for 90 days",
+        "I got my one year chip",
+        "I reached a recovery milestone",
+        "I celebrated my sobriety date",
+        "I'm marking my clean date",
+        "I hit 100 days sober",
+        "Today marks my 6 months clean",
+        "I'm proud of my sobriety milestone",
+        "I've reached a big recovery anniversary"
       ],
       "responses": [
         "That is a genuinely significant achievement. Every single day of that represents a choice. How are you feeling today?",
-        "Congratulations — sincerely. That milestone is the result of hard work, discipline, and courage. How do you want to honour it?",
+        "Congratulations \u2014 sincerely. That milestone is the result of hard work, discipline, and courage. How do you want to honour it?",
         "That is worth celebrating! How do you feel now compared to where you were at the beginning?",
         "You earned that. What's the moment in those days that you're most proud of?",
-        "That milestone belongs to you — no one can take it away. What advice would you give to someone at day one right now?"
+        "That milestone belongs to you \u2014 no one can take it away. What advice would you give to someone at day one right now?"
       ],
       "context": "recovery",
       "severity": "low",
       "recovery_stage": "celebration"
     },
-
     {
       "tag": "milestone_small_wins",
       "patterns": [
-        "I made it through a hard day without using", "I said no to something today",
-        "I got through a triggering situation", "I resisted a craving today",
-        "I made a healthy choice today", "I reached out for help instead of using",
-        "I went to a meeting today", "I talked to my sponsor",
-        "I chose not to drink at a social event", "I turned down an offer",
-        "I'm proud of myself for today", "I did something good for my recovery today",
+        "I made it through a hard day without using",
+        "I said no to something today",
+        "I got through a triggering situation",
+        "I resisted a craving today",
+        "I made a healthy choice today",
+        "I reached out for help instead of using",
+        "I went to a meeting today",
+        "I talked to my sponsor",
+        "I chose not to drink at a social event",
+        "I turned down an offer",
+        "I'm proud of myself for today",
+        "I did something good for my recovery today",
         "I held it together today"
       ],
       "responses": [
-        "That's not a small win — that is exactly what recovery is made of. What was going through your mind in that moment?",
+        "That's not a small win \u2014 that is exactly what recovery is made of. What was going through your mind in that moment?",
         "Yes! That decision matters enormously. How did it feel to choose differently?",
         "Every one of those moments compounds over time into the life you want. Well done for making that choice.",
         "That's recovery in action. How did you get through it?",
-        "I love hearing this. Tell me what happened — you deserve to celebrate this."
+        "I love hearing this. Tell me what happened \u2014 you deserve to celebrate this."
       ],
       "context": "recovery",
       "severity": "low"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 25: DUAL DIAGNOSIS
-    // Co-occurring mental health and addiction
-    // ─────────────────────────────────────────────
-
     {
       "tag": "dual_diagnosis_general",
       "patterns": [
-        "I have depression and addiction", "I struggle with both mental health and substance use",
-        "I use to manage my mental health", "I have anxiety and I drink to cope",
-        "I self-medicate with substances", "My mental health makes addiction worse",
-        "I use drugs to cope with my trauma", "Drinking helps my anxiety",
-        "I use to manage my PTSD symptoms", "I'm dealing with mental health and recovery",
-        "I have a dual diagnosis", "My depression and my using are connected"
+        "I have depression and addiction",
+        "I struggle with both mental health and substance use",
+        "I use to manage my mental health",
+        "I have anxiety and I drink to cope",
+        "I self-medicate with substances",
+        "My mental health makes addiction worse",
+        "I use drugs to cope with my trauma",
+        "Drinking helps my anxiety",
+        "I use to manage my PTSD symptoms",
+        "I'm dealing with mental health and recovery",
+        "I have a dual diagnosis",
+        "My depression and my using are connected"
       ],
       "responses": [
-        "These two things are deeply connected for many people — and treating both together is really important. Is your recovery support aware of your mental health struggles?",
+        "These two things are deeply connected for many people \u2014 and treating both together is really important. Is your recovery support aware of your mental health struggles?",
         "Self-medicating is one of the most common pathways into addiction. It makes sense that you developed that pattern. The challenge is finding other ways to manage what you were trying to quiet. What helps?",
         "When mental health and substance use intersect, specialist support that addresses both together tends to work best. Has this come up with any professionals you've worked with?",
-        "The relationship between the two can go in both directions — each can worsen the other. Understanding which came first and how they interact is important work. Would it be helpful to talk through the connection?",
+        "The relationship between the two can go in both directions \u2014 each can worsen the other. Understanding which came first and how they interact is important work. Would it be helpful to talk through the connection?",
         "You deserve support for both, not just one or the other. Integrated treatment exists and it's worth advocating for in your care."
       ],
       "context": "dual_diagnosis",
       "severity": "high",
       "follow_up": "professional_referral"
     },
-
     {
       "tag": "dual_diagnosis_depression",
       "patterns": [
-        "I'm depressed and stuck in addiction", "My depression feeds my using",
-        "When I'm low I always want to use", "I use to numb the depression",
-        "Being sober makes my depression worse", "I feel more depressed in recovery",
-        "I don't know if it's depression or withdrawal", "I've never felt anything without substances"
+        "I'm depressed and stuck in addiction",
+        "My depression feeds my using",
+        "When I'm low I always want to use",
+        "I use to numb the depression",
+        "Being sober makes my depression worse",
+        "I feel more depressed in recovery",
+        "I don't know if it's depression or withdrawal",
+        "I've never felt anything without substances"
       ],
       "responses": [
-        "Depression and substance use create a difficult cycle — each fuels the other. How long have you been experiencing depressive feelings?",
-        "Feeling more depressed in early sobriety is actually very common — your brain's reward system is rebalancing. This typically improves over time with support.",
+        "Depression and substance use create a difficult cycle \u2014 each fuels the other. How long have you been experiencing depressive feelings?",
+        "Feeling more depressed in early sobriety is actually very common \u2014 your brain's reward system is rebalancing. This typically improves over time with support.",
         "The numbness that substances provide can make sobriety feel emotionally raw at first. You're beginning to feel things you may not have felt for a long time. That's progress, even when it's painful.",
         "Living with depression in recovery is manageable, but it needs proper attention. Are you receiving any mental health support alongside your recovery work?",
-        "The relationship between depression and your use is something worth exploring deeply — ideally with a therapist who understands both. I'm here to support that exploration too."
+        "The relationship between depression and your use is something worth exploring deeply \u2014 ideally with a therapist who understands both. I'm here to support that exploration too."
       ],
       "context": "dual_diagnosis",
       "severity": "high",
       "follow_up": "professional_referral"
     },
-
     {
       "tag": "dual_diagnosis_trauma",
       "patterns": [
-        "I use because of what happened to me", "My trauma led to my addiction",
-        "I can't face my trauma without substances", "I drink to forget what happened",
-        "My past is what drives my using", "Trauma is behind my addiction",
-        "I was abused and that's why I use", "I had a terrible childhood and turned to substances",
-        "My addiction is because of what I went through", "Substances help me forget the trauma"
+        "I use because of what happened to me",
+        "My trauma led to my addiction",
+        "I can't face my trauma without substances",
+        "I drink to forget what happened",
+        "My past is what drives my using",
+        "Trauma is behind my addiction",
+        "I was abused and that's why I use",
+        "I had a terrible childhood and turned to substances",
+        "My addiction is because of what I went through",
+        "Substances help me forget the trauma"
       ],
       "responses": [
-        "Trauma and addiction are powerfully linked — what happened to you matters, and it deserves to be treated too, not just the addiction separate from it.",
+        "Trauma and addiction are powerfully linked \u2014 what happened to you matters, and it deserves to be treated too, not just the addiction separate from it.",
         "Using to manage trauma pain is a completely understandable human response. The problem is that it doesn't heal the trauma, and often makes its effects worse over time.",
-        "Trauma-informed recovery work — which looks at both what happened and how you cope — tends to produce more lasting results. Has anyone approached your recovery this way?",
+        "Trauma-informed recovery work \u2014 which looks at both what happened and how you cope \u2014 tends to produce more lasting results. Has anyone approached your recovery this way?",
         "What you went through shaped how you've coped, and that deserves compassion, not judgment. Healing the trauma alongside addressing the use is the path forward.",
         "It takes real courage to name that connection. Are you working with anyone who understands both trauma and addiction?"
       ],
@@ -1443,45 +1766,50 @@
       "severity": "high",
       "follow_up": "professional_referral"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 26: REBUILDING LIFE AFTER ADDICTION
-    // ─────────────────────────────────────────────
-
     {
       "tag": "rebuilding_relationships",
       "patterns": [
-        "I hurt people because of my addiction", "My relationships are damaged",
-        "I want to repair my relationships in recovery", "I pushed people away when I was using",
-        "I need to make amends", "My family is still angry at me",
-        "I want to rebuild trust with my loved ones", "My partner doesn't trust me anymore",
-        "I need to repair the damage I did", "I've burned bridges because of my using",
-        "My kids are still scared of me", "My family doesn't believe I've changed"
+        "I hurt people because of my addiction",
+        "My relationships are damaged",
+        "I want to repair my relationships in recovery",
+        "I pushed people away when I was using",
+        "I need to make amends",
+        "My family is still angry at me",
+        "I want to rebuild trust with my loved ones",
+        "My partner doesn't trust me anymore",
+        "I need to repair the damage I did",
+        "I've burned bridges because of my using",
+        "My kids are still scared of me",
+        "My family doesn't believe I've changed"
       ],
       "responses": [
-        "Rebuilding trust takes time and consistent action — more than words. How long have you been working on your recovery, and has your behaviour reflected that change?",
-        "The damage caused by addiction can feel overwhelming to face. But many people do repair these relationships — slowly, through sustained change. What feels like the most important relationship to work on?",
-        "Making amends is a powerful part of many recovery traditions — it's about acknowledging harm and committing to different behaviour, not just apologising. Have you had the opportunity to do this?",
-        "When family or loved ones have been deeply hurt, they need to see consistent change over time — not just promises. What does your recovery look like to them from the outside?",
+        "Rebuilding trust takes time and consistent action \u2014 more than words. How long have you been working on your recovery, and has your behaviour reflected that change?",
+        "The damage caused by addiction can feel overwhelming to face. But many people do repair these relationships \u2014 slowly, through sustained change. What feels like the most important relationship to work on?",
+        "Making amends is a powerful part of many recovery traditions \u2014 it's about acknowledging harm and committing to different behaviour, not just apologising. Have you had the opportunity to do this?",
+        "When family or loved ones have been deeply hurt, they need to see consistent change over time \u2014 not just promises. What does your recovery look like to them from the outside?",
         "The guilt and grief of having hurt people you love can be one of the heaviest things to carry in recovery. You're not alone in that. What support do you have to work through this?"
       ],
       "context": "recovery_life",
       "severity": "medium"
     },
-
     {
       "tag": "rebuilding_identity",
       "patterns": [
-        "I don't know who I am without it", "My whole identity was around using",
-        "I don't know who I am sober", "Recovery has changed who I am",
-        "I feel lost without my old lifestyle", "I don't know what I enjoy anymore",
-        "My social life was all about drinking or using", "I've lost my sense of self",
-        "Who am I now that I'm in recovery", "I feel like I have no personality sober",
+        "I don't know who I am without it",
+        "My whole identity was around using",
+        "I don't know who I am sober",
+        "Recovery has changed who I am",
+        "I feel lost without my old lifestyle",
+        "I don't know what I enjoy anymore",
+        "My social life was all about drinking or using",
+        "I've lost my sense of self",
+        "Who am I now that I'm in recovery",
+        "I feel like I have no personality sober",
         "My whole social group was around my addiction"
       ],
       "responses": [
         "That sense of 'who am I without this?' is one of the most profound challenges of recovery. What qualities do you recognise in yourself that exist completely independently of your use?",
-        "A new identity in recovery gets built slowly — through new connections, new routines, new experiences. What parts of yourself would you like to explore or rediscover?",
+        "A new identity in recovery gets built slowly \u2014 through new connections, new routines, new experiences. What parts of yourself would you like to explore or rediscover?",
         "The lifestyle built around substances often fills time, friends, and even personality. Building a recovery identity takes intentional effort. What do you know you value, when addiction isn't driving the choices?",
         "This disorientation is normal and temporary. Many people find that recovery reveals parts of themselves they buried long ago. What kind of person do you want to be?",
         "Losing your old social world is a real loss, and it's okay to grieve it even as you build something healthier. What kind of connection are you looking for in this new life?"
@@ -1489,60 +1817,69 @@
       "context": "recovery_life",
       "severity": "medium"
     },
-
     {
       "tag": "rebuilding_work_finances",
       "patterns": [
-        "Addiction ruined my career", "I lost my job because of my addiction",
-        "I'm in debt because of my past", "I'm starting over financially",
-        "I'm trying to get back to work in recovery", "My finances are a mess",
-        "I have a criminal record from my addiction", "Employment is hard with my history",
-        "I'm starting from scratch after addiction", "I've lost everything and need to rebuild"
+        "Addiction ruined my career",
+        "I lost my job because of my addiction",
+        "I'm in debt because of my past",
+        "I'm starting over financially",
+        "I'm trying to get back to work in recovery",
+        "My finances are a mess",
+        "I have a criminal record from my addiction",
+        "Employment is hard with my history",
+        "I'm starting from scratch after addiction",
+        "I've lost everything and need to rebuild"
       ],
       "responses": [
-        "Rebuilding after addiction means dealing with practical consequences as well as inner ones. Both matter. What feels most urgent to address first — the financial side, the career, or both together?",
+        "Rebuilding after addiction means dealing with practical consequences as well as inner ones. Both matter. What feels most urgent to address first \u2014 the financial side, the career, or both together?",
         "Many people face exactly this restarting point. There are employment support programmes and financial counselling services specifically for people in recovery. Do you have access to any of those?",
-        "A criminal record or employment gap doesn't define your future — many people navigate this successfully. Are you working with any support services to help you take practical steps?",
+        "A criminal record or employment gap doesn't define your future \u2014 many people navigate this successfully. Are you working with any support services to help you take practical steps?",
         "The practical wreckage can feel overwhelming alongside the emotional work of recovery. You don't have to fix it all at once. What's the one piece you can take a step on this week?",
         "Recovery makes the practical rebuilding possible. You're working from the right foundation. What's the most pressing financial or work challenge you're facing?"
       ],
       "context": "recovery_life",
       "severity": "medium"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 27: SHAME, STIGMA & RECOVERY IDENTITY
-    // ─────────────────────────────────────────────
-
     {
       "tag": "shame_about_addiction",
       "patterns": [
-        "I'm ashamed of my addiction", "I feel disgusted with myself",
-        "I'm embarrassed about what I've become", "I can't tell anyone because of the shame",
-        "I feel like a failure as a person", "I hate myself for what I've done",
-        "I'm ashamed of who I was when I was using", "I feel deep shame",
-        "I don't want anyone to know about my addiction", "The shame is overwhelming",
-        "I feel worthless because of my addiction", "I've let everyone down"
+        "I'm ashamed of my addiction",
+        "I feel disgusted with myself",
+        "I'm embarrassed about what I've become",
+        "I can't tell anyone because of the shame",
+        "I feel like a failure as a person",
+        "I hate myself for what I've done",
+        "I'm ashamed of who I was when I was using",
+        "I feel deep shame",
+        "I don't want anyone to know about my addiction",
+        "The shame is overwhelming",
+        "I feel worthless because of my addiction",
+        "I've let everyone down"
       ],
       "responses": [
-        "Shame is one of the most painful emotions — and it's one of the biggest barriers to recovery. Addiction is a condition, not a character flaw. You are more than what you've struggled with.",
-        "The shame you're feeling is real — but it isn't the truth of who you are. People overcome addiction every day, and many of them carry exactly this weight. You're not alone.",
-        "Shame says 'I am bad.' Guilt says 'I did something bad.' The distinction matters — because you are not a bad person. You're someone dealing with a very real condition.",
-        "That shame often comes from the way society talks about addiction — as weakness, as choice, as moral failure. None of those frames are accurate. What would you say to a close friend in your exact situation?",
+        "Shame is one of the most painful emotions \u2014 and it's one of the biggest barriers to recovery. Addiction is a condition, not a character flaw. You are more than what you've struggled with.",
+        "The shame you're feeling is real \u2014 but it isn't the truth of who you are. People overcome addiction every day, and many of them carry exactly this weight. You're not alone.",
+        "Shame says 'I am bad.' Guilt says 'I did something bad.' The distinction matters \u2014 because you are not a bad person. You're someone dealing with a very real condition.",
+        "That shame often comes from the way society talks about addiction \u2014 as weakness, as choice, as moral failure. None of those frames are accurate. What would you say to a close friend in your exact situation?",
         "Carrying this alone keeps it locked in. Saying it here is the first step to letting it lose its power. What has the shame been stopping you from doing?"
       ],
       "context": "recovery_identity",
       "severity": "high"
     },
-
     {
       "tag": "stigma_from_others",
       "patterns": [
-        "People judge me for my addiction", "My family is ashamed of me",
-        "I've been stigmatised for my past", "People treat me differently because of my history",
-        "I lost friends because of my addiction", "People don't trust me because of my past",
-        "I'm labelled as an addict", "People think I'm weak",
-        "Nobody believes I've changed", "Society treats people with addiction badly",
+        "People judge me for my addiction",
+        "My family is ashamed of me",
+        "I've been stigmatised for my past",
+        "People treat me differently because of my history",
+        "I lost friends because of my addiction",
+        "People don't trust me because of my past",
+        "I'm labelled as an addict",
+        "People think I'm weak",
+        "Nobody believes I've changed",
+        "Society treats people with addiction badly",
         "I feel discriminated against because of my recovery",
         "I got rejected because of my past"
       ],
@@ -1551,131 +1888,145 @@
         "Being judged for something as serious and painful as addiction is deeply unfair. Those views say more about others' lack of understanding than about you.",
         "The people who truly know the reality of addiction don't judge those going through it. The ones who do usually have never faced it. How are you protecting yourself from that judgement?",
         "Having people in your life who support your recovery rather than judge your past becomes really important. Are there people around you who see who you're becoming, not just who you were?",
-        "You deserve to be seen as someone in recovery — not defined by the worst of your addiction. Is there any community or space where you feel that?"
+        "You deserve to be seen as someone in recovery \u2014 not defined by the worst of your addiction. Is there any community or space where you feel that?"
       ],
       "context": "recovery_identity",
       "severity": "medium"
     },
-
     {
       "tag": "recovery_identity_pride",
       "patterns": [
-        "I'm proud to be in recovery", "Recovery is my identity now",
-        "I'm a different person than I was", "I've found myself in recovery",
-        "I'm building a new life", "Recovery has changed me for the better",
-        "I'm grateful for my recovery journey", "I'm finally becoming who I want to be",
-        "My recovery is something I'm proud of", "I feel like myself for the first time"
+        "I'm proud to be in recovery",
+        "Recovery is my identity now",
+        "I'm a different person than I was",
+        "I've found myself in recovery",
+        "I'm building a new life",
+        "Recovery has changed me for the better",
+        "I'm grateful for my recovery journey",
+        "I'm finally becoming who I want to be",
+        "My recovery is something I'm proud of",
+        "I feel like myself for the first time"
       ],
       "responses": [
         "That shift in identity is one of the most powerful things recovery can produce. What does this new version of yourself look like?",
         "Pride in your recovery is completely deserved. It's hard-won and real. What's changed most about how you see yourself?",
         "Recovery as identity is a powerful foundation for the long term. What does living as someone in recovery mean to you on a daily basis?",
         "That sense of becoming who you want to be is exactly what recovery makes possible. Tell me more about what that feels like.",
-        "Your recovery story is yours — and it could one day be incredibly meaningful to someone else going through the same thing."
+        "Your recovery story is yours \u2014 and it could one day be incredibly meaningful to someone else going through the same thing."
       ],
       "context": "recovery_identity",
       "severity": "low"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 28: FAMILY IMPACT & REPAIR
-    // ─────────────────────────────────────────────
-
     {
       "tag": "family_impact_addiction",
       "patterns": [
-        "My addiction has affected my family", "My children have suffered because of me",
+        "My addiction has affected my family",
+        "My children have suffered because of me",
         "My parents have been through so much because of my addiction",
-        "My partner has been hurt by my using", "My family fell apart because of my addiction",
-        "I've put my family through hell", "My addiction destroyed my family",
+        "My partner has been hurt by my using",
+        "My family fell apart because of my addiction",
+        "I've put my family through hell",
+        "My addiction destroyed my family",
         "I feel terrible about what my family went through"
       ],
       "responses": [
         "Acknowledging the impact on your family takes real honesty and courage. That awareness is part of what drives lasting change. How are things with them now?",
         "The ripple effects of addiction on families can be profound. The fact that you're aware and concerned about it speaks to your commitment to change. How are you approaching those relationships?",
-        "Family members of people with addiction often carry their own wounds — fear, grief, anger. Healing those relationships takes time, consistency, and sometimes family support services. Has that been explored?",
+        "Family members of people with addiction often carry their own wounds \u2014 fear, grief, anger. Healing those relationships takes time, consistency, and sometimes family support services. Has that been explored?",
         "The pain family members experience is real, and so is the possibility of repair. Recovery gives you the chance to show a different story. What's one relationship you most want to work on?",
         "That acceptance of impact is part of the amends process. What would you want them to know about who you're becoming?"
       ],
       "context": "family",
       "severity": "medium"
     },
-
     {
       "tag": "family_recovery_support",
       "patterns": [
-        "My family wants to support me but doesn't know how", "How can my family help my recovery",
-        "My family is learning about addiction", "My loved ones are trying to understand",
-        "My family went to Al-Anon", "My partner is supporting my recovery",
-        "My family is doing family therapy with me", "We're doing family counselling"
+        "My family wants to support me but doesn't know how",
+        "How can my family help my recovery",
+        "My family is learning about addiction",
+        "My loved ones are trying to understand",
+        "My family went to Al-Anon",
+        "My partner is supporting my recovery",
+        "My family is doing family therapy with me",
+        "We're doing family counselling"
       ],
       "responses": [
         "Having a family that wants to learn and support you is a tremendous asset in recovery. That willingness means so much. What has it been like having them involved?",
-        "Family therapy and Al-Anon can be transformative for everyone — it helps loved ones understand addiction and lets you all heal together. How is that process going?",
-        "Supporting someone in recovery can be hard for families too — they need their own space to process. It sounds like yours are taking it seriously. How are you feeling about their involvement?",
+        "Family therapy and Al-Anon can be transformative for everyone \u2014 it helps loved ones understand addiction and lets you all heal together. How is that process going?",
+        "Supporting someone in recovery can be hard for families too \u2014 they need their own space to process. It sounds like yours are taking it seriously. How are you feeling about their involvement?",
         "That family engagement can become one of the most stabilising parts of your recovery. What's the most important thing you want them to understand?"
       ],
       "context": "family",
       "severity": "low"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 29: MOTIVATION, PURPOSE & VALUES
-    // ─────────────────────────────────────────────
-
     {
       "tag": "motivation_low",
       "patterns": [
-        "I don't see the point of recovery", "I'm losing motivation",
-        "Why should I bother staying clean", "I don't feel motivated anymore",
-        "Recovery feels pointless", "I'm not sure it's worth it",
-        "I've lost my reason to stay sober", "The motivation is fading",
-        "I'm struggling to find a reason to keep going", "I can't remember why I started",
-        "What's the point of all this", "I'm tired of trying"
+        "I don't see the point of recovery",
+        "I'm losing motivation",
+        "Why should I bother staying clean",
+        "I don't feel motivated anymore",
+        "Recovery feels pointless",
+        "I'm not sure it's worth it",
+        "I've lost my reason to stay sober",
+        "The motivation is fading",
+        "I'm struggling to find a reason to keep going",
+        "I can't remember why I started",
+        "What's the point of all this",
+        "I'm tired of trying"
       ],
       "responses": [
-        "Motivation in recovery isn't constant — it ebbs and flows. That's normal. What was it that made you start this journey? Let's reconnect with that.",
+        "Motivation in recovery isn't constant \u2014 it ebbs and flows. That's normal. What was it that made you start this journey? Let's reconnect with that.",
         "When motivation fades, values and commitment carry you through. What still matters to you, even on days when the drive isn't there?",
         "That loss of momentum is something many people face, especially after the initial rush fades. What's been happening in your life that might be draining your motivation?",
-        "Who or what is depending on you to stay in recovery? Sometimes when motivation is low, commitment to someone — your children, your future self, your health — carries you.",
-        "The goal of recovery isn't enthusiasm every day — it's showing up even when you don't feel like it. What would you tell someone you care about who was in your exact position right now?"
+        "Who or what is depending on you to stay in recovery? Sometimes when motivation is low, commitment to someone \u2014 your children, your future self, your health \u2014 carries you.",
+        "The goal of recovery isn't enthusiasm every day \u2014 it's showing up even when you don't feel like it. What would you tell someone you care about who was in your exact position right now?"
       ],
       "context": "motivation",
       "severity": "high"
     },
-
     {
       "tag": "motivation_finding_purpose",
       "patterns": [
-        "I'm searching for meaning in recovery", "I need a reason to stay sober",
-        "What is the point of staying clean", "I feel empty when I'm not using",
-        "Recovery feels empty to me", "I need something to live for",
-        "I'm looking for purpose", "I want to know why to stay sober",
-        "I don't know what I'm working towards", "Life feels dull without substances",
+        "I'm searching for meaning in recovery",
+        "I need a reason to stay sober",
+        "What is the point of staying clean",
+        "I feel empty when I'm not using",
+        "Recovery feels empty to me",
+        "I need something to live for",
+        "I'm looking for purpose",
+        "I want to know why to stay sober",
+        "I don't know what I'm working towards",
+        "Life feels dull without substances",
         "I need a reason to keep going"
       ],
       "responses": [
-        "That search for meaning is one of the most important questions in recovery. What mattered to you before substances became central — what did you care about?",
+        "That search for meaning is one of the most important questions in recovery. What mattered to you before substances became central \u2014 what did you care about?",
         "Feeling empty is part of an early phase that passes as real life fills in. But it's worth asking: what kind of life do you want to build? What would make you want to get out of bed?",
-        "Purpose often reveals itself through action — through service, creativity, connection. What's one small thing you could do this week that might give even a flicker of meaning?",
+        "Purpose often reveals itself through action \u2014 through service, creativity, connection. What's one small thing you could do this week that might give even a flicker of meaning?",
         "Some of the most powerful reasons to stay in recovery are the people you love, the person you want to become, or even the chance to help others facing what you've faced. What resonates for you?",
         "Viktor Frankl wrote that those who have a 'why' can endure almost any 'how'. What's your why, even if it feels faint right now?"
       ],
       "context": "motivation",
       "severity": "medium"
     },
-
     {
       "tag": "motivation_hope",
       "patterns": [
-        "I have hope for recovery", "I believe things can get better",
-        "I feel hopeful today", "Recovery gives me hope",
-        "I can see a future now", "I'm starting to believe in myself",
-        "I feel optimistic about my recovery", "Today I feel like things can work out",
-        "I have a reason to keep going", "I'm feeling positive about the future"
+        "I have hope for recovery",
+        "I believe things can get better",
+        "I feel hopeful today",
+        "Recovery gives me hope",
+        "I can see a future now",
+        "I'm starting to believe in myself",
+        "I feel optimistic about my recovery",
+        "Today I feel like things can work out",
+        "I have a reason to keep going",
+        "I'm feeling positive about the future"
       ],
       "responses": [
-        "Hold onto that hope — it's one of the most powerful things in recovery. What's sparked this feeling of possibility?",
+        "Hold onto that hope \u2014 it's one of the most powerful things in recovery. What's sparked this feeling of possibility?",
         "That sense of a possible future is exactly what recovery opens up. What does that future look like for you?",
         "Hope in recovery is fuel. What made today feel different?",
         "That optimism deserves to be celebrated. What's been building it for you lately?",
@@ -1684,41 +2035,45 @@
       "context": "motivation",
       "severity": "low"
     },
-
-    // ─────────────────────────────────────────────
-    // SECTION 30: ADVANCED COPING TOOLS
-    // ─────────────────────────────────────────────
-
     {
       "tag": "coping_halt",
       "patterns": [
-        "I'm feeling off and don't know why", "I feel bad but can't explain it",
-        "Something is wrong but I can't name it", "I don't know what I'm feeling",
-        "I feel like using but don't know the trigger", "Something is building up inside me",
-        "I feel restless and irritable", "I feel uneasy and don't know why"
+        "I'm feeling off and don't know why",
+        "I feel bad but can't explain it",
+        "Something is wrong but I can't name it",
+        "I don't know what I'm feeling",
+        "I feel like using but don't know the trigger",
+        "Something is building up inside me",
+        "I feel restless and irritable",
+        "I feel uneasy and don't know why"
       ],
       "responses": [
         "Let's do a quick HALT check together. Are you Hungry right now? Have you eaten today?",
         "When something feels off, HALT is a useful tool: check if you're Hungry, Angry, Lonely, or Tired. Often one of these is the underlying cause. Which resonates most right now?",
-        "That vague sense of something being wrong often has a physical or emotional root. HALT — Hungry, Angry, Lonely, Tired — catches most of them. What's your honest answer to each one?",
+        "That vague sense of something being wrong often has a physical or emotional root. HALT \u2014 Hungry, Angry, Lonely, Tired \u2014 catches most of them. What's your honest answer to each one?",
         "Start with the basics: when did you last eat, sleep properly, talk to someone, or process something that was bothering you? Sometimes the answer is simpler than we think."
       ],
       "context": "coping",
       "severity": "medium"
     },
-
     {
       "tag": "coping_mindfulness",
       "patterns": [
-        "Can you teach me mindfulness", "I want to practice mindfulness",
-        "How do I stay in the present", "I keep ruminating about the past",
-        "I'm always worrying about the future", "I need to get out of my head",
-        "I've heard mindfulness helps", "I want to try meditation",
-        "I can't stop overthinking", "I'm stuck in my thoughts",
-        "My mind won't quiet down", "How do I stop the mental noise"
+        "Can you teach me mindfulness",
+        "I want to practice mindfulness",
+        "How do I stay in the present",
+        "I keep ruminating about the past",
+        "I'm always worrying about the future",
+        "I need to get out of my head",
+        "I've heard mindfulness helps",
+        "I want to try meditation",
+        "I can't stop overthinking",
+        "I'm stuck in my thoughts",
+        "My mind won't quiet down",
+        "How do I stop the mental noise"
       ],
       "responses": [
-        "Mindfulness is simply paying attention to the present moment without judgment. Start with your breath — notice the sensation of air entering and leaving. Nothing more. Try it for 60 seconds. What do you notice?",
+        "Mindfulness is simply paying attention to the present moment without judgment. Start with your breath \u2014 notice the sensation of air entering and leaving. Nothing more. Try it for 60 seconds. What do you notice?",
         "A simple grounding exercise: close your eyes and feel your feet on the floor. Feel the weight of your body in the chair. Breathe slowly. The past and future can't reach you right here, right now.",
         "The 5-4-3-2-1 technique: name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, 1 you can taste. This anchors you in the present moment.",
         "Overthinking is the mind's way of trying to control what can't be controlled. Mindfulness practices teach the mind to observe thoughts without chasing them. What has felt hardest about trying to stay present?",
@@ -1727,19 +2082,23 @@
       "context": "coping",
       "severity": "medium"
     },
-
     {
       "tag": "coping_physical_grounding",
       "patterns": [
-        "I feel disconnected from my body", "I feel like I'm not real",
-        "I feel dissociated", "I feel detached from everything",
-        "I feel floaty and unreal", "I need something to feel grounded",
-        "I feel spacey", "I feel like I'm watching myself from outside",
-        "I'm dissociating", "I feel numb and detached"
+        "I feel disconnected from my body",
+        "I feel like I'm not real",
+        "I feel dissociated",
+        "I feel detached from everything",
+        "I feel floaty and unreal",
+        "I need something to feel grounded",
+        "I feel spacey",
+        "I feel like I'm watching myself from outside",
+        "I'm dissociating",
+        "I feel numb and detached"
       ],
       "responses": [
         "Grounding can help bring you back. Try pressing your feet firmly into the floor and noticing the solid surface beneath you. Take a slow breath. Feel the weight of your body. Are you still with me?",
-        "Hold something cold — ice, a cold drink, a metal object. Focus entirely on the sensation. This can interrupt dissociation quickly. How are you feeling?",
+        "Hold something cold \u2014 ice, a cold drink, a metal object. Focus entirely on the sensation. This can interrupt dissociation quickly. How are you feeling?",
         "Name where you are out loud: your name, the date, the room you're in, five things around you. This is called orientation grounding, and it works. Try it now.",
         "Place both hands flat on a surface and press down gently. Notice the texture, the temperature. Breathe slowly. That physical contact can anchor you in the present.",
         "Dissociation is your mind's way of protecting itself. It makes sense given what you may have been through. Are you in a safe, comfortable environment right now?"
@@ -1747,66 +2106,77 @@
       "context": "coping",
       "severity": "high"
     },
-
     {
       "tag": "coping_self_compassion",
       "patterns": [
-        "I'm too hard on myself", "I need to be kinder to myself",
-        "I struggle with self-compassion", "I beat myself up constantly",
-        "I can never forgive myself", "I judge myself all the time",
-        "How do I stop being so hard on myself", "I treat myself worse than I'd treat anyone else",
-        "I'm my own worst enemy", "I have no compassion for myself"
+        "I'm too hard on myself",
+        "I need to be kinder to myself",
+        "I struggle with self-compassion",
+        "I beat myself up constantly",
+        "I can never forgive myself",
+        "I judge myself all the time",
+        "How do I stop being so hard on myself",
+        "I treat myself worse than I'd treat anyone else",
+        "I'm my own worst enemy",
+        "I have no compassion for myself"
       ],
       "responses": [
-        "Self-compassion in recovery is not self-indulgence — it's essential fuel. What would you say to someone you love who was going through exactly what you're going through?",
+        "Self-compassion in recovery is not self-indulgence \u2014 it's essential fuel. What would you say to someone you love who was going through exactly what you're going through?",
         "The compassion you'd give a friend is what you deserve too. We often hold ourselves to a standard we'd never apply to anyone else. What does that inner critic say most often?",
-        "Treating yourself with kindness doesn't mean excusing harm — it means acknowledging your humanity. You're going through one of the hardest things a person can face. You deserve gentleness.",
+        "Treating yourself with kindness doesn't mean excusing harm \u2014 it means acknowledging your humanity. You're going through one of the hardest things a person can face. You deserve gentleness.",
         "Self-compassion can be practised: when you notice self-criticism, pause and ask 'Would I say this to someone I love?' That gap reveals a lot.",
         "Recovery requires exactly the kind of compassion that says: 'I made mistakes, I'm human, I'm trying, and I deserve support.' What makes it hardest for you to offer that to yourself?"
       ],
       "context": "coping",
       "severity": "medium"
     },
-
     {
       "tag": "coping_distress_tolerance",
       "patterns": [
-        "I can't tolerate this feeling", "The discomfort is unbearable",
-        "I need to escape this feeling", "I can't sit with this emotion",
-        "Every bad feeling makes me want to use", "I can't tolerate distress without using",
-        "I don't know how to handle pain without substances", "Emotions scare me",
-        "I've never learned to cope with bad feelings", "I don't know what to do with this feeling"
+        "I can't tolerate this feeling",
+        "The discomfort is unbearable",
+        "I need to escape this feeling",
+        "I can't sit with this emotion",
+        "Every bad feeling makes me want to use",
+        "I can't tolerate distress without using",
+        "I don't know how to handle pain without substances",
+        "Emotions scare me",
+        "I've never learned to cope with bad feelings",
+        "I don't know what to do with this feeling"
       ],
       "responses": [
-        "Distress tolerance — sitting with discomfort without acting on it — is a skill that can be learned. The feeling you have right now won't kill you, even though it feels that way. It will pass.",
-        "This is exactly where addiction develops — substances became the way to escape feelings that felt unbearable. Now we need to build new pathways. What does the feeling feel like in your body right now?",
+        "Distress tolerance \u2014 sitting with discomfort without acting on it \u2014 is a skill that can be learned. The feeling you have right now won't kill you, even though it feels that way. It will pass.",
+        "This is exactly where addiction develops \u2014 substances became the way to escape feelings that felt unbearable. Now we need to build new pathways. What does the feeling feel like in your body right now?",
         "Try the TIP technique: Temperature change (cold water on face), Intense exercise (a short burst), Paced breathing. These physiologically reduce distress quickly.",
         "The radical acceptance idea is this: fighting against reality increases suffering. You can't make this feeling disappear by refusing to have it. Just noticing it, naming it, and breathing through it is enough.",
-        "What can you do to stay safe and present for the next 15 minutes without using? Sometimes that's all we need — a plan for the next 15 minutes."
+        "What can you do to stay safe and present for the next 15 minutes without using? Sometimes that's all we need \u2014 a plan for the next 15 minutes."
       ],
       "context": "coping",
       "severity": "high"
     },
-
     {
       "tag": "coping_routine",
       "patterns": [
-        "I've lost my routine in recovery", "I don't have structure in my day",
-        "Boredom is a trigger for me", "I have too much unstructured time",
-        "I need help building a daily routine", "I don't know how to fill my time sober",
-        "I'm bored all the time in recovery", "I have nothing to do without using",
-        "Time moves so slowly in recovery", "I need more structure in my recovery"
+        "I've lost my routine in recovery",
+        "I don't have structure in my day",
+        "Boredom is a trigger for me",
+        "I have too much unstructured time",
+        "I need help building a daily routine",
+        "I don't know how to fill my time sober",
+        "I'm bored all the time in recovery",
+        "I have nothing to do without using",
+        "Time moves so slowly in recovery",
+        "I need more structure in my recovery"
       ],
       "responses": [
         "Structure is a powerful protective factor in recovery. Boredom and unstructured time are among the most common relapse triggers. What does a typical day look like for you right now?",
-        "Building a routine doesn't need to be rigid — but anchor points in your day (morning routine, meals, exercise, connection) create a framework that keeps the brain less prone to craving.",
+        "Building a routine doesn't need to be rigid \u2014 but anchor points in your day (morning routine, meals, exercise, connection) create a framework that keeps the brain less prone to craving.",
         "Asking yourself 'what am I doing today?' and having an answer is genuinely protective. What are three things you could commit to doing each day this week?",
-        "Without the time that using consumed, days can feel vast and empty. That space needs to be deliberately filled — with activities that give meaning, connection, or rest. What feels most realistic for you?",
+        "Without the time that using consumed, days can feel vast and empty. That space needs to be deliberately filled \u2014 with activities that give meaning, connection, or rest. What feels most realistic for you?",
         "Structure, purpose, and connection are the three pillars of daily recovery life. Which of those feels most missing for you right now?"
       ],
       "context": "coping",
       "severity": "medium"
     }
-
   ]
 }

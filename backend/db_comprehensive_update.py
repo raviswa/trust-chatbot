@@ -481,14 +481,14 @@ class ComprehensiveDatabaseUpdater:
             risk_record = {
                 "patient_id": patient_id,
                 "session_id": session_id,
-                "overall_risk_score": risk_score,
+                "live_risk_score": risk_score,
                 "risk_level": severity,
                 "assessment_type": "conversation_based",
-                "updated_at": datetime.now().isoformat(),
+                "computed_at": datetime.now().isoformat(),
             }
             
-            # Insert or update (upsert pattern)
-            self.db.table("risk_assessments").upsert([risk_record]).execute()
+            # Insert a new row each time (upsert would need a unique key)
+            self.db.table("risk_assessments").insert([risk_record]).execute()
             logger.info(f"Updated risk_assessments for patient {patient_id}: score={risk_score}")
             return True
             
@@ -513,7 +513,6 @@ class ComprehensiveDatabaseUpdater:
                 "intent_at_layer": intent,
                 "severity_at_layer": severity,
                 "layer_compliance_status": "compliant",
-                "recorded_at": datetime.now().isoformat(),
             }
             
             self.db.table("conversation_metrics").insert([metric_record]).execute()
