@@ -105,32 +105,7 @@ class IntentClassifier:
                 "bang my head", "bang my head against", "hit the wall",
                 "dig my nails in", "digging nails into",
             ],
-            # Priority 2: High-severity clinical signals
-            "severe_distress": [
-                "hopeless", "hopelessness", "nothing matters", "i feel empty",
-                "i feel worthless", "no reason to live", "life has no meaning",
-                "i feel trapped", "can't escape",
-                # Variations that fall through to rag_query without Ollama
-                "feel so empty", "feeling so empty", "completely empty inside",
-                "feel completely empty", "feel completely worthless",
-                "life feels meaningless", "life is meaningless", "feels pointless",
-                "everything feels pointless", "everything is pointless",
-                "feel worthless", "feeling worthless", "i am worthless",
-                "what's the point", "what is the point", "no point anymore",
-                "no point in anything",
-            ],
-            "psychosis_indicator": [
-                "voices talking to me", "hearing voices", "people watching me",
-                "someone controlling my thoughts", "paranoid", "they are after me",
-                "mind being controlled",
-            ],
-            "trigger_trauma": [
-                "i was assaulted", "i was raped", "childhood abuse", "trauma memories",
-                "flashbacks", "nightmares about it", "past events", "past memories",
-                "thinking of past", "dwelling on past", "trauma", "painful memories",
-                "couldn't get over", "something happened", "been through",
-            ],
-            # Priority 2b: Relapse disclosure (distinct from active craving)
+            # Priority 2: Relapse disclosure — specific known event; wins over generalised distress
             # Clinical behaviour goal: validate + normalise + invite reflection (no directives)
             "relapse_disclosure": [
                 "i relapsed", "i relapse", "i slipped", "i had a slip", "i slipped up",
@@ -168,6 +143,31 @@ class IntentClassifier:
                 # Past-tense consumption with clear past context
                 "drank a whole", "drank the whole", "drank an entire",
                 "bottle by myself", "drank alone",
+            ],
+            # Priority 2b: High-severity clinical signals (generalised hopelessness / distress)
+            "severe_distress": [
+                "hopeless", "hopelessness", "nothing matters", "i feel empty",
+                "i feel worthless", "no reason to live", "life has no meaning",
+                "i feel trapped", "can't escape",
+                # Variations that fall through to rag_query without Ollama
+                "feel so empty", "feeling so empty", "completely empty inside",
+                "feel completely empty", "feel completely worthless",
+                "life feels meaningless", "life is meaningless", "feels pointless",
+                "everything feels pointless", "everything is pointless",
+                "feel worthless", "feeling worthless", "i am worthless",
+                "what's the point", "what is the point", "no point anymore",
+                "no point in anything",
+            ],
+            "psychosis_indicator": [
+                "voices talking to me", "hearing voices", "people watching me",
+                "someone controlling my thoughts", "paranoid", "they are after me",
+                "mind being controlled",
+            ],
+            "trigger_trauma": [
+                "i was assaulted", "i was raped", "childhood abuse", "trauma memories",
+                "flashbacks", "nightmares about it", "past events", "past memories",
+                "thinking of past", "dwelling on past", "trauma", "painful memories",
+                "couldn't get over", "something happened", "been through",
             ],
             "addiction_drugs": [
                 "can't stop drinking", "withdrawal", "detox",

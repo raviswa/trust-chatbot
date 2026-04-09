@@ -17,20 +17,63 @@ _conversations = {} # (session_id, msg_idx) -> message record
 _scores = {}        # (session_id, group) -> score record
 
 # ── Mock seed: per-patient addictions (primary first in each list) ────────────
-# PAT-001 = Arjun (alcohol primary, gambling comorbid — common dual presentation)
-# PAT-002 = generic drugs patient
-# PAT-003 = Karthik (gaming primary, social_media comorbid)
+# PAT-001 = Arjun Rao       UC 1.1  Alcohol primary          — late-night loneliness, Bengaluru
+# PAT-002 = Emily Carter    UC 1.2  Alcohol primary          — after-work stress, New York
+# PAT-003 = Rohan Sharma    UC 2.1  Gaming primary           — study-break procrastination, Delhi
+# PAT-004 = Oliver Thompson UC 2.2  Gaming primary           — late-night one-more-game, London
+# PAT-005 = Priya Nair      UC 3.1  Drugs primary            — emotional pain at night, Mumbai
+# PAT-006 = Jordan Reyes    UC 3.2  Drugs primary            — anger after argument, Los Angeles
+# PAT-007 = Karthik Reddy   UC 4.1  Nicotine primary         — stressed work-break, Bengaluru
+# PAT-008 = Ishan Rao       UC 5.1  Alcohol + Behavioral     — festival pressure, Bengaluru
+# PAT-009 = Sneha Patil     UC 5.2  Alcohol + Nicotine + Behavioral — setback shame, Bengaluru
+# PAT-010 = Alex Chen       UC 5.3  Alcohol + Gaming         — slip after 3 weeks, Toronto
+# PAT-011 = Taylor Brooks   UC 5.4  Alcohol + Social Media   — inner conflict before going out, New York
+# PAT-012 = Aravind Reddy   UC 6.1  Social Media primary     — morning scroll habit, Hyderabad
+# PAT-013 = Sophia Martinez UC 6.2  Social Media primary     — excitement posting urge, Los Angeles
 _MOCK_ADDICTIONS: Dict[str, List[dict]] = {
     "PAT-001": [
-        {"addiction_type": "alcohol",  "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Primary alcohol use disorder"},
-        {"addiction_type": "gambling", "is_primary": False, "severity": "medium", "noted_at": None, "clinical_notes": "Comorbid problem gambling identified at intake"},
+        {"addiction_type": "alcohol",      "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Primary alcohol use disorder; daily drinking to cope with loneliness; craving 6–7/10"},
     ],
     "PAT-002": [
-        {"addiction_type": "drugs",    "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Primary substance use disorder"},
+        {"addiction_type": "alcohol",      "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Primary alcohol use disorder; after-work stress drinking; craving 7–8/10; stress 8/10"},
     ],
     "PAT-003": [
-        {"addiction_type": "gaming",       "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Primary gaming disorder"},
-        {"addiction_type": "social_media", "is_primary": False, "severity": "medium", "noted_at": None, "clinical_notes": "Comorbid social media compulsion identified at intake"},
+        {"addiction_type": "gaming",       "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Primary gaming disorder; study-break procrastination gaming; craving 7–8/10; student triggers during exam periods"},
+    ],
+    "PAT-004": [
+        {"addiction_type": "gaming",       "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Primary gaming disorder; late-night one-more-game pattern; craving 8–9/10; sleep severely impacted"},
+    ],
+    "PAT-005": [
+        {"addiction_type": "drugs",        "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Primary substance use disorder; nighttime emotional distress craving; post-breakup isolation; craving 7–8/10"},
+    ],
+    "PAT-006": [
+        {"addiction_type": "drugs",        "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Primary substance use disorder; anger/argument trigger pattern; craving spikes after emotional conflict; craving 8–9/10"},
+    ],
+    "PAT-007": [
+        {"addiction_type": "nicotine",     "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Primary nicotine dependence; stress-triggered work-break smoking; craving 7–8/10; deadline pressure trigger"},
+    ],
+    "PAT-008": [
+        {"addiction_type": "alcohol",      "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Alcohol primary; multi-addiction pattern; social/festival pressure trigger; craving 8–9/10"},
+        {"addiction_type": "behavioral",   "is_primary": False, "severity": "medium", "noted_at": None, "clinical_notes": "Comorbid behavioural compulsion (noted at intake); can include nicotine"},
+    ],
+    "PAT-009": [
+        {"addiction_type": "alcohol",      "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Alcohol primary; 12-day recovery streak broken by missed check-in; all-or-nothing thinking pattern"},
+        {"addiction_type": "nicotine",     "is_primary": False, "severity": "medium", "noted_at": None, "clinical_notes": "Comorbid nicotine dependence"},
+        {"addiction_type": "behavioral",   "is_primary": False, "severity": "medium", "noted_at": None, "clinical_notes": "Comorbid behavioural compulsion"},
+    ],
+    "PAT-010": [
+        {"addiction_type": "alcohol",      "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Alcohol primary; 3-week recovery streak; slipped once; shame and 'what's the point' thinking; craving 7/10"},
+        {"addiction_type": "gaming",       "is_primary": False, "severity": "medium", "noted_at": None, "clinical_notes": "Comorbid gaming disorder (noted at intake)"},
+    ],
+    "PAT-011": [
+        {"addiction_type": "alcohol",      "is_primary": True,  "severity": "high",   "noted_at": None, "clinical_notes": "Alcohol primary; early recovery; social situation trigger — going out with friends who drink; craving 8/10"},
+        {"addiction_type": "social_media", "is_primary": False, "severity": "medium", "noted_at": None, "clinical_notes": "Comorbid social media/internet overuse (noted at intake)"},
+    ],
+    "PAT-012": [
+        {"addiction_type": "social_media", "is_primary": True,  "severity": "medium", "noted_at": None, "clinical_notes": "Primary social media compulsion; morning phone-scrolling habit on waking; craving 7–8/10; mood impacted after use"},
+    ],
+    "PAT-013": [
+        {"addiction_type": "social_media", "is_primary": True,  "severity": "medium", "noted_at": None, "clinical_notes": "Primary social media compulsion; reward-seeking/posting urge triggered by positive events; craving 8/10"},
     ],
 }
 
@@ -85,16 +128,32 @@ _MOCK_ROUTING: List[dict] = [
 
 # ── Mock seed: patient records (matches frontend PATIENTS array) ──────────────
 _MOCK_PATIENTS: Dict[str, dict] = {
-    "PAT-001": {"patient_code": "PAT-001", "display_name": "Arjun",   "first_name": "Arjun",   "programme": "Alcohol Recovery",           "risk_level": "high"},
-    "PAT-002": {"patient_code": "PAT-002", "display_name": "Priya",   "first_name": "Priya",   "programme": "Substance Use Disorder",     "risk_level": "medium"},
-    "PAT-003": {"patient_code": "PAT-003", "display_name": "Karthik", "first_name": "Karthik", "programme": "Digital Addiction (Gaming)", "risk_level": "low"},
-    "PAT-004": {"patient_code": "PAT-004", "display_name": "Divya",   "first_name": "Divya",   "programme": "Trauma & Anxiety",           "risk_level": "high"},
-    "PAT-005": {"patient_code": "PAT-005", "display_name": "Rajesh",  "first_name": "Rajesh",  "programme": "Nicotine Cessation",         "risk_level": "low"},
-    "PAT-006": {"patient_code": "PAT-006", "display_name": "Ananya",  "first_name": "Ananya",  "programme": "Digital Addiction (Social)", "risk_level": "medium"},
-    "PAT-007": {"patient_code": "PAT-007", "display_name": "Suresh",  "first_name": "Suresh",  "programme": "Grief Support",              "risk_level": "medium"},
-    "PAT-008": {"patient_code": "PAT-008", "display_name": "Lakshmi", "first_name": "Lakshmi", "programme": "Alcohol Recovery",           "risk_level": "critical"},
-    "PAT-009": {"patient_code": "PAT-009", "display_name": "Vikram",  "first_name": "Vikram",  "programme": "Behavioural Addiction",      "risk_level": "low"},
-    "PAT-010": {"patient_code": "PAT-010", "display_name": "Meera",   "first_name": "Meera",   "programme": "Substance Use (Discharged)", "risk_level": "low"},
+    # UC 1.1 — Alcohol, Indian
+    "PAT-001": {"patient_code": "PAT-001", "display_name": "Arjun",   "first_name": "Arjun",   "last_name": "Rao",       "programme": "Alcohol Recovery",                   "risk_level": "high",   "risk_score": 78, "age": 28, "occupation": "IT Professional",          "city": "Bengaluru",    "country": "India"},
+    # UC 1.2 — Alcohol, Global
+    "PAT-002": {"patient_code": "PAT-002", "display_name": "Emily",   "first_name": "Emily",   "last_name": "Carter",    "programme": "Alcohol Recovery",                   "risk_level": "high",   "risk_score": 82, "age": 34, "occupation": "Marketing Executive",      "city": "New York",     "country": "United States"},
+    # UC 2.1 — Gaming, Indian
+    "PAT-003": {"patient_code": "PAT-003", "display_name": "Rohan",   "first_name": "Rohan",   "last_name": "Sharma",    "programme": "Gaming Addiction Recovery",           "risk_level": "high",   "risk_score": 76, "age": 19, "occupation": "Engineering Student",      "city": "Delhi",        "country": "India"},
+    # UC 2.2 — Gaming, Global
+    "PAT-004": {"patient_code": "PAT-004", "display_name": "Oliver",  "first_name": "Oliver",  "last_name": "Thompson",  "programme": "Gaming Addiction Recovery",           "risk_level": "high",   "risk_score": 79, "age": 17, "occupation": "Student (A-levels)",       "city": "London",       "country": "United Kingdom"},
+    # UC 3.1 — Substance Use, Indian
+    "PAT-005": {"patient_code": "PAT-005", "display_name": "Priya",   "first_name": "Priya",   "last_name": "Nair",      "programme": "Substance Use Disorder",             "risk_level": "high",   "risk_score": 80, "age": 26, "occupation": "Software Engineer",        "city": "Mumbai",       "country": "India"},
+    # UC 3.2 — Substance Use, Global
+    "PAT-006": {"patient_code": "PAT-006", "display_name": "Jordan",  "first_name": "Jordan",  "last_name": "Reyes",     "programme": "Substance Use Disorder",             "risk_level": "high",   "risk_score": 83, "age": 31, "occupation": "Graphic Designer (Freelance)", "city": "Los Angeles", "country": "United States"},
+    # UC 4.1 — Nicotine, Indian
+    "PAT-007": {"patient_code": "PAT-007", "display_name": "Karthik", "first_name": "Karthik", "last_name": "Reddy",     "programme": "Nicotine Cessation",                 "risk_level": "high",   "risk_score": 74, "age": 29, "occupation": "Software Engineer",        "city": "Bengaluru",    "country": "India"},
+    # UC 5.1 — Agnostic, Indian
+    "PAT-008": {"patient_code": "PAT-008", "display_name": "Ishan",   "first_name": "Ishan",   "last_name": "Rao",       "programme": "Multi-Addiction Recovery",            "risk_level": "high",   "risk_score": 78, "age": 25, "occupation": "Marketing Executive",      "city": "Bengaluru",    "country": "India"},
+    # UC 5.2 — Agnostic, Indian
+    "PAT-009": {"patient_code": "PAT-009", "display_name": "Sneha",   "first_name": "Sneha",   "last_name": "Patil",     "programme": "Multi-Addiction Recovery",            "risk_level": "high",   "risk_score": 75, "age": 27, "occupation": "Data Analyst",             "city": "Bengaluru",    "country": "India"},
+    # UC 5.3 — Agnostic, Global
+    "PAT-010": {"patient_code": "PAT-010", "display_name": "Alex",    "first_name": "Alex",    "last_name": "Chen",      "programme": "Alcohol Recovery (with Gaming)",      "risk_level": "high",   "risk_score": 77, "age": 33, "occupation": "Software Developer",       "city": "Toronto",      "country": "Canada"},
+    # UC 5.4 — Agnostic, Global
+    "PAT-011": {"patient_code": "PAT-011", "display_name": "Taylor",  "first_name": "Taylor",  "last_name": "Brooks",    "programme": "Alcohol Recovery (with Behavioural)", "risk_level": "high",   "risk_score": 76, "age": 29, "occupation": "Photographer (Freelance)", "city": "New York",     "country": "United States"},
+    # UC 6.1 — Social Media, Indian
+    "PAT-012": {"patient_code": "PAT-012", "display_name": "Aravind", "first_name": "Aravind", "last_name": "Reddy",     "programme": "Digital Addiction (Social Media)",    "risk_level": "medium", "risk_score": 68, "age": 21, "occupation": "Engineering Student",      "city": "Hyderabad",    "country": "India"},
+    # UC 6.2 — Social Media, Global
+    "PAT-013": {"patient_code": "PAT-013", "display_name": "Sophia",  "first_name": "Sophia",  "last_name": "Martinez",  "programme": "Digital Addiction (Social Media)",    "risk_level": "medium", "risk_score": 66, "age": 27, "occupation": "Content Creator (Freelance)", "city": "Los Angeles", "country": "United States"},
 }
 
 # Pre-populate _patients so get_patient() works without ensure_patient() being called first
